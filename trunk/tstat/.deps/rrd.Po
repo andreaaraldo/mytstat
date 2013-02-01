@@ -1,0 +1,1 @@
+rrd.o: ../tstat/rrd.c
