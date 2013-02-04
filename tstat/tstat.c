@@ -274,6 +274,7 @@ FILE *fp_ledbat_logc = NULL;
 
 #ifdef LEDBAT_WINDOW_CHECK
 	FILE *fp_ledbat_window_logc = NULL;
+	FILE *fp_ledbat_window_andrea_logc = NULL;
 #endif
 
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
@@ -797,6 +798,7 @@ void reopen_logfile(FILE **fp_ref,
     {
       fprintf (fp_stderr, "Could not open file %s\n", logfile);
     }
+
 }
 
 // MGM
@@ -884,6 +886,7 @@ create_new_outfiles (char *filename)
 
 #ifdef LEDBAT_WINDOW_CHECK
          reopen_logfile(&fp_ledbat_window_logc,basename,"log_ledbat_window");
+         reopen_logfile(&fp_ledbat_window_andrea_logc,basename,"log_ledbat_andrea_window");
 #endif
       
 	/* MSN+Yahoo+Jabber log */
@@ -953,6 +956,8 @@ void close_all_logfiles()
 #ifdef LEDBAT_WINDOW_CHECK 
       if (fp_ledbat_window_logc != NULL) 
 	{ gzclose(fp_ledbat_window_logc); fp_ledbat_window_logc=NULL; }
+	if (fp_ledbat_window_andrea_logc != NULL) 
+	{ gzclose(fp_ledbat_window_andrea_logc); fp_ledbat_window_andrea_logc=NULL; }
 #endif
 
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
@@ -1004,6 +1009,8 @@ void close_all_logfiles()
 #ifdef LEDBAT_WINDOW_CHECK
 	if (fp_ledbat_window_logc != NULL) 
 	{ fclose(fp_ledbat_window_logc); fp_ledbat_window_logc=NULL; }
+	if (fp_ledbat_window_andrea_logc != NULL) 
+	{ fclose(fp_ledbat_window_andrea_logc); fp_ledbat_window_andrea_logc=NULL; }
 #endif
 
 

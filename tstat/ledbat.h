@@ -38,7 +38,12 @@ struct utp_hdr
 #elif UTP_LITTLE_ENDIAN
   unsigned int type:4;		/* type */
   unsigned int ver:4;		/* protocol version */
-  unsigned int ext:8;		/* header extension */
+  unsigned int ext:8;		/**
+ * For every packet, this function must be called to update the statistics of the last window
+ * 	time_ms: the timestamp of the packet
+ * 	qd: an estimate of the queueing delay
+ */
+float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd);/* header extension */
   
 
 
@@ -99,12 +104,17 @@ void make_BitTorrent_conn_stats (void *thisdir, int tproto); //statistiche final
 void make_BitTorrentTCP_conn_stats (void *thisdir, int tproto); //statistiche finali per il caso tcp chiamata dal conn_stat di tcp 
 
 //compute statistics
-/**
+/** <aa>
  * For every packet, this function must be called to update the statistics of the last window
  * 	time_ms: the timestamp of the packet
- * 	qd: an estimate of the queueing delay
+ * 	qd: an estimate of the queueing delay of the packet
+ * </aa>
  */
 float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd);
+
+// <aa>
+float windowed_queueing_delay_andrea( void *pdir, u_int32_t timestamp, float qd);
+// </aa>
 
 float PSquare(void *pdir, float q, int P);
 
