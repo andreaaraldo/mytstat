@@ -35,6 +35,7 @@ extern FILE *fp_ledbat_logc;
 
 #ifdef LEDBAT_WINDOW_CHECK
 extern FILE *fp_ledbat_window_logc;
+extern FILE *fp_ledbat_window_andrea_logc;
 #endif
 
 
@@ -270,7 +271,10 @@ measurement begins anew. LEDBAT thus requires that during idle
 periods, an implementation must maintain the base delay list.
 </aa>
 */
-/**
+/**	  	wfprintf (fp_ledbat_logc, "%s %s ",
+			HostName(pup->addr_pair.a_address), 
+			ServiceName(pup->addr_pair.a_port));
+
  * <aa>see section 3.4.2 of "Low Extra Delay Background Transport (LEDBAT)
  * draft-ietf-ledbat-congestion-10.txt"</aa>
  */
@@ -377,7 +381,10 @@ u_int32_t get_queueing_delay(ucb *thisdir) {
 	 *	queue_dly_est = min(last 3 owd) - baseline
 	 * On the contrary, since an element of thisdir->utp.cur_delay_hist is a queueing dly, 
 	 * we are calculating
-	 * 	queue_dly_est = min(last 3 queue_dly) = min (last 3 owd - baseline)
+	 	  	wfprintf (fp_ledbat_logc, "%s %s ",
+			HostName(pup->addr_pair.a_address), 
+			ServiceName(pup->addr_pair.a_port));
+* 	queue_dly_est = min(last 3 queue_dly) = min (last 3 owd - baseline)
 	 * </aa>
 	 */
 	return min;
@@ -449,12 +456,18 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		//6 Version UTP
 		//7 Type UTP
 		//8 Extension UTP
-		fprintf(fp_stdout," %d %d %d",(putp->ver), 			                    
+		  	wfprintf (fp_ledbat_logc, "%s %s ",
+			HostName(pup->addr_pair.a_address), 
+			ServiceName(pup->addr_pair.a_port));
+	fprintf(fp_stdout," %d %d %d",(putp->ver), 			                    
 		(putp->type),(putp->ext));
 	
 		//9 Connection ID
 		//10 Sequence Number
-		//11 Ack Number
+		  	wfprintf (fp_ledbat_logc, "%s %s ",
+			HostName(pup->addr_pair.a_address), 
+			ServiceName(pup->addr_pair.a_port));
+	//11 Ack Number
 		fprintf(fp_stdout," %d %d %d",ntohs(putp->conn_id), 			                    
 		ntohs(putp->seq_nr),ntohs(putp->ack_nr));	
 	
@@ -495,7 +508,10 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		thisdir->utp.qd_measured_sum+= (estimated_qdF/1000);
 		thisdir->utp.qd_measured_sum2+= ((estimated_qdF/1000)*(estimated_qdF/1000));
 
-                if (thisdir->utp.ewma>0) {
+         	  	wfprintf (fp_ledbat_logc, "%s %s ",
+			HostName(pup->addr_pair.a_address), 
+			ServiceName(pup->addr_pair.a_port));
+       if (thisdir->utp.ewma>0) {
                    ewma=thisdir->utp.ewma;
                    thisdir->utp.ewma = alpha*(estimated_qdF/1000) + (1-alpha)*ewma;
 		}
@@ -515,17 +531,23 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 			fprintf(fp_stdout," %f ",thisdir->utp.ewma);
 
  #endif
-		
+		  	wfprintf (fp_ledbat_logc, "%s %s ",
+			HostName(pup->addr_pair.a_address), 
+			ServiceName(pup->addr_pair.a_port));
+	
 		
 
 		//utp-tma13 
                 float qd_w1 =
 			windowed_queueing_delay(thisdir, ntohl(putp->time_ms) , estimated_qdF);
-			
+		
+		// <aa>???: Why do we calculate estimated_qdF in microseconds and 
+		// queueing_delay_max in milliseconds? </aa>
 		if ((thisdir->utp.queueing_delay_max < (estimated_qdF/1000)))
 			thisdir->utp.queueing_delay_max= (estimated_qdF/1000);
 
-		
+		// <aa>???: Why do we calculate estimated_qdF in microseconds and 
+		// queueing_delay_min in milliseconds? </aa>
 		if ((thisdir->utp.queueing_delay_min > (estimated_qdF/1000)))
 			thisdir->utp.queueing_delay_min= (estimated_qdF/1000);
 		
@@ -536,7 +558,10 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		float estimated_75P;
 
 		if (qd_w1!=-1){
-			estimated_99P=PSquare(thisdir, (int)qd_w1, PERC_99);
+		  	wfprintf (fp_ledbat_logc, "%s %s ",
+			HostName(pup->addr_pair.a_address), 
+			ServiceName(pup->addr_pair.a_port));
+		estimated_99P=PSquare(thisdir, (int)qd_w1, PERC_99);
 			estimated_95P=PSquare(thisdir, (int)qd_w1, PERC_95);
 			estimated_90P=PSquare(thisdir, (int)qd_w1, PERC_90);
 			estimated_75P=PSquare(thisdir, (int)qd_w1, PERC_75);
@@ -546,7 +571,10 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 
 		#ifdef LEDBAT_DEBUG
 			//35 estimated_99percentile(w1) 36 estimated_95percentile(w1) 37 estimated_90percentile(w1) 38 estimated_75percentile(w1) 
-			fprintf(fp_stdout," %f %f %f %f ", estimated_99P, estimated_95P,  estimated_90P, estimated_75P );
+		  	wfprintf (fp_ledbat_logc, "%s %s ",
+			HostName(pup->addr_pair.a_address), 
+			ServiceName(pup->addr_pair.a_port));
+		fprintf(fp_stdout," %f %f %f %f ", estimated_99P, estimated_95P,  estimated_90P, estimated_75P );
 		#endif
 	}
 	else
@@ -567,7 +595,10 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	u_int8_t len;
 	if (putp->ext == 0) {
 	   pputp=((u_int8_t *) putp) + 20;
-	   
+	 	  	wfprintf (fp_ledbat_logc, "%s %s ",
+			HostName(pup->addr_pair.a_address), 
+			ServiceName(pup->addr_pair.a_port));
+  
 	   #ifdef LEDBAT_DEBUG
 	   	//37 No exentsion 
 	   	//38 No length extension 
@@ -592,7 +623,10 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	   
 	   } while ( *extchain != 0 );
 	   
-	   extchain=extchain + len;
+		  	wfprintf (fp_ledbat_logc, "%s %s ",
+			HostName(pup->addr_pair.a_address), 
+			ServiceName(pup->addr_pair.a_port));
+   extchain=extchain + len;
 	   pputp=extchain;
 	}
 	
@@ -623,8 +657,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 
 
 
-void
-BitTorrent_flow_stat (struct ip *pip, void *pproto, int tproto, void *pdir,
+void BitTorrent_flow_stat (struct ip *pip, void *pproto, int tproto, void *pdir,
 		 int dir, void *hdr, void *plast)
 {
 	int type_utp;
@@ -639,6 +672,62 @@ BitTorrent_flow_stat (struct ip *pip, void *pproto, int tproto, void *pdir,
 	}
 
 }//flowstat
+
+#ifdef LEDBAT_WINDOW_CHECK
+/**
+ * thisdir: the descriptor of the udp connection
+ * 	time_ms: the timestamp of the packet
+ * 	qd: an estimate of the queueing delay
+ */
+void print_last_window(ucb * thisdir,  u_int32_t time_ms, float qd_window, float window_error,
+	int window_size)
+{
+	wfprintf(fp_ledbat_window_logc, "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",
+		"conn_id",
+		"peerID",
+		"infoHASH",
+		"time_zero_w1",
+	        "time_ms",
+		"maybe_length",
+		"a_addr",  
+		"b_addr",  
+	     	"qd_window", 
+	     	"window_error", 
+		"qd_max_w1", 
+		"qd_win/(win*1000)", 
+		"window_no.",
+		"qd_measured_count",
+		"qd_measured_count_w1",
+		"no_of_pkts_in_windows",
+		"qd_measured_sum",
+		"qd_measured_sum_w1",
+		"qd_sum_w1"
+	);
+
+	wfprintf(fp_ledbat_window_logc, "%d 0x%X 0x%X %u %u %lld %s %f %f %f %d %d %d %d %d %d %f %f %f\n", 
+		thisdir->uTP_conn_id,
+		thisdir->utp.peerID,
+		thisdir->utp.infoHASH,
+		thisdir->utp.time_zero_w1,
+	        time_ms,
+		(long long int)time_ms - (long long int)thisdir->utp.time_zero_w1,
+		HostName(thisdir->pup->addr_pair.a_address),  
+		HostName(thisdir->pup->addr_pair.b_address),  
+	     	qd_window, 
+	     	window_error, 
+		thisdir->utp.qd_max_w1, 
+		(int)((int)qd_window/(window_size*1000)), 
+		thisdir->utp.qd_count_w1, //window_no.
+		thisdir->utp.qd_measured_count,
+		thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1,
+		thisdir->utp.qd_measured_count_w1,
+		thisdir->utp.qd_measured_sum,
+		thisdir->utp.qd_measured_sum_w1,
+		thisdir->utp.qd_sum_w1
+	);
+
+}
+#endif
 
 
 void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
@@ -900,6 +989,76 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 	{
 	 	// <aa>Now we can "close" the window and compute its statistics </aa>
 		// <aa>CRITICAL: Suppose that the last packet (not the current one) arrived
+		// less then 1s after the window opened. Suppose that the current packet arrives		// 90s after the last one. We cannot close the window with the last packet, we 
+		// can close the window only after the current packet arrives. The problem is that
+		// this leads to a distorted window (larger than 1 s)
+		//
+		// SOLUTION:
+		// If the current packet arrives after a second, we can close the window, including
+		// in it the last packet but not the current one. The current packet will be the
+		// first of the new window
+		//</aa>
+
+		qd_window=(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1)/
+			(thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1);
+
+		window_error=Stdev(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1, 
+		      thisdir->utp.qd_measured_sum2 - thisdir->utp.qd_sum2_w1,
+		      thisdir->utp.qd_measured_count - thisdir->utp.qd_count_w1 );
+
+
+		thisdir->utp.qd_sum_w1 += 
+			(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1);
+		thisdir->utp.qd_count_w1 += (thisdir->utp.qd_measured_count-thisdir->utp.qd_count_w1);
+		thisdir->utp.qd_sum2_w1+=(thisdir->utp.qd_measured_sum2-thisdir->utp.qd_sum2_w1);
+
+		//stqd_max_w1atistics
+		thisdir->utp.qd_measured_count_w1++;
+		thisdir->utp.qd_measured_sum_w1+=qd_window;
+		thisdir->utp.qd_measured_sum2_w1+=((qd_window)*(qd_window));
+
+		//araldo!!
+		#define LEDBAT_DEBUG
+		//  - windowed_log_engine
+		//  - at most once per second
+		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
+		//
+		#ifdef LEDBAT_WINDOW_CHECK
+		print_last_window(thisdir, time_ms, qd_window, window_error, window_size);
+		#endif
+
+		return qd_window;
+	}
+   return res;
+}//windowed
+
+/*
+//<aa>
+float windowed_queueing_delay_andrea( void *pdir, u_int32_t timestamp, float qd )
+{
+	//time_ms is in microsecond (10^-6)
+	//qd/1000 is in ms
+	//window in ms 
+
+	float qd_window;
+	float window_error;
+	float res=-1;
+	int window_size = 1;
+
+	ucb *thisdir;
+	thisdir = ( ucb *) pdir;
+
+	//initialize the edge1
+	if (thisdir->utp.last_window.edge1 == 0)
+		thisdir->utp.last_window.edge1 = timestamp;
+
+	if (qd > thisdir->utp.window_descr.queueing_dly_max)
+		thisdir->utp.window_descr.queueing_dly_max = qd;
+
+	if ( (time_ms - thisdir->utp.time_zero_w1) >= 1000000)
+	{
+	 	// <aa>Now we can "close" the window and compute its statistics </aa>
+		// <aa>CRITICAL: Suppose that the last packet (not the current one) arrived
 		// less then 1s after the window opened. Suppose that the current packet arrives
 		// 90s after the last one. We cannot close the window with the last packet, we 
 		// can close the window only after the current packet arrives. The problem is that
@@ -910,7 +1069,16 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		// in it the last packet but not the current one. The current packet will be the
 		// first of the new window
 		//</aa>
-		
+		//araldo!!
+		#define LEDBAT_DEBUG
+		//  - windowed_log_engine
+		//  - at most once per second
+		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
+		//
+		#ifdqd_count_w1ef LEDBAT_WINDOW_CHECK
+		print_last_window(thisdir, time_ms, qd_window, window_error, window_size);
+		#endif
+
 
 		qd_window=(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1)/
 			(thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1);
@@ -925,22 +1093,8 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		//  - at most once per second
 		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
 		//
-		#ifdef LEDBAT_DEBUG
-		//---------------- w=1
-		//20 qd sample 
-		//21 stdev sample 
-		//22 max in w
-		//23 count how much q>w
-		//24 number of samples in w
-		fprintf(stderr, "%u %s %f %f %f %d %d\n", 
-		        time_ms,
-			HostName(thisdir->pup->addr_pair.a_address),  
-		     	qd_window, 
-		     	window_error, 
-			thisdir->utp.qd_max_w1, 
-			(int)((int)qd_window/(window_size*1000)), 
-			thisdir->utp.qd_measured_count  );
-			// - thisdir->utp.qd_count_w1  );		
+		#ifdef LEDBAT_WINDOW_CHECK
+		print_last_window(thisdir, time_ms, qd_window, window_error, window_size);
 		#endif
 
 		thisdir->utp.qd_sum_w1 += 
@@ -956,12 +1110,13 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 	}
    return res;
 }//windowed
+//</aa>
+*/
 
 
 
-float
-PSquare (void* pdir, float q, int p ){
 
+float PSquare (void* pdir, float q, int p ){
 	ucb *thisdir;
 	thisdir = ( ucb *) pdir;
 	int k;

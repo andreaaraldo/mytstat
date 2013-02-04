@@ -78,7 +78,8 @@ enum t_ack
 { NORMAL = 1,			/* no retransmits, just advance */
   AMBIG = 2,			/* segment ACKed was rexmitted */
   CUMUL = 3,			/* doesn't advance */
-  TRIPLE = 4,			/* triple dupack */
+  TRIPLE = 4,
+	/* triple dupack */
   NOSAMP = 5
 };				/* covers retransmitted segs, no rtt sample */
 
@@ -211,7 +212,21 @@ typedef struct jabber_stat
 #define PERC_90 2
 #define PERC_75 3
 
+#define LEDBAT_WINDOW_CHECK
+
 //<aa>TODO: Why don't we wrap it in ifdef-endif?</aa>
+
+#ifdef LEDBAT_WINDOW_CHECK
+typedef struct ledbat_window_descr
+{
+	u_int32_t	edge1;
+	u_int32_t	edge2;
+	unsigned int	count;
+	u_int32_t	queueing_dly_sum;
+	float		queueing_dly_max;	
+} ledbat_window_descr;
+
+#endif
 
 typedef struct utp_stat
 {
@@ -225,15 +240,34 @@ typedef struct utp_stat
 	//Exponentially-Weighted Moving Average ([ledbat_draft] section 3.4.2)
         float ewma;
 
-        int qd_measured_count;
 
-        //statistic for the case w=1 (lower bound) / utp-tma13
-	float queueing_delay_min, queueing_delay_max;
-        float queueing_delay_average_w1;
-        float queueing_delay_standev_w1;
-	float qd_measured_sum, qd_measured_sum_w1;  // sum samples qd
-        float qd_measured_sum2, qd_measured_sum2_w1; // sum square samples qd	
-        int qd_measured_count_w1;
+        // <aa> Statistics on a per-pkt basis</aa>
+        int qd_measured_count; //<aa>no. of pkts that this flow has seen</aa>
+
+	float queueing_delay_min, queueing_delay_max; //<aa> min, max of the estimated queueing
+							//dlys of all the packets</aa>
+	float qd_measured_sum;  // <aa>sum qd of all packets (in milliseconds)</aa>
+        float qd_measured_sum2; // <aa>ssum qd^2 of all packets (in milliseconds^2)</aa>
+        // <aa> Statistics on a per-pkt basis: end
+
+
+
+	// <aa> Windowed statistics
+	// These statistics are calculated not on the values concerning each single packet, but 
+	// on the values, each concerning a window
+	// </aa>
+        int qd_measured_count_w1; // <aa>number of windows</aa>
+
+	float qd_measured_sum_w1; // <aa>sum of all qd, each qd being the average of the 
+				  // estimated queueind dlys of the packets in a window </aa>
+	
+	float qd_measured_sum2_w1;//<aa>sum of all qd^2, each qd being as above</aa>
+        float queueing_delay_average_w1;//<aa>mean of all qd, each qd being as above</aa>
+        float queueing_delay_standev_w1;//<aa>standev of all qd, each qd being as above</aa>
+	// <aa>Windowed statistics: end </aa>
+
+
+
 
 	//99 95 90 75 percentile 
         float y_P[5][4]; //height
@@ -242,7 +276,6 @@ typedef struct utp_stat
 	float dn_P[5][4]; //increment to desired position
   	int N_P[4];	
 	float P[4];
-
 	
 	int total_pkt;
         int bytes;
@@ -271,25 +304,43 @@ typedef struct utp_stat
 	//<aa>It corresponds to the "last_rollover" of [ledbat_draft]</aa>
         u_int32_t last_update;
 
-        //char *peerID[9]; //contiene il peerID
-        //char *infoHASH[9];
+
 	char peerID[9];
 	char infoHASH[21];
-	
-        float qd_sum_w1;
-        float qd_sum2_w1;
-        int qd_count_w1;
+
+	// <aa>??? what time_zero_w1 is? It cannot be the left edge of the window, because if
+	// it was the case, it should be initialized at every window closure, and it is not</aa>
+        u_int32_t time_zero_w1;
 
 	// <aa>the max of the queueing delays collected in the last window (in milliseconds)
 	// (not microseconds) </aa>
         float qd_max_w1;
 
-	//<aa>the starting time of the last window</aa>
-        u_int32_t time_zero_w1;
 
+
+	// <aa> Stored values:
+	// These values do not concern only the last window, but they concern all the flow,
+	// from the beginning to the last closed window
+	// </aa>
+	// <aa>TODO: do we really need them?</aa>
+        int qd_count_w1; // <aa> no. of packets calculated from the 
+		// beginning of the flow to the last closed window (not considering
+		// the queueing dlys of the open windows </aa>
+
+        float qd_sum_w1; // <aa>the sum of all the above queueing delays</aa>
+
+        float qd_sum2_w1; // <aa>sum of the square queue dly calculated as above
+
+	// <aa> Stored values: end </aa>
+
+
+#ifdef LEDBAT_WINDOW_CHECK
+	ledbat_window_descr last_window;
+#endif
 
 } utp_stat;
-#define LEDBAT_WINDOW_CHECK
+
+
 
 
 
