@@ -272,6 +272,10 @@ FILE *fp_skype_logc = NULL;
 FILE *fp_udp_logc = NULL;
 FILE *fp_ledbat_logc = NULL;
 
+#ifdef LEDBAT_WINDOW_CHECK
+	FILE *fp_ledbat_window_logc = NULL;
+#endif
+
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
 FILE *fp_chat_logc = NULL;
 FILE *fp_chat_log_msg = NULL;
@@ -874,7 +878,13 @@ create_new_outfiles (char *filename)
 
 #endif 
 
+
+//<aa>TODO: why don't we wrap it in ifdef-endif?</aa>
          reopen_logfile(&fp_ledbat_logc,basename,"log_ledbat_complete");
+
+#ifdef LEDBAT_WINDOW_CHECK
+         reopen_logfile(&fp_ledbat_window_logc,basename,"log_ledbat_window");
+#endif
       
 	/* MSN+Yahoo+Jabber log */
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
@@ -937,9 +947,13 @@ void close_all_logfiles()
       if (fp_udp_logc != NULL) { gzclose(fp_udp_logc); fp_udp_logc=NULL; }
 #endif 
 
-
+//<aa>TODO: why don' we wrap it in ifdef-endif</aa>?
       if (fp_ledbat_logc != NULL) { gzclose(fp_ledbat_logc); fp_ledbat_logc=NULL; }
 
+#ifdef LEDBAT_WINDOW_CHECK 
+      if (fp_ledbat_window_logc != NULL) 
+	{ gzclose(fp_ledbat_window_logc); fp_ledbat_window_logc=NULL; }
+#endif
 
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
       if (fp_chat_logc != NULL) { gzclose(fp_chat_logc); fp_chat_logc=NULL; }
@@ -984,8 +998,13 @@ void close_all_logfiles()
 #endif 
 
 
+//<aa>TODO: Why don't we wrap it in ifdef-endif</aa>?
       if (fp_ledbat_logc != NULL) { fclose(fp_ledbat_logc); fp_ledbat_logc=NULL; }
 
+#ifdef LEDBAT_WINDOW_CHECK
+	if (fp_ledbat_window_logc != NULL) 
+	{ fclose(fp_ledbat_window_logc); fp_ledbat_window_logc=NULL; }
+#endif
 
 
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
