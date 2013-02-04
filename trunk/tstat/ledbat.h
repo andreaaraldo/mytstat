@@ -46,6 +46,8 @@ struct utp_hdr
 #error Define one of UTP_LITTLE_ENDIAN or UTP_BIG_ENDIAN
 #endif
   u_int16_t conn_id:16;	/* connection id */
+
+	//<aa>TODO: use us in place of ms</aa>
   u_int32_t time_ms:32;	/* timestamp microsecond */
   u_int32_t time_diff:32;	/* timestamp microsecond diff */
   u_int32_t wnd_size:32;	/* window size */
@@ -97,7 +99,12 @@ void make_BitTorrent_conn_stats (void *thisdir, int tproto); //statistiche final
 void make_BitTorrentTCP_conn_stats (void *thisdir, int tproto); //statistiche finali per il caso tcp chiamata dal conn_stat di tcp 
 
 //compute statistics
-float windowed_queuing_delay( void *pdir, u_int32_t time_ms, float qd, int window, int k );
+/**
+ * For every packet, this function must be called to update the statistics of the last window
+ * 	time_ms: the timestamp of the packet
+ * 	qd: an estimate of the queueing delay
+ */
+float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd);
 
 float PSquare(void *pdir, float q, int P);
 

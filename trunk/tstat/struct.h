@@ -16,6 +16,13 @@
  *
 */
 
+/**
+ * <aa>
+ * References
+ * [ledbat_draft]: "Low Extra Delay Background Transport (LEDBAT) draft-ietf-ledbat-congestion-10.txt"
+ * </aa>
+ */
+
 /* we want LONG LONG in some places */
 #if SIZEOF_UNSIGNED_LONG_LONG_INT >= 8
 #define HAVE_LONG_LONG
@@ -204,6 +211,8 @@ typedef struct jabber_stat
 #define PERC_90 2
 #define PERC_75 3
 
+//<aa>TODO: Why don't we wrap it in ifdef-endif?</aa>
+
 typedef struct utp_stat
 {
         timeval start;
@@ -213,13 +222,15 @@ typedef struct utp_stat
         int data_pktsize_sum;
 		
         // queueing delay statistics
+	//Exponentially-Weighted Moving Average ([ledbat_draft] section 3.4.2)
         float ewma;
+
         int qd_measured_count;
 
         //statistic for the case w=1 (lower bound) / utp-tma13
-	float queuing_delay_min, queuing_delay_max;
-        float queuing_delay_average_w1;
-        float queuing_delay_standev_w1;
+	float queueing_delay_min, queueing_delay_max;
+        float queueing_delay_average_w1;
+        float queueing_delay_standev_w1;
 	float qd_measured_sum, qd_measured_sum_w1;  // sum samples qd
         float qd_measured_sum2, qd_measured_sum2_w1; // sum square samples qd	
         int qd_measured_count_w1;
@@ -238,8 +249,7 @@ typedef struct utp_stat
         int pkt_type_num[6]; /*DATA FIN STATE_ACK STATE_SACK RESET SYN*/
         int last_measured_time_diff; //avoid measuring multiple samples
 
-	// <aa>According to section 3.4.2 of "Low Extra Delay Background Transport 
-	// (LEDBAT) draft-ietf-ledbat-congestion-10.txt:
+	// <aa>According to section 3.4.2 of [ledbat_draft]:
 	// "LEDBAT sender stores BASE_HISTORY separate minima---one each for the
 	// last BASE_HISTORY-1 minutes, and one for the running current minute.
 	// At the end of the current minute, the window moves---the earliest
@@ -249,13 +259,16 @@ typedef struct utp_stat
 
         u_int32_t delay_base;
 
-	//<aa>cur_delay_hist is a circular list to collect the queueing delay. The
-	//position of the last added element is cur_delay_idx</aa>
-        u_int32_t cur_delay_hist[CUR_DELAY_SIZE]; // queuing delay
+	// <aa>cur_delay_hist is a circular list to collect the last one-way delays
+	// (see [ledbat_draft] section 3.4.2). The position of the last added element 
+	// is cur_delay_idx</aa>
+	// <aa>CRITICAL: Instead, we are collecting estimated queueing delays. Maybe we are wrong
+	// </aa>
+        u_int32_t cur_delay_hist[CUR_DELAY_SIZE]; // queueing delay
 
         size_t cur_delay_idx;
 
-	//<aa>It corresponds to the "last_rollover" in the draft</aa>
+	//<aa>It corresponds to the "last_rollover" of [ledbat_draft]</aa>
         u_int32_t last_update;
 
         //char *peerID[9]; //contiene il peerID
@@ -266,12 +279,17 @@ typedef struct utp_stat
         float qd_sum_w1;
         float qd_sum2_w1;
         int qd_count_w1;
+
+	// <aa>the max of the queueing delays collected in the last window (in milliseconds)
+	// (not microseconds) </aa>
         float qd_max_w1;
+
+	//<aa>the starting time of the last window</aa>
         u_int32_t time_zero_w1;
 
 
 } utp_stat;
-
+#define LEDBAT_WINDOW_CHECK
 
 
 

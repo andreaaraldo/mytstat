@@ -16,15 +16,28 @@
  *
 */
 
+/**
+ * <aa>
+ * References
+ * [ledbat_draft]: "Low Extra Delay Background Transport (LEDBAT) draft-ietf-ledbat-congestion-10.txt"
+ * </aa>
+ */
+
 
 #include "tstat.h"
 
 /* define LEDBAT_DEBUG if you want to see all identified pkts */
-//#define LEDBAT_DEBUG 
+#define LEDBAT_DEBUG 
 
 
 
 extern FILE *fp_ledbat_logc;
+
+#ifdef LEDBAT_WINDOW_CHECK
+extern FILE *fp_ledbat_window_logc;
+#endif
+
+
 extern Bool log_engine;
 extern int ledbat_window;
 
@@ -34,6 +47,10 @@ float alpha=0.5;
 
 static int is_utp_pkt(struct ip *pip, void *pproto, void *pdir, void *plast);
 void update_delay_base(u_int32_t time_diff, u_int32_t time_ms, ucb *thisdir);
+
+/**
+ * It returns the baseline, i.e. the minimum of the last DELAY_BASE_HISTORY one-way delays
+ */
 u_int32_t min_delay_base(ucb *thisdir);
 
 
@@ -84,7 +101,6 @@ getBitTorrent (void *pproto, int tproto, void *pdir, void *plast)
 
 
 
-
 void parser_BitTorrentMessages (void * pp, int tproto, void *pdir,int dir, void *hdr, void *plast){
 		
 
@@ -110,7 +126,8 @@ void parser_BitTorrentMessages (void * pp, int tproto, void *pdir,int dir, void 
                 memcpy(peerID, (((u_int32_t *)streamBT+5+2+5)), 8 );
 
 //araldo!!
-#define CENSURE_NON_PRINTABLE
+//#define CENSURE_NON_PRINTABLE
+/*
 #ifdef CENSURE_NON_PRINTABLE
                 int i=0;           
                	while (i<8){
@@ -128,6 +145,7 @@ void parser_BitTorrentMessages (void * pp, int tproto, void *pdir,int dir, void 
                         i++;
                 }
 #endif
+*/
 
                 strncpy(otherdir->utp.infoHASH, infoHASH,20);
                 strncpy(otherdir->utp.peerID, peerID, 8);
@@ -300,15 +318,17 @@ void update_delay_base(u_int32_t time_diff,u_int32_t time_ms, ucb *thisdir){
 			//one-minute interval</aa>
 	}
 
-   	//collect last 3 queuing delay 
+   	//collect last CUR_DELAY_SIZE queueing delay 
 	thisdir->utp.delay_base=min_delay_base (thisdir);
 
 	//<aa>estimated queueing delay for the current packet</aa>
 	u_int32_t delay= time_diff - thisdir->utp.delay_base;
 
 	//<aa>The following two lines correspond to update_current_delay(...) in 
-	//section 3.4.2 of "Low Extra Delay Background Transport (LEDBAT)
-	//draft-ietf-ledbat-congestion-10.txt"</aa>
+	//section 3.4.2 of [ledbat_draft]</aa>
+	// <aa>CRITICAL: [ledbat_draft] sec 3.4.2 says that update_current_delay(...)
+	// mantains a list of one-way delays, whereas we mantain a list of estimated queueing delays.
+	// Maybe it is not correct</aa>
 	thisdir->utp.cur_delay_hist[thisdir->utp.cur_delay_idx]=delay;
 	thisdir->utp.cur_delay_idx= (thisdir->utp.cur_delay_idx+1)% CUR_DELAY_SIZE;
 	
@@ -324,20 +344,43 @@ u_int32_t min_delay_base(ucb *thisdir){
 			if (wrapping_compare_less(thisdir->utp.delay_base_hist[i],min)) min=thisdir->utp.delay_base_hist[i];
 			i++;
 		}	
-return min;
+	return min;
 }
 
-
-u_int32_t get_queuing_delay(ucb *thisdir) {
+/**
+ * <aa>
+ * It returns an estimate of the current queueing delay (in microseconds).
+ * 
+ * sec 3.4.2 of [ledbat_draft] says that it's reasonable to calculate the queueing_dly not simply as
+ * 	queueing_dly = one_way_dly - baseline
+ * but "implementing FILTER() to eliminate any outliers [...] A simple MIN filter
+ * applied over a small window (much smaller than BASE_HISTORY) may also
+ * provide robustness to large delay peaks, as may occur with delayed ACKs in TCP"
+ * Here, we implement this MIN filter.
+ * </aa>
+ */
+u_int32_t get_queueing_delay(ucb *thisdir) {
 	u_int32_t min;
 	min=thisdir->utp.cur_delay_hist[0];	
 	int i=1;
-		while ( i<CUR_DELAY_SIZE ){
-			if (((thisdir->utp.cur_delay_hist[i]<min) && (thisdir->utp.cur_delay_hist[i]>0)) || (min==0)  ) min=thisdir->utp.cur_delay_hist[i];
-			i++;
-		}	
-return min;
+	while ( i<CUR_DELAY_SIZE ){
+		if (	((thisdir->utp.cur_delay_hist[i]<min) && (thisdir->utp.cur_delay_hist[i]>0))
+			|| (min==0)  
+		)
+		min=thisdir->utp.cur_delay_hist[i];
+		i++;
+	}
 
+	/** 
+	 * <aa>CRITICAL: if we want to implement the MIN FILTER described in [ledbat_draft] we must
+	 * calculate
+	 *	queue_dly_est = min(last 3 owd) - baseline
+	 * On the contrary, since an element of thisdir->utp.cur_delay_hist is a queueing dly, 
+	 * we are calculating
+	 * 	queue_dly_est = min(last 3 queue_dly) = min (last 3 owd - baseline)
+	 * </aa>
+	 */
+	return min;
 }
 
 
@@ -362,7 +405,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 
 	//<aa>pdir is a structure conveying info about the pair of nodes communicating </aa>
     	thisdir = ( ucb *) pdir;
-		//<aa>putp is the pointer to the utp header of the packet in question</aa>
+	//<aa>putp is the pointer to the utp header of the packet in question</aa>
  	//<aa>thisdir->pup (of type "struct sudp_pair") conveys other generic info about the pair of nodes involved</aa>
 	
 	//<aa>Retrieve info about the other direction (opposite to the direction of this packet)</aa>
@@ -428,19 +471,26 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 
 	update_delay_base(ntohl(putp->time_diff), ntohl(putp->time_ms), thisdir);
 	
-	float estimated_qdF=(float)get_queuing_delay(thisdir);
-	u_int32_t estimated_qdI=get_queuing_delay(thisdir);
+	float estimated_qdF=(float)get_queueing_delay(thisdir);
+
+	//<aa>TODO:Why calling two times the same function?</aa>
+	u_int32_t estimated_qdI=get_queueing_delay(thisdir);
 
 
 
-	//to avoid overfitting, we neglect multiple consecutive equal queuing delay samples 
-	if (( (type_utp==UTP_STATE_ACK) || (type_utp==UTP_STATE_SACK) ) || ( (type_utp==UTP_DATA) && (putp->time_diff!=thisdir->utp.last_measured_time_diff) ) || (estimated_qdF<120000) ){
+	//to avoid overfitting, we neglect multiple consecutive equal queueing delay samples 
+	if (( 	(type_utp==UTP_STATE_ACK) || (type_utp==UTP_STATE_SACK) ) || 
+		( 
+			(type_utp==UTP_DATA) && 
+			(putp->time_diff!=thisdir->utp.last_measured_time_diff) 
+		) || (estimated_qdF<120000) 
+	){
 
 		if (type_utp==UTP_DATA)
 			thisdir->utp.last_measured_time_diff=putp->time_diff;
 	
-		float ewma;
-		//update statistics on queuing delay in ms 
+		float ewma; //Exponentially-Weighted Moving Average
+		//update statistics on queueing delay in ms 
 		thisdir->utp.qd_measured_count++;
 		thisdir->utp.qd_measured_sum+= (estimated_qdF/1000);
 		thisdir->utp.qd_measured_sum2+= ((estimated_qdF/1000)*(estimated_qdF/1000));
@@ -469,16 +519,15 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		
 
 		//utp-tma13 
-                float qd_w1;
-
-		qd_w1=windowed_queuing_delay(thisdir, ntohl(putp->time_ms) , estimated_qdF, 1, 0);
+                float qd_w1 =
+			windowed_queueing_delay(thisdir, ntohl(putp->time_ms) , estimated_qdF);
 			
-		if ((thisdir->utp.queuing_delay_max < (estimated_qdF/1000)))
-			thisdir->utp.queuing_delay_max= (estimated_qdF/1000);
+		if ((thisdir->utp.queueing_delay_max < (estimated_qdF/1000)))
+			thisdir->utp.queueing_delay_max= (estimated_qdF/1000);
 
 		
-		if ((thisdir->utp.queuing_delay_min > (estimated_qdF/1000)))
-			thisdir->utp.queuing_delay_min= (estimated_qdF/1000);
+		if ((thisdir->utp.queueing_delay_min > (estimated_qdF/1000)))
+			thisdir->utp.queueing_delay_min= (estimated_qdF/1000);
 		
 
 		float estimated_99P;
@@ -592,7 +641,6 @@ BitTorrent_flow_stat (struct ip *pip, void *pproto, int tproto, void *pdir,
 }//flowstat
 
 
-
 void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 	
   ucb *thisUdir,*thisC2S,*thisS2C;
@@ -616,7 +664,7 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 	  
 	  if (utpstat.pkt_type_num[UTP_DATA-1]>0)
 	  	utpstat.data_pktsize_average=utpstat.data_pktsize_sum/utpstat.pkt_type_num[UTP_DATA-1];
-	  else 
+	  else
 		utpstat.data_pktsize_average=0;
 
 
@@ -624,32 +672,32 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 // per-packet sampling introduce bias !
 // windowed statistics more robusts (TMA'13)
 // 	  if (utpstat.qd_measured_count>0) {
-// 	      utpstat.queuing_delay_average =
+// 	      utpstat.queueing_delay_average =
 // 			 utpstat.qd_measured_sum/utpstat.qd_measured_count;
 // 	      int N=utpstat.qd_measured_count;
-//  	      utpstat.queuing_delay_standev =
+//  	      utpstat.queueing_delay_standev =
 // 		    Stdev(utpstat.qd_measured_sum,utpstat.qd_measured_sum2,N);		  
 // 	  }
 // 	  else {		  
-// 		utpstat.queuing_delay_average=0;
-// 		utpstat.queuing_delay_standev=0;
+// 		utpstat.quelog_engine && fp_ledbat_logcuing_delay_average=0;
+// 		utpstat.queueing_delay_standev=0;
 // 	  }
 #endif  	
 
   	 //w=1
 	  if (utpstat.qd_measured_count_w1>0) {
                 		
-		utpstat.queuing_delay_average_w1 = 
+		utpstat.queueing_delay_average_w1 = 
 			utpstat.qd_measured_sum_w1/utpstat.qd_measured_count_w1;
-		int N=utpstat.qd_measured_count_w1;               
-		utpstat.queuing_delay_standev_w1 =
-			Stdev(utpstat.qd_measured_sum_w1,
-			utpstat.qd_measured_sum2_w1,N );
+
+		int N=utpstat.qd_measured_count_w1;
+           
+		utpstat.queueing_delay_standev_w1 =Stdev(utpstat.qd_measured_sum_w1,utpstat.qd_measured_sum2_w1,N );
 
           }
           else {
-                utpstat.queuing_delay_average_w1=0;
-                utpstat.queuing_delay_standev_w1=0;
+                utpstat.queueing_delay_average_w1=0;
+                utpstat.queueing_delay_standev_w1=0;
           }
 
 	
@@ -658,13 +706,12 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 	 utpstat.P[PERC_90]=utpstat.y_P[2][PERC_90];
 	 utpstat.P[PERC_75]=utpstat.y_P[2][PERC_75];
 
-		
 	 if (log_engine && fp_ledbat_logc!=NULL){
  
   		//     #   Field Meaning
-  		//    --------------------------------------
+  		//    ----log_engine && fp_ledbat_logc----------------------------------
  		//     Source Address
-		//     Source Port
+		//     Source Port		
 	    	//     time of first packet seen 
  	    	//     #pkts
 	 	//     #bytes
@@ -677,10 +724,10 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 	    	//     #state-sack-pkts 
 	 	//     #reset-pkts
 	    	//     #syn-pkts 
-	 	//     qd min
+	 	//     qd log_engine && fp_ledbat_logcmin
 	  	//     qd max
-	  	//     qd average (w=1)
-	  	//     qd standard deviation (w=1)
+	  	//     qd average (w=1)	
+		//     qd standard deviation (w=1)
 		//     75th percentile
 		//     90th percentile  
 		//     95th percentile
@@ -705,19 +752,28 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 	     		utpstat.pkt_type_num[UTP_RESET-1] ,
 	     		utpstat.pkt_type_num[UTP_SYN-1]);
 		wfprintf(fp_ledbat_logc, "%f %f %f %f %f %f %f %f ",
-  	   		utpstat.queuing_delay_min,
-	     		utpstat.queuing_delay_max,
-	    		utpstat.queuing_delay_average_w1,
-	     		utpstat.queuing_delay_standev_w1,
+  	   		utpstat.queueing_delay_min,
+	     		utpstat.queueing_delay_max,
+	    		utpstat.queueing_delay_average_w1,
+	     		utpstat.queueing_delay_standev_w1,
 			utpstat.P[PERC_75],
 			utpstat.P[PERC_90], 
 			utpstat.P[PERC_95], 
 			utpstat.P[PERC_99]);
 
 //araldo!!			
-		wfprintf(fp_ledbat_logc, "%s %s ",
-	     		strlen(utpstat.peerID)>0 ? utpstat.peerID : "----",    				     	strlen(utpstat.infoHASH)>0 ? utpstat.infoHASH : "----");
-	}//if log_engine
+/*		printf("!!! prova stringa %s %s\n",
+		     	strlen(utpstat.peerID)>0 ? utpstat.peerID : " ---- ",    
+		     	strlen(utpstat.infoHASH)>0 ? utpstat.infoHASH : " ---- " );
+		printf("!!! prova X 0x%X 0x%X\n",
+		     	strlen(utpstat.peerID)>0 ? utpstat.peerID : " ---- ",    
+		     	strlen(utpstat.infoHASH)>0 ? utpstat.infoHASH : " ---- " );
+*/
+
+		printf(fp_ledbat_logc, " 0x%X 0x%X\n",
+		     	strlen(utpstat.peerID)>0 ? utpstat.peerID : " ---- ",    
+		     	strlen(utpstat.infoHASH)>0 ? utpstat.infoHASH : " ---- " );
+	}//if log_engineu
 
 
   	  thisUdir = thisS2C;
@@ -734,16 +790,16 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 
 	  //w=1
           if (utpstat.qd_measured_count_w1>0) {
-               	utpstat.queuing_delay_average_w1=
+               	utpstat.queueing_delay_average_w1=
 			utpstat.qd_measured_sum_w1/utpstat.qd_measured_count_w1;
                 int N=utpstat.qd_measured_count_w1;
-		utpstat.queuing_delay_standev_w1=
+		utpstat.queueing_delay_standev_w1=
 		Stdev(utpstat.qd_measured_sum_w1,utpstat.qd_measured_sum2_w1,N );
 
           }
           else {
-                utpstat.queuing_delay_average_w1=0;
-                utpstat.queuing_delay_standev_w1=0;
+                utpstat.queueing_delay_average_w1=0;
+                utpstat.queueing_delay_standev_w1=0;
           }
 
 
@@ -799,17 +855,17 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 	     		utpstat.pkt_type_num[UTP_RESET-1] ,
 	     		utpstat.pkt_type_num[UTP_SYN-1]);
 		wfprintf(fp_ledbat_logc, "%f %f %f %f %f %f %f %f ",
-  	   		utpstat.queuing_delay_min,
-	     		utpstat.queuing_delay_max,
-	    		utpstat.queuing_delay_average_w1,
-	     		utpstat.queuing_delay_standev_w1,
+  	   		utpstat.queueing_delay_min,
+	     		utpstat.queueing_delay_max,
+	    		utpstat.queueing_delay_average_w1,
+	     		utpstat.queueing_delay_standev_w1,
 			utpstat.P[PERC_75],
 			utpstat.P[PERC_90], 
 			utpstat.P[PERC_95], 
 			utpstat.P[PERC_99]);
 
 //araldo!!			
-		wfprintf(fp_ledbat_logc, "%s %s ",
+		wfprintf(fp_ledbat_logc, "0x%X 0x%X ",
 	     		strlen(utpstat.peerID)>0 ? utpstat.peerID : "----",    				     	strlen(utpstat.infoHASH)>0 ? utpstat.infoHASH : "----");
           }//if log_engine
           wfprintf (fp_ledbat_logc,"\n");
@@ -818,73 +874,85 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 
 }
 
-float windowed_queuing_delay( void *pdir, u_int32_t time_ms, float qd, int window, int k ){
-	//time_ms is in microsecond (10^6)
+float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
+{
+	//time_ms is in microsecond (10^-6)
 	//qd/1000 is in ms
 	//window in ms 
 
-float qd_window;
-float window_error;
-float res=-1;
+	float qd_window;
+	float window_error;
+	float res=-1;
+	int window_size = 1;
 
-ucb *thisdir;
-thisdir = ( ucb *) pdir;
+	ucb *thisdir;
+	thisdir = ( ucb *) pdir;
 
 	//initialize time_zero
-	if (thisdir->utp.time_zero_w1==0) {
+	if (thisdir->utp.time_zero_w1==0)
 		thisdir->utp.time_zero_w1=time_ms;
-	}	
 
-	if (qd/1000 >= thisdir->utp.qd_max_w1){ 
+	//<aa>TODO: why expressing qd in microseconds and qd_max_w1 in milliseconds?</aa>
+	if (qd/1000 >= thisdir->utp.qd_max_w1)
 		thisdir->utp.qd_max_w1=qd/1000;
-	}
 
-	if ((time_ms-thisdir->utp.time_zero_w1)/1000 >= 1000){
+	if ( (time_ms - thisdir->utp.time_zero_w1) >= 1000000)
+	{
+	 	// <aa>Now we can "close" the window and compute its statistics </aa>
+		// <aa>CRITICAL: Suppose that the last packet (not the current one) arrived
+		// less then 1s after the window opened. Suppose that the current packet arrives
+		// 90s after the last one. We cannot close the window with the last packet, we 
+		// can close the window only after the current packet arrives. The problem is that
+		// this leads to a distorted window (larger than 1 s)
+		//
+		// SOLUTION:
+		// If the current packet arrives after a second, we can close the window, including
+		// in it the last packet but not the current one. The current packet will be the
+		// first of the new window
+		//</aa>
+		
 
-	     // compute average 
-	     // now by default all windows are =1 and k=0
-	     if ((window==1)&&(k==0)) {
-		     qd_window=(thisdir->utp.qd_measured_sum-thisdir->utp.qd_sum_w1)/(thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1);
-		     window_error=Stdev(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1, 
-      thisdir->utp.qd_measured_sum2 - thisdir->utp.qd_sum2_w1,
-      thisdir->utp.qd_measured_count - thisdir->utp.qd_count_w1 );
+		qd_window=(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1)/
+			(thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1);
 
+		window_error=Stdev(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1, 
+		      thisdir->utp.qd_measured_sum2 - thisdir->utp.qd_sum2_w1,
+		      thisdir->utp.qd_measured_count - thisdir->utp.qd_count_w1 );
 
-//araldo!!
-#define LEDBAT_DEBUG
-//  - windowed_log_engine
-//  - at most once per second
-//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
-//
-     #ifdef LEDBAT_DEBUG
-	     //---------------- w=1
-	     //20 qd sample 
-	     //21 stdev sample 
-	     //22 max in w
-	     //23 count how much q>w
-	     //24 number of samples in w
-	     fprintf(stderr, "%u %s %f %f %f %d %d\n", 
-	     time_ms,
-	        HostName(thisdir->pup->addr_pair.a_address),  
-	     	qd_window, 
-	     	window_error, 
-		thisdir->utp.qd_max_w1, 
-		(int)((int)qd_window/(window*1000)), 
-		thisdir->utp.qd_measured_count  );
-		// - thisdir->utp.qd_count_w1  );		
-     #endif
+		//araldo!!
+		#define LEDBAT_DEBUG
+		//  - windowed_log_engine
+		//  - at most once per second
+		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
+		//
+		#ifdef LEDBAT_DEBUG
+		//---------------- w=1
+		//20 qd sample 
+		//21 stdev sample 
+		//22 max in w
+		//23 count how much q>w
+		//24 number of samples in w
+		fprintf(stderr, "%u %s %f %f %f %d %d\n", 
+		        time_ms,
+			HostName(thisdir->pup->addr_pair.a_address),  
+		     	qd_window, 
+		     	window_error, 
+			thisdir->utp.qd_max_w1, 
+			(int)((int)qd_window/(window_size*1000)), 
+			thisdir->utp.qd_measured_count  );
+			// - thisdir->utp.qd_count_w1  );		
+		#endif
 
-		     thisdir->utp.qd_sum_w1 += 
-			     (thisdir->utp.qd_measured_sum-thisdir->utp.qd_sum_w1);
-		     thisdir->utp.qd_count_w1 +=(thisdir->utp.qd_measured_count-thisdir->utp.qd_count_w1);
-		     thisdir->utp.qd_sum2_w1+=(thisdir->utp.qd_measured_sum2-thisdir->utp.qd_sum2_w1);
-		     //statistics
-		     thisdir->utp.qd_measured_count_w1++;
-		     thisdir->utp.qd_measured_sum_w1+=qd_window;
-		     thisdir->utp.qd_measured_sum2_w1+=((qd_window)*(qd_window));
+		thisdir->utp.qd_sum_w1 += 
+			(thisdir->utp.qd_measured_sum-thisdir->utp.qd_sum_w1);
+		thisdir->utp.qd_count_w1 +=(thisdir->utp.qd_measured_count-thisdir->utp.qd_count_w1);
+			thisdir->utp.qd_sum2_w1+=(thisdir->utp.qd_measured_sum2-thisdir->utp.qd_sum2_w1);
+		//statistics
+		thisdir->utp.qd_measured_count_w1++;
+		thisdir->utp.qd_measured_sum_w1+=qd_window;
+		thisdir->utp.qd_measured_sum2_w1+=((qd_window)*(qd_window));
 
-		     return qd_window;
-	     }
+		return qd_window;
 	}
    return res;
 }//windowed
