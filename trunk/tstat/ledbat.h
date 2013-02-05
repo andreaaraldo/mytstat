@@ -26,6 +26,7 @@
 
 #define UTP_BIG_ENDIAN 1
 
+
 /**
  * <aa>
  * References
@@ -125,7 +126,6 @@ float windowed_queueing_delay_andrea( void *pdir, u_int32_t timestamp, float qd)
 // </aa>
 
 float PSquare(void *pdir, float q, int P);
-
 
 
 #endif
