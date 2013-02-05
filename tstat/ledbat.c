@@ -674,56 +674,78 @@ void BitTorrent_flow_stat (struct ip *pip, void *pproto, int tproto, void *pdir,
 
 }//flowstat
 
+// <aa>
 #ifdef LEDBAT_WINDOW_CHECK
+
+// <aa>: trick to print the enum inspired by:
+// http://www.cs.utah.edu/~germain/PPS/Topics/C_Language/enumerated_types.html
+char* udp_type_string[] = {"UDP_UNKNOWN","FIRST_RTP","FIRST_RTCP","RTP","RTCP","SKYPE_E2E",
+	"SKYPE_OUT","SKYPE_SIG","P2P_EDK","P2P_KAD","P2P_KADU","P2P_GNU","P2P_BT","P2P_DC",
+	"P2P_KAZAA","P2P_PPLIVE","P2P_SOPCAST","P2P_TVANTS","P2P_OKAD","DNS","P2P_UTP",
+	"P2P_UTPBT","UDP_VOD","P2P_PPSTREAM","TEREDO","UDP_SIP","LAST_UDP_PROTOCOL"};
+/*
+udp_type udp_types[] = {UDP_UNKNOWN,FIRST_RTP,FIRST_RTCP,RTP,RTCP,SKYPE_E2E,SKYPE_OUT, SKYPE_SIG,
+	P2P_EDK, P2P_KAD,P2P_KADU,P2P_GNU, P2P_BT,P2P_DC, P2P_KAZAA,P2P_PPLIVE,P2P_SOPCAST,
+	P2P_TVANTS,P2P_OKAD,DNS,P2P_UTP,P2P_UTPBT,UDP_VOD,P2P_PPSTREAM,TEREDO,UDP_SIP,
+	LAST_UDP_PROTOCOL};
+*/
+// </aa>
+
+
+
 /**
  * thisdir: the descriptor of the udp connection
  * 	time_ms: the timestamp of the packet
  * 	qd: an estimate of the queueing delay
  */
 void print_last_window(ucb * thisdir,  u_int32_t time_ms, float qd_window, float window_error,
-	int window_size, u_int32_t actual_length)
+	int window_size)
 {
 /*
-	wfprintf(fp_ledbat_window_logc, "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",
+	wfprintf(fp_ledbat_window_logc, "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",
 		"conn_id",
 		"peerID",
 		"infoHASH",
 		"time_zero_w1",
 	        "time_ms",
 		"actual_length",
-		"maybe_length",
-		"a_addr",  
-		"b_addr",  
+		"a_addr",
+		"a_port",
+		"b_addr",
+		"b_port",
+  		"udptype",
 	     	"qd_window", 
 	     	"window_error", 
 		"qd_max_w1", 
 		"qd_win/(win*1000)", 
 		"window_no.",
 		"qd_measured_count",
-		"qd_measured_count_w1",
 		"no_of_pkts_in_windows",
+		"qd_measured_count_w1",
 		"qd_measured_sum",
 		"qd_measured_sum_w1",
-		"qd_sum_w1"
+		"qd_sum_w1",
 	);
 */
-	wfprintf(fp_ledbat_window_logc, "%d 0x%X 0x%X %u %u %u %lld %s %f %f %f %d %d %d %d %d %d %f %f %f\n", 
+	wfprintf(fp_ledbat_window_logc,"%d 0x%X 0x%X %u %u %lld %s %hu %s %hu %s %f %f %f %d %d %d %d %d %d %f %f\n",
 		thisdir->uTP_conn_id,
 		thisdir->utp.peerID,
 		thisdir->utp.infoHASH,
 		thisdir->utp.time_zero_w1,
 	        time_ms,
-		actual_length,
-		(long long int)time_ms - (long long int)thisdir->utp.time_zero_w1,
-		HostName(thisdir->pup->addr_pair.a_address),  
-		HostName(thisdir->pup->addr_pair.b_address),  
-	     	qd_window, 
+		(long long int)time_ms - (long long int)thisdir->utp.time_zero_w1, //actual_length
+		HostName(thisdir->pup->addr_pair.a_address),
+		thisdir->pup->addr_pair.a_port,
+		HostName(thisdir->pup->addr_pair.b_address),
+		thisdir->pup->addr_pair.b_port,
+		udp_type_string[thisdir->type], 
+		qd_window, 
 	     	window_error, 
 		thisdir->utp.qd_max_w1, 
 		(int)((int)qd_window/(window_size*1000)), 
 		thisdir->utp.qd_count_w1, //window_no.
 		thisdir->utp.qd_measured_count,
-		thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1,
+		thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1,//no_of_pkts_in_windows
 		thisdir->utp.qd_measured_count_w1,
 		thisdir->utp.qd_measured_sum,
 		thisdir->utp.qd_measured_sum_w1,
@@ -732,6 +754,7 @@ void print_last_window(ucb * thisdir,  u_int32_t time_ms, float qd_window, float
 
 }
 #endif
+// </aa>
 
 
 void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
@@ -990,9 +1013,6 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		thisdir->utp.qd_max_w1=qd/1000;
 	
 
-	//<aa>
-	u_int32_t actual_length = time_ms - thisdir->utp.time_zero_w1;
-	//</aa>
 
 	if ( (time_ms - thisdir->utp.time_zero_w1) >= 1000000)
 	{
@@ -1038,94 +1058,13 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
 		//
 		#ifdef LEDBAT_WINDOW_CHECK
-		print_last_window(thisdir, time_ms, qd_window, window_error, window_size, actual_length);
+		print_last_window(thisdir, time_ms, qd_window, window_error, window_size);
 		#endif
 
 		return qd_window;
 	}
    return res;
 }//windowed
-
-/*
-//<aa>
-float windowed_queueing_delay_andrea( void *pdir, u_int32_t timestamp, float qd )
-{
-	//time_ms is in microsecond (10^-6)
-	//qd/1000 is in ms
-	//window in ms 
-
-	float qd_window;
-	float window_error;
-	float res=-1;
-	int window_size = 1;
-
-	ucb *thisdir;
-	thisdir = ( ucb *) pdir;
-
-	//initialize the edge1
-	if (thisdir->utp.last_window.edge1 == 0)
-		thisdir->utp.last_window.edge1 = timestamp;
-
-	if (qd > thisdir->utp.window_descr.queueing_dly_max)
-		thisdir->utp.window_descr.queueing_dly_max = qd;
-
-	if ( (time_ms - thisdir->utp.time_zero_w1) >= 1000000)
-	{
-	 	// <aa>Now we can "close" the window and compute its statistics </aa>
-		// <aa>CRITICAL: Suppose that the last packet (not the current one) arrived
-		// less then 1s after the window opened. Suppose that the current packet arrives
-		// 90s after the last one. We cannot close the window with the last packet, we 
-		// can close the window only after the current packet arrives. The problem is that
-		// this leads to a distorted window (larger than 1 s)
-		//
-		// SOLUTION:
-		// If the current packet arrives after a second, we can close the window, including
-		// in it the last packet but not the current one. The current packet will be the
-		// first of the new window
-		//</aa>
-		//araldo!!
-		#define LEDBAT_DEBUG
-		//  - windowed_log_engine
-		//  - at most once per second
-		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
-		//
-		#ifdqd_count_w1ef LEDBAT_WINDOW_CHECK
-		print_last_window(thisdir, time_ms, qd_window, window_error, window_size);
-		#endif
-
-
-		qd_window=(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1)/
-			(thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1);
-
-		window_error=Stdev(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1, 
-		      thisdir->utp.qd_measured_sum2 - thisdir->utp.qd_sum2_w1,
-		      thisdir->utp.qd_measured_count - thisdir->utp.qd_count_w1 );
-
-		//araldo!!
-		#define LEDBAT_DEBUG
-		//  - windowed_log_engine
-		//  - at most once per second
-		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
-		//
-		#ifdef LEDBAT_WINDOW_CHECK
-		print_last_window(thisdir, time_ms, qd_window, window_error, window_size);
-		#endif
-
-		thisdir->utp.qd_sum_w1 += 
-			(thisdir->utp.qd_measured_sum-thisdir->utp.qd_sum_w1);
-		thisdir->utp.qd_count_w1 +=(thisdir->utp.qd_measured_count-thisdir->utp.qd_count_w1);
-			thisdir->utp.qd_sum2_w1+=(thisdir->utp.qd_measured_sum2-thisdir->utp.qd_sum2_w1);
-		//statistics
-		thisdir->utp.qd_measured_count_w1++;
-		thisdir->utp.qd_measured_sum_w1+=qd_window;
-		thisdir->utp.qd_measured_sum2_w1+=((qd_window)*(qd_window));
-
-		return qd_window;
-	}
-   return res;
-}//windowed
-//</aa>
-*/
 
 
 
