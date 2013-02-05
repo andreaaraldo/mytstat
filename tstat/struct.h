@@ -214,10 +214,10 @@ typedef struct jabber_stat
 
 #define LEDBAT_WINDOW_CHECK
 
-//<aa>TODO: Why don't we wrap it in ifdef-endif?</aa>
 
+//<aa>
 #ifdef LEDBAT_WINDOW_CHECK
-typedef struct ledbat_window_descr
+typedef struct ledbat_window_descr //<aa>TODO: not used?</aa>
 {
 	u_int32_t	edge1;
 	u_int32_t	edge2;
@@ -225,9 +225,11 @@ typedef struct ledbat_window_descr
 	u_int32_t	queueing_dly_sum;
 	float		queueing_dly_max;	
 } ledbat_window_descr;
+//</aa>
 
 #endif
 
+//<aa>???: Why don't we wrap it in ifdef-endif?</aa>
 typedef struct utp_stat
 {
         timeval start;
@@ -310,7 +312,7 @@ typedef struct utp_stat
 
 	// <aa>??? what time_zero_w1 is? It cannot be the left edge of the window, because if
 	// it was the case, it should be initialized at every window closure, and it is not</aa>
-        u_int32_t time_zero_w1;
+        u_int32_t time_zero_w1;//<aa>In microseconds</aa>
 
 	// <aa>the max of the queueing delays collected in the last window (in milliseconds)
 	// (not microseconds) </aa>
@@ -333,10 +335,11 @@ typedef struct utp_stat
 
 	// <aa> Stored values: end </aa>
 
-
+//<aa>
 #ifdef LEDBAT_WINDOW_CHECK
-	ledbat_window_descr last_window;
+	ledbat_window_descr last_window; //<aa>TODO: not used</aa>
 #endif
+//</aa>
 
 } utp_stat;
 

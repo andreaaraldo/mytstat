@@ -20,6 +20,7 @@
  * <aa>
  * References
  * [ledbat_draft]: "Low Extra Delay Background Transport (LEDBAT) draft-ietf-ledbat-congestion-10.txt"
+ * [utp_draft]: "uTorrent transport protocol" - http://www.bittorrent.org/beps/bep_0029.html
  * </aa>
  */
 
@@ -680,14 +681,16 @@ void BitTorrent_flow_stat (struct ip *pip, void *pproto, int tproto, void *pdir,
  * 	qd: an estimate of the queueing delay
  */
 void print_last_window(ucb * thisdir,  u_int32_t time_ms, float qd_window, float window_error,
-	int window_size)
+	int window_size, u_int32_t actual_length)
 {
-	wfprintf(fp_ledbat_window_logc, "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",
+/*
+	wfprintf(fp_ledbat_window_logc, "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",
 		"conn_id",
 		"peerID",
 		"infoHASH",
 		"time_zero_w1",
 	        "time_ms",
+		"actual_length",
 		"maybe_length",
 		"a_addr",  
 		"b_addr",  
@@ -703,13 +706,14 @@ void print_last_window(ucb * thisdir,  u_int32_t time_ms, float qd_window, float
 		"qd_measured_sum_w1",
 		"qd_sum_w1"
 	);
-
-	wfprintf(fp_ledbat_window_logc, "%d 0x%X 0x%X %u %u %lld %s %f %f %f %d %d %d %d %d %d %f %f %f\n", 
+*/
+	wfprintf(fp_ledbat_window_logc, "%d 0x%X 0x%X %u %u %u %lld %s %f %f %f %d %d %d %d %d %d %f %f %f\n", 
 		thisdir->uTP_conn_id,
 		thisdir->utp.peerID,
 		thisdir->utp.infoHASH,
 		thisdir->utp.time_zero_w1,
 	        time_ms,
+		actual_length,
 		(long long int)time_ms - (long long int)thisdir->utp.time_zero_w1,
 		HostName(thisdir->pup->addr_pair.a_address),  
 		HostName(thisdir->pup->addr_pair.b_address),  
@@ -984,6 +988,11 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 	//<aa>TODO: why expressing qd in microseconds and qd_max_w1 in milliseconds?</aa>
 	if (qd/1000 >= thisdir->utp.qd_max_w1)
 		thisdir->utp.qd_max_w1=qd/1000;
+	
+
+	//<aa>
+	u_int32_t actual_length = time_ms - thisdir->utp.time_zero_w1;
+	//</aa>
 
 	if ( (time_ms - thisdir->utp.time_zero_w1) >= 1000000)
 	{
@@ -999,6 +1008,7 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		// first of the new window
 		//</aa>
 
+
 		qd_window=(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1)/
 			(thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1);
 
@@ -1012,6 +1022,10 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		thisdir->utp.qd_count_w1 += (thisdir->utp.qd_measured_count-thisdir->utp.qd_count_w1);
 		thisdir->utp.qd_sum2_w1+=(thisdir->utp.qd_measured_sum2-thisdir->utp.qd_sum2_w1);
 
+		//<aa>??? I think it is needed to correctly close the window
+		thisdir->utp.time_zero_w1=time_ms;
+		//</aa>
+
 		//stqd_max_w1atistics
 		thisdir->utp.qd_measured_count_w1++;
 		thisdir->utp.qd_measured_sum_w1+=qd_window;
@@ -1024,7 +1038,7 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
 		//
 		#ifdef LEDBAT_WINDOW_CHECK
-		print_last_window(thisdir, time_ms, qd_window, window_error, window_size);
+		print_last_window(thisdir, time_ms, qd_window, window_error, window_size, actual_length);
 		#endif
 
 		return qd_window;
