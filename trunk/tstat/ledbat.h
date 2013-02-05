@@ -1,4 +1,3 @@
-
 #ifndef _LEDBAT_H_ 
 #define _LEDBAT_H_
 
@@ -27,6 +26,15 @@
 
 #define UTP_BIG_ENDIAN 1
 
+/**
+ * <aa>
+ * References
+ * [ledbat_draft]: "Low Extra Delay Background Transport (LEDBAT) draft-ietf-ledbat-congestion-10.txt"
+ * [utp_draft]: "uTorrent transport protocol" - http://www.bittorrent.org/beps/bep_0029.html
+ * </aa>
+ */
+
+
 struct utp_hdr
 {
 #if UTP_BIG_ENDIAN
@@ -40,7 +48,7 @@ struct utp_hdr
   unsigned int ver:4;		/* protocol version */
   unsigned int ext:8;		/**
  * For every packet, this function must be called to update the statistics of the last window
- * 	time_ms: the timestamp of the packet
+ * 	time_ms: the timestamp of the packet (in microseconds - see [utp_draft])
  * 	qd: an estimate of the queueing delay
  */
 float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd);/* header extension */
