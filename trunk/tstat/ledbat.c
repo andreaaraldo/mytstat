@@ -1023,7 +1023,7 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		thisdir->utp.qd_sum2_w1+=(thisdir->utp.qd_measured_sum2-thisdir->utp.qd_sum2_w1);
 
 		//<aa>??? I think it is needed to correctly close the window
-		thisdir->utp.time_zero_w1=time_ms;
+		//thisdir->utp.time_zero_w1=time_ms;
 		//</aa>
 
 		//stqd_max_w1atistics
