@@ -698,8 +698,8 @@ udp_type udp_types[] = {UDP_UNKNOWN,FIRST_RTP,FIRST_RTCP,RTP,RTCP,SKYPE_E2E,SKYP
  * 	time_ms: the timestamp of the packet
  * 	qd: an estimate of the queueing delay
  */
-void print_last_window(ucb * thisdir,  u_int32_t time_ms, float qd_window, float window_error,
-	int window_size)
+void print_last_window(ucb * thisdir,  u_int32_t time_ms, long long int actual_win_size,
+	float qd_window, float window_error, int window_size)
 {
 /*
 	wfprintf(fp_ledbat_window_logc, "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",
@@ -733,7 +733,7 @@ void print_last_window(ucb * thisdir,  u_int32_t time_ms, float qd_window, float
 		thisdir->utp.infoHASH,
 		thisdir->utp.time_zero_w1,
 	        time_ms,
-		(long long int)time_ms - (long long int)thisdir->utp.time_zero_w1, //actual_length
+		actual_win_size,
 		HostName(thisdir->pup->addr_pair.a_address),
 		thisdir->pup->addr_pair.a_port,
 		HostName(thisdir->pup->addr_pair.b_address),
@@ -1012,7 +1012,7 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 	if (qd/1000 >= thisdir->utp.qd_max_w1)
 		thisdir->utp.qd_max_w1=qd/1000;
 	
-
+	long long int actual_win_size = time_ms - thisdir->utp.time_zero_w1;
 
 	if ( (time_ms - thisdir->utp.time_zero_w1) >= 1000000)
 	{
@@ -1043,7 +1043,7 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		thisdir->utp.qd_sum2_w1+=(thisdir->utp.qd_measured_sum2-thisdir->utp.qd_sum2_w1);
 
 		//<aa>??? I think it is needed to correctly close the window
-		thisdir->utp.time_zero_w1=time_ms;
+		//thisdir->utp.time_zero_w1=time_ms;
 		//</aa>
 
 		//stqd_max_w1atistics
@@ -1058,7 +1058,7 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
 		//
 		#ifdef LEDBAT_WINDOW_CHECK
-		print_last_window(thisdir, time_ms, qd_window, window_error, window_size);
+		print_last_window(thisdir, time_ms, actual_win_size, qd_window, window_error, window_size);
 		#endif
 
 		return qd_window;
