@@ -411,7 +411,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	// connection (defined in struct.h) </aa>
 	ucb *thisdir, *otherdir;
 
-	//<aa>pdir is a structure conveying info about the pair of nodes communicating </aa>
+	//<aa>thisdir is a structure conveying info about the pair of nodes communicating </aa>
     	thisdir = ( ucb *) pdir;
 	//<aa>putp is the pointer to the utp header of the packet in question</aa>
  	//<aa>thisdir->pup (of type "struct sudp_pair") conveys other generic info about the pair of nodes involved</aa>
@@ -698,36 +698,10 @@ udp_type udp_types[] = {UDP_UNKNOWN,FIRST_RTP,FIRST_RTCP,RTP,RTCP,SKYPE_E2E,SKYP
  * 	time_ms: the timestamp of the packet
  * 	qd: an estimate of the queueing delay
  */
-void print_last_window(ucb * thisdir,  u_int32_t time_ms, long long int actual_win_size,
+void print_last_window(ucb * thisdir,  u_int32_t time_ms, u_int32_t actual_win_size,
 	float qd_window, float window_error, int window_size)
 {
-/*
-	wfprintf(fp_ledbat_window_logc, "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",
-		"conn_id",
-		"peerID",
-		"infoHASH",
-		"time_zero_w1",
-	        "time_ms",
-		"actual_length",
-		"a_addr",
-		"a_port",
-		"b_addr",
-		"b_port",
-  		"udptype",
-	     	"qd_window", 
-	     	"window_error", 
-		"qd_max_w1", 
-		"qd_win/(win*1000)", 
-		"window_no.",
-		"qd_measured_count",
-		"no_of_pkts_in_windows",
-		"qd_measured_count_w1",
-		"qd_measured_sum",
-		"qd_measured_sum_w1",
-		"qd_sum_w1",
-	);
-*/
-	wfprintf(fp_ledbat_window_logc,"%d 0x%X 0x%X %u %u %lld %s %hu %s %hu %s %f %f %f %d %d %d %d %d %d %f %f\n",
+	wfprintf(fp_ledbat_window_logc,"%d 0x%X 0x%X %u %u %u %s %hu %s %hu %s %g %g %g %d %d %d %d %d %g %g %g\n",
 		thisdir->uTP_conn_id,
 		thisdir->utp.peerID,
 		thisdir->utp.infoHASH,
@@ -741,7 +715,7 @@ void print_last_window(ucb * thisdir,  u_int32_t time_ms, long long int actual_w
 		udp_type_string[thisdir->type], 
 		qd_window, 
 	     	window_error, 
-		thisdir->utp.qd_max_w1, 
+		thisdir->utp.qd_max_w1,
 		(int)((int)qd_window/(window_size*1000)), 
 		thisdir->utp.qd_count_w1, //window_no.
 		thisdir->utp.qd_measured_count,
@@ -751,11 +725,10 @@ void print_last_window(ucb * thisdir,  u_int32_t time_ms, long long int actual_w
 		thisdir->utp.qd_measured_sum_w1,
 		thisdir->utp.qd_sum_w1
 	);
-
 }
-#endif
-// </aa>
 
+// </aa>
+#endif
 
 void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 	
@@ -1012,7 +985,7 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 	if (qd/1000 >= thisdir->utp.qd_max_w1)
 		thisdir->utp.qd_max_w1=qd/1000;
 	
-	long long int actual_win_size = time_ms - thisdir->utp.time_zero_w1;
+	u_int32_t actual_win_size = time_ms - thisdir->utp.time_zero_w1;
 
 	if ( (time_ms - thisdir->utp.time_zero_w1) >= 1000000)
 	{
@@ -1035,10 +1008,35 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		window_error=Stdev(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1, 
 		      thisdir->utp.qd_measured_sum2 - thisdir->utp.qd_sum2_w1,
 		      thisdir->utp.qd_measured_count - thisdir->utp.qd_count_w1 );
+		
+		//<aa>
+		#ifdef LEDBAT_DEBUG
+		if (thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1 < 0){
+			printf("\n\n\n\nledbat.c %d: ERROR: qd_measured_sum(%f) < qd_sum_w1(%f)\n\n\n",
+				__LINE__,thisdir->utp.qd_measured_sum, thisdir->utp.qd_sum_w1);
+			exit(-9987);
+		}
+		
+		if (thisdir->utp.qd_sum_w1 < 0){
+			printf("\n\n\nledbat.c %d: ERROR: qd_sum_w1(%f) < 0\n\n\n\n",
+				__LINE__,thisdir->utp.qd_sum_w1);
+			exit(-9911);
+		}
 
+		#endif
+		//</aa>
+
+		#ifdef LEDBAT_WINDOW_CHECK
+		//araldo!!
+		//  - windowed_log_engine
+		//  - at most once per second
+		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
+		//
+		print_last_window(thisdir, time_ms, actual_win_size, qd_window, window_error, window_size);
+		#endif
 
 		thisdir->utp.qd_sum_w1 += 
-			(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1);
+			(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1);		
 		thisdir->utp.qd_count_w1 += (thisdir->utp.qd_measured_count-thisdir->utp.qd_count_w1);
 		thisdir->utp.qd_sum2_w1+=(thisdir->utp.qd_measured_sum2-thisdir->utp.qd_sum2_w1);
 
@@ -1050,16 +1048,6 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		thisdir->utp.qd_measured_count_w1++;
 		thisdir->utp.qd_measured_sum_w1+=qd_window;
 		thisdir->utp.qd_measured_sum2_w1+=((qd_window)*(qd_window));
-
-		//araldo!!
-		#define LEDBAT_DEBUG
-		//  - windowed_log_engine
-		//  - at most once per second
-		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
-		//
-		#ifdef LEDBAT_WINDOW_CHECK
-		print_last_window(thisdir, time_ms, actual_win_size, qd_window, window_error, window_size);
-		#endif
 
 		return qd_window;
 	}

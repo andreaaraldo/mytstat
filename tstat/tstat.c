@@ -1996,6 +1996,7 @@ ProcessFile (char *filename, Bool last)
     {
       ret = (*ppread) (&current_time, &len, &tlen, &phys, &phystype, &pip,
 		       &plast);
+     //<aa>If the input file is pcap, then pread_tcpdump will be called here</aa>
     }
   while ((ret > 0)
 	 && (current_time.tv_sec == 0 && current_time.tv_usec == 0));
@@ -2040,6 +2041,15 @@ ProcessFile (char *filename, Bool last)
   /* read each packet */
   do
     {
+	//<aa>TODO: remove this check
+	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) ){
+		printf("tstat.c %d: ERROR processing file %s: ip_dst(%s) == ip_src((%s))\n",
+			__LINE__,filename, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
+			HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
+		exit(554);
+	}
+	//</aa>
+
         ProcessPacket(&current_time, pip, plast, tlen, phystype, &fpnum, &pcount, 
                       file_count, cur_filename, location, DEFAULT_NET);
 

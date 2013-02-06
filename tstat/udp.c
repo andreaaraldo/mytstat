@@ -77,8 +77,7 @@ dup_udp_check (struct ip *pip, struct udphdr *pudp, ucb * thisdir)
 }
 #endif
 
-static udp_pair *
-NewUTP (struct ip *pip, struct udphdr *pudp)
+static udp_pair* NewUTP (struct ip *pip, struct udphdr *pudp)
 {
   udp_pair *pup;
   int old_new_udp_pairs = num_udp_pairs;
@@ -112,6 +111,15 @@ NewUTP (struct ip *pip, struct udphdr *pudp)
 
   /* create a new UDP pair record and remember where you put it */
   pup = utp[num_udp_pairs] = utp_alloc ();
+
+  //<aa>
+  udp_pair_addrblock* addr_block_p = &pup->addr_pair;
+  ipaddr* a_address = &(addr_block_p->a_address);
+  ipaddr* b_address = &(addr_block_p->b_address);
+  if (memcmp(a_address, b_address, sizeof(ipaddr) ) ){
+	printf("udp.c %d: a and b have the same address\n",__LINE__);exit(-998);
+  }
+  //</aa>
 
   /* grab the address from this packet */
   CopyAddr (&pup->addr_pair,

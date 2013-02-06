@@ -217,7 +217,7 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
 {
     int type;
     int iplen;
-    static int offset = -1;
+    static int offset = -1; //</aa>the offset before the ip packet starts</aa>
 #ifndef USE_MEMCPY
     struct ether_header *ptr_eth_header;
 #endif
@@ -446,6 +446,20 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
             exit (1);
     }
 
+	//<aa>TODO: remove this check
+	/*
+	struct ip **ppip = (struct ip *) ip_buf;
+	struct ip* pip = *ppip;
+	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) ){
+		printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
+			__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
+			HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
+		exit(554);
+	}
+	*/
+	//</aa>
+
+
     return (0);
 }
 
@@ -504,6 +518,18 @@ pread_tcpdump (struct timeval *ptime,
       *pphys = &eth_header;	/* everything assumed to be ethernet */
       *pphystype = PHYS_ETHER;	/* everything assumed to be ethernet */
       *ppip = (struct ip *) ip_buf;
+
+      	//<aa>TODO: remove this check
+	struct ip* pip = *ppip;
+	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) ){
+		printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
+			__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
+			HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
+		exit(554);
+	}
+	//</aa>
+
+
       *pplast = callback_plast;	/* last byte in IP packet */
       /* (copying time structure in 2 steps to avoid RedHat brain damage) */
       ptime->tv_usec = pcap_current_hdr.ts.tv_usec;
@@ -528,6 +554,7 @@ pread_tcpdump (struct timeval *ptime,
 pread_f *
 is_tcpdump (char *filename)
 {
+
   char errbuf[100];
   char *physname = "<unknown>";
   int type;
