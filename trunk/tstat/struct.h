@@ -217,9 +217,10 @@ typedef struct jabber_stat
 #define LEDBAT_WINDOW_CHECK
 
 
+/*
 //<aa>
 #ifdef LEDBAT_WINDOW_CHECK
-typedef struct ledbat_window_descr //<aa>TODO: not used?</aa>
+typedef struct ledbat_window_descr //<aa>TODO: not used anymore</aa>
 {
 	u_int32_t	edge1;
 	u_int32_t	edge2;
@@ -230,6 +231,7 @@ typedef struct ledbat_window_descr //<aa>TODO: not used?</aa>
 //</aa>
 
 #endif
+*/
 
 //<aa>???: Why don't we wrap it in ifdef-endif?</aa>
 typedef struct utp_stat
@@ -334,14 +336,7 @@ typedef struct utp_stat
         float qd_sum_w1; // <aa>the sum of all the above queueing delays</aa>
 
         float qd_sum2_w1; // <aa>sum of the square queue dly calculated as above
-
 	// <aa> Stored values: end </aa>
-
-//<aa>
-#ifdef LEDBAT_WINDOW_CHECK
-	ledbat_window_descr last_window; //<aa>TODO: not used</aa>
-#endif
-//</aa>
 
 } utp_stat;
 

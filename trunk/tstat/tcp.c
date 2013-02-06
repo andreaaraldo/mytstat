@@ -216,8 +216,7 @@ FinCount (tcp_pair * ptp)
 /* in addition to copying the address, we also create a HASH value	*/
 /* which is based on BOTH IP addresses and port numbers.  It allows	*/
 /* faster comparisons most of the time					*/
-void
-CopyAddr (tcp_pair_addrblock * ptpa,
+void CopyAddr (tcp_pair_addrblock * ptpa,
 	  struct ip *pip, portnum port1, portnum port2)
 {
   ptpa->a_port = port1;
@@ -247,6 +246,11 @@ CopyAddr (tcp_pair_addrblock * ptpa,
 	}
     }
 #endif
+  //<aa>TODO: remove this check
+  if (memcmp(&(ptpa->a_address), &(ptpa->b_address), sizeof(ipaddr) )){
+	printf("tcp.c %d: a and b have the same address\n",__LINE__);exit(878);
+  }
+  //</aa>
 }
 
 
