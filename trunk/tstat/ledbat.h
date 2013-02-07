@@ -96,6 +96,10 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto);
  */
 void parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdir,int dir, void *hdr, void *plast, int type_utp);//chiamata da flow stat 
 
+
+/**
+ * dir: can be C2S or S2C
+ */
 void parser_BitTorrentMessages (void *pp, int tproto, void *pdir,int dir, void *hdr, void *plast); 
 
 

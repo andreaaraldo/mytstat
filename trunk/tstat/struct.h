@@ -24,6 +24,12 @@
  */
 
 
+// <aa> If it is defined, a lot of redundant and overabundant checks will be performed to 
+// check for inconsistent states or data. This can be useful when you edit the code to be
+// sure that the modifications do not produce those inconcistencies
+#define SEVERE_DEBUG
+// </aa>
+
 
 /* we want LONG LONG in some places */
 #if SIZEOF_UNSIGNED_LONG_LONG_INT >= 8
@@ -1083,6 +1089,7 @@ enum uTP_udp_state
 };
 
 /* minimal support for UDP "connections" */
+//<aa>It conveys info about communication in C2S direction or in S2C direction</aa>
 typedef struct ucb
 {
   struct bayes_classifier *bc_avgipg;
@@ -1105,6 +1112,12 @@ typedef struct ucb
   u_short VOD_count;
   Bool first_VOD;
   Bool is_VOD;
+
+  //<aa>
+  #ifdef SEVERE_DEBUG
+  int dir;
+  #endif
+  //</aa>
 
   union
   {

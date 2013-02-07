@@ -153,6 +153,7 @@ typedef short tt_int16;
 typedef unsigned char tt_uint8;
 
 #define FILENAME_SIZE 600
+
 /* declaration of global variables */
 char global_data_dir[FILENAME_SIZE];
 extern char runtime_conf_fname[];

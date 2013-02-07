@@ -247,7 +247,7 @@ void CopyAddr (tcp_pair_addrblock * ptpa,
     }
 #endif
   //<aa>TODO: remove this check
-  if (memcmp(&(ptpa->a_address), &(ptpa->b_address), sizeof(ipaddr) )){
+  if (memcmp(&(ptpa->a_address), &(ptpa->b_address), sizeof(ipaddr) ) ==0 ){
 	printf("tcp.c %d: a and b have the same address\n",__LINE__);exit(878);
   }
   //</aa>

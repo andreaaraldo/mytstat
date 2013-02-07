@@ -260,6 +260,7 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
                internal_dhost = TRUE;
 
 	    /* now get rid of ethernet headers */
+
             switch (offset)
             {
                 case -1:		/* Not an IP packet */
@@ -297,6 +298,59 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
                 default:		/* should not be used, but we never know ... */
                     return (-1);
             }
+	    	//<aa>TODO: remove this check
+/*
+		struct ip * pip = (struct ip *) ip_buf;
+		unsigned char* iphdr_p = (unsigned char*) pip;
+
+		int j;
+		printf("ip header: ");
+		for (j=0; j<sizeof(struct ip); j++ )
+			printf("%2X ",iphdr_p[j]);
+		printf("\n");
+
+		printf("src addr: ");
+		unsigned char* src_ip_p = (unsigned char*) &(pip->ip_src);
+		for (j=0; j<sizeof(pip->ip_src); j++ ){
+			printf("%2X ", src_ip_p[j] );
+		}
+		printf(";    ");
+		for (j=0; j<sizeof(pip->ip_src); j++ ){
+			printf("%u.", src_ip_p[j] );
+		}
+		printf("\n");
+
+		printf("dst addr: ");
+		unsigned char* dst_ip_p = (unsigned char*) &(pip->ip_dst);
+		for (j=0; j<sizeof(pip->ip_dst); j++ ){
+			printf("%2X ", dst_ip_p[j] );
+		}
+		printf(";    ");
+		for (j=0; j<sizeof(pip->ip_dst); j++ ){
+			printf("%u.", dst_ip_p[j] );
+		}
+		printf("\n");
+
+		printf("tcpdump.c %d: ip_dst=%s, ip_src=%s\n",
+				__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
+				HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
+			
+		if ( memcmp((void*) &(pip->ip_src), (void*) &(pip->ip_dst), sizeof(pip->ip_dst) ) == 0 ){
+			printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
+				__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
+				HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
+			printf("byte a byte: ");
+			for (j=0; j<sizeof(pip->ip_dst); j++ ){
+				printf("%2X-%2X  ", src_ip_p[j],  dst_ip_p[j]);
+			}
+			printf("\n");
+			exit(554);
+		}
+*/
+		//</aa>
+
+
+
             break;
         case PCAP_DLT_IEEE802:
             /* just pretend it's "normal" ethernet */
@@ -335,7 +389,19 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
 #else
 	    ip_buf = (char *)(buf + offset);
 #endif
+	      	//<aa>TODO: remove this check
+/*
+		pip = (struct ip*) ip_buf;
+		if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) == 0){
+			printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
+				__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
+				HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
+			exit(554);
+		}
+*/		//</aa>
+
             callback_plast = ip_buf + iplen - 1;
+
             break;
         case PCAP_DLT_FDDI:
             if (offset < 0)
@@ -348,6 +414,16 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
 #else
 	    ip_buf = (char *)(buf + offset);
 #endif
+	    	//<aa>TODO: remove this check
+/*		pip = (struct ip *) ip_buf;
+		if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) ==0 ){
+			printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
+				__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
+				HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
+			exit(554);
+		}
+*/		//</aa>
+
             callback_plast = ip_buf + iplen - 1;
             break;
         case PCAP_DLT_NULL:
@@ -383,6 +459,15 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
 	    ip_buf = (char *)(buf + offset);
 #endif
             callback_plast = ip_buf + iplen - 1;
+/*	    	//<aa>TODO: remove this check
+		pip = (struct ip *) ip_buf;
+		if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) ==0 ){
+			printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
+				__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
+				HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
+			exit(554);
+		}
+*/		//</aa>
             break;
         case PCAP_DLT_LINUX_SLL:
             /* linux cooked socket */
@@ -521,7 +606,7 @@ pread_tcpdump (struct timeval *ptime,
 
       	//<aa>TODO: remove this check
 	struct ip* pip = *ppip;
-	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) ){
+	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) == 0 ){
 		printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
 			__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
 			HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
