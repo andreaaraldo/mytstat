@@ -61,6 +61,23 @@ u_int32_t min_delay_base(ucb *thisdir);
  */
 int wrapping_compare_less(u_int32_t lhs, u_int32_t rhs); //libutp
 
+//<aa>
+#ifdef SEVERE_DEBUG
+//Check if the direction of the current packet and the opposite direction are handled
+//consistently. If it is not the case, the program will terminate
+void check_direction_consistency(ucb* thisdir);
+#endif
+//</aa>
+
+//<aa>
+//the length of a string to store the longest ipv6 address
+//http://stackoverflow.com/questions/3455320/size-for-storing-ipv4-ipv6-addresses-as-a-string
+#define IPV6_ADDR_STR_LEN 40
+
+//For each packet, the addresses of the two communicating parties are stored here
+char a_address[IPV6_ADDR_STR_LEN];
+char b_address[IPV6_ADDR_STR_LEN];
+//</aa>
 
 
 
@@ -104,13 +121,25 @@ getBitTorrent (void *pproto, int tproto, void *pdir, void *plast)
 
 
 void parser_BitTorrentMessages (void * pp, int tproto, void *pdir,int dir, void *hdr, void *plast){
-		
+	
 
 	if (tproto==PROTOCOL_TCP) return;
     	    
         ucb *thisdir, *otherdir;
         thisdir = ( ucb *) pdir;
         otherdir = (ucb *)((dir == C2S) ? &(thisdir->pup->s2c) : &(thisdir->pup->c2s));
+
+	//<aa>TODO: remove this check
+	if (dir!=S2C && dir!=C2S){
+		printf("dir=%d\n", dir); exit(75);
+	}
+	if (thisdir->dir == 0)
+		//thisdir->dir not already initialized
+		thisdir->dir = dir;
+	else if (dir != thisdir->dir){
+		printf("dir=%d, thisdir->dir=%d", dir, thisdir->dir); exit(74);
+	}
+	//</aa>
 
         void *streamBT;
         streamBT=((u_int32_t *)pp);
@@ -396,7 +425,8 @@ u_int32_t get_queueing_delay(ucb *thisdir) {
 
 
 void
-parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdir, int dir, void *hdr, void *plast, int type_utp)
+parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdir, 
+	int dir, void *hdr, void *plast, int type_utp)
 {
 
     	void *theheader;
@@ -419,6 +449,20 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	//<aa>Retrieve info about the other direction (opposite to the direction of this packet)</aa>
 	otherdir = (dir == C2S) ? &(thisdir->pup->s2c) : &(thisdir->pup->c2s);
 	//<aa>Now, otherdir conveys info about the opposite direction</aa>
+
+	//<aa>
+	#ifdef SEVERE_DEBUG
+	if (dir!=C2S && dir!=S2C){
+		printf("\ndir=%d\n", dir); exit(5454512);
+	}
+	
+	if (thisdir->dir==0){
+		//This is the first packet seen on this direction
+		thisdir->dir =dir;
+		otherdir->dir = (dir == C2S) ? S2C: C2S;
+	}
+	#endif
+	//</aa>
 
 
 	//some statistics
@@ -698,19 +742,24 @@ udp_type udp_types[] = {UDP_UNKNOWN,FIRST_RTP,FIRST_RTCP,RTP,RTCP,SKYPE_E2E,SKYP
  * 	time_ms: the timestamp of the packet
  * 	qd: an estimate of the queueing delay
  */
-void print_last_window(ucb * thisdir,  u_int32_t time_ms, u_int32_t actual_win_size,
+void print_last_window(ucb * thisdir, u_int32_t time_ms, u_int32_t actual_win_size,
 	float qd_window, float window_error, int window_size)
 {
-	wfprintf(fp_ledbat_window_logc,"%d 0x%X 0x%X %u %u %u %s %hu %s %hu %s %g %g %g %d %d %d %d %d %g %g %g\n",
+	//We need to store the addresses returned by HostName. HostName calls
+	//inet_ntoa and inet_ntoa overwrites the same buffer at every call.
+	sprintf(a_address, "%s", HostName(thisdir->pup->addr_pair.a_address));
+	sprintf(b_address, "%s", HostName(thisdir->pup->addr_pair.b_address));
+
+	wfprintf(fp_ledbat_window_logc,"%d 0x%X 0x%X %u %u %u %s %hu %s %hu %s %g %g %g %d %d %d %d %d %g %g %g %d\n",
 		thisdir->uTP_conn_id,
 		thisdir->utp.peerID,
 		thisdir->utp.infoHASH,
 		thisdir->utp.time_zero_w1,
 	        time_ms,
 		actual_win_size,
-		HostName(thisdir->pup->addr_pair.a_address),
+		a_address,
 		thisdir->pup->addr_pair.a_port,
-		HostName(thisdir->pup->addr_pair.b_address),
+		b_address,
 		thisdir->pup->addr_pair.b_port,
 		udp_type_string[thisdir->type], 
 		qd_window, 
@@ -723,8 +772,13 @@ void print_last_window(ucb * thisdir,  u_int32_t time_ms, u_int32_t actual_win_s
 		thisdir->utp.qd_measured_count_w1,
 		thisdir->utp.qd_measured_sum,
 		thisdir->utp.qd_measured_sum_w1,
-		thisdir->utp.qd_sum_w1
+		thisdir->utp.qd_sum_w1,
+		thisdir->dir
 	);
+	
+	#ifdef SEVERE_DEBUG
+	check_direction_consistency(thisdir);
+	#endif
 }
 
 // </aa>
@@ -850,19 +904,12 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 			utpstat.P[PERC_95], 
 			utpstat.P[PERC_99]);
 
-//araldo!!			
-/*		printf("!!! prova stringa %s %s\n",
-		     	strlen(utpstat.peerID)>0 ? utpstat.peerID : " ---- ",    
-		     	strlen(utpstat.infoHASH)>0 ? utpstat.infoHASH : " ---- " );
-		printf("!!! prova X 0x%X 0x%X\n",
-		     	strlen(utpstat.peerID)>0 ? utpstat.peerID : " ---- ",    
-		     	strlen(utpstat.infoHASH)>0 ? utpstat.infoHASH : " ---- " );
-*/
-
+//araldo!!
+/*
 		printf(fp_ledbat_logc, " 0x%X 0x%X\n",
 		     	strlen(utpstat.peerID)>0 ? utpstat.peerID : " ---- ",    
 		     	strlen(utpstat.infoHASH)>0 ? utpstat.infoHASH : " ---- " );
-	}//if log_engineu
+*/	}//if log_engineu
 
 
   	  thisUdir = thisS2C;
@@ -977,6 +1024,10 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 	ucb *thisdir;
 	thisdir = ( ucb *) pdir;
 
+	#ifdef SEVERE_DEBUG
+	check_direction_consistency(thisdir);
+	#endif
+
 	//initialize time_zero
 	if (thisdir->utp.time_zero_w1==0)
 		thisdir->utp.time_zero_w1=time_ms;
@@ -1032,6 +1083,11 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 		//  - at most once per second
 		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
 		//
+		
+		#ifdef SEVERE_DEBUG
+		check_direction_consistency(thisdir);
+		#endif
+
 		print_last_window(thisdir, time_ms, actual_win_size, qd_window, window_error, window_size);
 		#endif
 
@@ -1252,7 +1308,22 @@ make_BitTorrent_conn_stats (void *thisflow, int tproto)
 	print_BitTorrentUDP_conn_stats(thisflow, tproto);   
 }
 
-
+//<aa>
+#ifdef SEVERE_DEBUG
+void check_direction_consistency(ucb* thisdir){
+	if (thisdir->dir != C2S && thisdir->dir != S2C){
+		printf("\nledbat.c %d: thisdir->dir=%d\n",__LINE__,thisdir->dir); 
+		exit(8787);
+	}
+	ucb* otherdir = (thisdir->dir == C2S) ? &(thisdir->pup->s2c) : &(thisdir->pup->c2s);
+	if (otherdir->dir != (thisdir->dir == C2S ? S2C:C2S) ){
+		printf("\nledbat.c %d: thisdir->dir=%d, other->dir=%d\n",
+			__LINE__,thisdir->dir, otherdir->dir);
+		exit(9898);
+	}
+}
+#endif
+//</aa>
 
 
 

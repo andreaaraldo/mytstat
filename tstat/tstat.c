@@ -2042,7 +2042,7 @@ ProcessFile (char *filename, Bool last)
   do
     {
 	//<aa>TODO: remove this check
-	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) ){
+	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) == 0 ){
 		printf("tstat.c %d: ERROR processing file %s: ip_dst(%s) == ip_src((%s))\n",
 			__LINE__,filename, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
 			HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
