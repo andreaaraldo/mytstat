@@ -28,7 +28,10 @@
 #include "tstat.h"
 
 /* define LEDBAT_DEBUG if you want to see all identified pkts */
-#define LEDBAT_DEBUG 
+#define LEDBAT_DEBUG
+
+//Use it as a signal when there are no samples in a window
+#define NOSAMPLES -1
 
 extern FILE *fp_ledbat_logc;
 
@@ -736,24 +739,31 @@ udp_type udp_types[] = {UDP_UNKNOWN,FIRST_RTP,FIRST_RTCP,RTP,RTCP,SKYPE_E2E,SKYP
 */
 // </aa>
 
-
-
 /**
- * thisdir: the descriptor of the udp connection
+ * Print general info about the window (info not describing a specific direction)
+ * 	thisdir: the descriptor of the udp connection
  * 	time_ms: the timestamp of the packet
  * 	qd: an estimate of the queueing delay
  */
-void print_last_window(ucb * thisdir, u_int32_t time_ms,
-	float qd_window, float window_error, int window_size)
+void print_last_window_general(ucb * thisdir, u_int32_t time_ms)
 {
 	//We need to store the addresses returned by HostName. HostName calls
 	//inet_ntoa and inet_ntoa overwrites the same buffer at every call.
 	sprintf(a_address, "%s", HostName(thisdir->pup->addr_pair.a_address));
 	sprintf(b_address, "%s", HostName(thisdir->pup->addr_pair.b_address));
 
+	//number of windows after the closed one that contain non samples
+	//(and will be ignored)
+	//<aa>TODO: This value is indicative only if time_ms is the time of the pkt in the 
+	//direction dir; if, on the contrary, the packet that is triggering the window closure
+	//is in the direction opposite to dir, there can be other void windows in the direction
+	//dir</aa>
 	unsigned int following_void_windows = (time_ms - thisdir->utp.time_zero_w1)/1000000;
 	
-	wfprintf(fp_ledbat_window_logc,"%d 0x%X 0x%X %u %u %u %s %hu %s %hu %s %g %g %g %d %d %d %d %d %g %g %g %d\n",
+	//<aa>TODO: maybe some of the following info describes a specidic direction rather than
+	// one. Check it</aa>
+
+	wfprintf(fp_ledbat_window_logc,"%d 0x%X 0x%X %u %u %u %s %hu %s %hu ",
 		thisdir->uTP_conn_id,
 		thisdir->utp.peerID,
 		thisdir->utp.infoHASH,
@@ -763,10 +773,34 @@ void print_last_window(ucb * thisdir, u_int32_t time_ms,
 		a_address,
 		thisdir->pup->addr_pair.a_port,
 		b_address,
-		thisdir->pup->addr_pair.b_port,
-		udp_type_string[thisdir->type], 
-		qd_window, 
-	     	window_error, 
+		thisdir->pup->addr_pair.b_port
+	);
+}
+
+/**
+ * Print info for a specific direction
+ * 	thisdir: the descriptor of the udp connection
+ * 	qd_window: queueing delay of the window (-1 if this window has non samples)
+ */
+void print_last_window_directional(ucb * thisdir,
+	float qd_window, float window_error, int window_size)
+{
+	#ifdef SEVERE_DEBUG
+	if (thisdir->dir != C2S && thisdir->dir != S2C ){
+		printf("\nledbat.c %d: thisdir->dir=%d\n", __LINE__, thisdir->dir);
+		exit(741);
+	}
+	#endif
+
+	wfprintf(fp_ledbat_window_logc, " %s %d", 
+		udp_type_string[thisdir->type], thisdir->dir);
+
+	if (qd_window == NOSAMPLES)
+		wfprintf(fp_ledbat_window_logc, " - -");
+	else
+		wfprintf(fp_ledbat_window_logc, " %g %g", qd_window, window_error);
+
+	wfprintf(fp_ledbat_window_logc," %g %d %d %d %d %d %g %g %g",
 		thisdir->utp.qd_max_w1,
 		(int)((int)qd_window/(window_size*1000)), 
 		thisdir->utp.qd_count_w1, //window_no.
@@ -775,8 +809,7 @@ void print_last_window(ucb * thisdir, u_int32_t time_ms,
 		thisdir->utp.qd_measured_count_w1,
 		thisdir->utp.qd_measured_sum,
 		thisdir->utp.qd_measured_sum_w1,
-		thisdir->utp.qd_sum_w1,
-		thisdir->dir
+		thisdir->utp.qd_sum_w1
 	);
 }
 
@@ -1041,8 +1074,19 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 
 	if ( (time_ms - thisdir->utp.time_zero_w1) >= 1000000)
 	{
-		qd_window = close_window(thisdir, time_ms);
-		float other_qd_window = close_window(otherdir, time_ms);
+		#ifdef LEDBAT_WINDOW_CHECK
+		print_last_window_general(thisdir, time_ms);
+		#endif
+		float other_qd_window;
+		if (thisdir->dir==C2S){
+			qd_window = close_window(thisdir, time_ms);
+			other_qd_window = close_window(otherdir, time_ms);
+		}else{
+			other_qd_window = close_window(otherdir, time_ms);
+			qd_window = close_window(thisdir, time_ms);
+		}
+		wfprintf(fp_ledbat_window_logc,"\n");
+
 		#ifdef SEVERE_DEBUG
 		if (qd_window == -1 && other_qd_window ==-1){
 			printf("\nledbat.c %d:ERROR: No pkts in both direction\n",__LINE__);
@@ -1391,6 +1435,7 @@ void check_direction_consistency(ucb* thisdir, int call_line_number){
 		printf("\ncheck_direction_consistency called in line %d\n", call_line_number);
 		printf("\nledbat.c %d: Different pups\n", __LINE__);exit(21212);
 	}
+
 }
 #endif
 //</aa>
@@ -1401,6 +1446,8 @@ float close_window(void* dir_, u_int32_t time_ms)
 {
 	ucb* dir = (ucb*) dir_;
 	float qd_window;
+	float window_error;
+	int window_size = 1;
 
 	//number of packets in the window we are going to close (not including the last packet)
 	int pkts_in_win = dir->utp.qd_measured_count- dir->utp.qd_count_w1;
@@ -1418,12 +1465,13 @@ float close_window(void* dir_, u_int32_t time_ms)
 		}
 		#endif
 
+		#ifdef LEDBAT_WINDOW_CHECK
+		print_last_window_directional(dir, NOSAMPLES, NOSAMPLES, window_size);
+		#endif
 		update_following_left_edge(dir, time_ms);
 		return -1;
 	}
 
-	float window_error;
-	int window_size = 1;
 
 
 		qd_window=(dir->utp.qd_measured_sum - dir->utp.qd_sum_w1)/pkts_in_win;
@@ -1449,13 +1497,7 @@ float close_window(void* dir_, u_int32_t time_ms)
 		//</aa>
 
 		#ifdef LEDBAT_WINDOW_CHECK
-		//number of windows after the closed one that contain non samples
-		//(and will be ignored)
-		//<aa>TODO: This value is indicative only if time_ms is the time of the pkt in the 
-		//direction dir; if, on the contrary, the packet that is triggering the window closure
-		//is in the direction opposite to dir, there can be other void windows in the direction
-		//dir</aa>
-		print_last_window(dir, time_ms, qd_window, window_error, window_size);
+		print_last_window_directional(dir, qd_window, window_error, window_size);
 		#endif
 
 		dir->utp.qd_sum_w1 += 
