@@ -764,16 +764,16 @@ void print_last_window_general(ucb * thisdir, u_int32_t time_ms)
 	// one. Check it</aa>
 
 	wfprintf(fp_ledbat_window_logc,"%d 0x%X 0x%X %u %u %u %s %hu %s %hu ",
-		thisdir->uTP_conn_id,
-		thisdir->utp.peerID,
-		thisdir->utp.infoHASH,
-		thisdir->utp.time_zero_w1,
-	        time_ms,
-		following_void_windows,
-		a_address,
-		thisdir->pup->addr_pair.a_port,
-		b_address,
-		thisdir->pup->addr_pair.b_port
+		thisdir->uTP_conn_id,			//1
+		thisdir->utp.peerID,			//2
+		thisdir->utp.infoHASH,			//3
+		thisdir->utp.time_zero_w1,		//4
+	        time_ms,				//5
+		following_void_windows,			//6
+		a_address,				//7
+		thisdir->pup->addr_pair.a_port,		//8
+		b_address,				//9
+		thisdir->pup->addr_pair.b_port		//10
 	);
 }
 
@@ -793,23 +793,28 @@ void print_last_window_directional(ucb * thisdir,
 	#endif
 
 	wfprintf(fp_ledbat_window_logc, " %s %d", 
-		udp_type_string[thisdir->type], thisdir->dir);
+		udp_type_string[thisdir->type],		//11-24
+		thisdir->dir				//12-25
+	);
 
 	if (qd_window == NOSAMPLES)
 		wfprintf(fp_ledbat_window_logc, " - -");
 	else
-		wfprintf(fp_ledbat_window_logc, " %g %g", qd_window, window_error);
+		wfprintf(fp_ledbat_window_logc, " %g %g", 
+			qd_window,			//13-26
+			window_error			//14-27
+		);
 
 	wfprintf(fp_ledbat_window_logc," %g %d %d %d %d %d %g %g %g",
-		thisdir->utp.qd_max_w1,
-		(int)((int)qd_window/(window_size*1000)), 
-		thisdir->utp.qd_count_w1, //window_no.
-		thisdir->utp.qd_measured_count,
+		thisdir->utp.qd_max_w1,			//15-28
+		(int)((int)qd_window/(window_size*1000)),//16-29
+		thisdir->utp.qd_count_w1, //window_no.	//17-30
+		thisdir->utp.qd_measured_count,		//18-31
 		thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1,//no_of_pkts_in_windows
-		thisdir->utp.qd_measured_count_w1,
-		thisdir->utp.qd_measured_sum,
-		thisdir->utp.qd_measured_sum_w1,
-		thisdir->utp.qd_sum_w1
+		thisdir->utp.qd_measured_count_w1,	//20-33
+		thisdir->utp.qd_measured_sum,		//21-34
+		thisdir->utp.qd_measured_sum_w1,	//22-35
+		thisdir->utp.qd_sum_w1			//23-36
 	);
 }
 
@@ -1058,6 +1063,11 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 
 	#ifdef SEVERE_DEBUG
 	check_direction_consistency(thisdir, __LINE__);
+	if(time_ms - thisdir->utp.time_zero_w1 < 0){
+		printf("\nledbat.c %d: ERROR:time_ms=%d, thisdir->utp.time_zero_w1=%d\n",
+			__LINE__,time_ms, thisdir->utp.time_zero_w1);
+		exit(7);
+	}
 	#endif
 
 	ucb* otherdir = (thisdir->dir == C2S) ? &(thisdir->pup->s2c) : &(thisdir->pup->c2s);
