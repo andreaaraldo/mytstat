@@ -2,8 +2,6 @@
 #define _LEDBAT_H_
 
 
-
-
 #define NOT_UTP 0
 #define UTP_DATA 1
 #define UTP_FIN 2
@@ -128,6 +126,24 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd);
 
 
 float PSquare(void *pdir, float q, int P);
+
+
+
+//<aa>
+/**
+ * It closes the previous window and updates the value of the following one. 
+ * It returns the queueing delay of the closed window or -1 if no pkts have been seen in the 
+ * previous window.
+ * dir: the descriptor of the direction of the window that you want to close (dir will be casyed to
+ * ucb*)
+ */
+float close_window(void* dir, u_int32_t time_ms);
+
+/**
+ * It updates the left edge of the following not void window
+ */
+void update_following_left_edge(void* dir, u_int32_t time_ms);
+//</aa>
 
 
 #endif
