@@ -270,7 +270,8 @@ typedef struct utp_stat
 	// These statistics are calculated not on the values concerning each single packet, but 
 	// on the values, each concerning a window
 	// </aa>
-        int qd_measured_count_w1; // <aa>number of windows</aa>
+	// <aa>number of not void windows (windows with at most 1 sample)</aa>
+        int qd_measured_count_w1;
 
 	float qd_measured_sum_w1; // <aa>sum of all qd, each qd being the average of the 
 				  // estimated queueind dlys of the packets in a window </aa>
