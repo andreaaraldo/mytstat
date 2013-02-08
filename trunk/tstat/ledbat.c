@@ -48,6 +48,8 @@ float alpha=0.5;
 
 
 static int is_utp_pkt(struct ip *pip, void *pproto, void *pdir, void *plast);
+
+
 void update_delay_base(u_int32_t time_diff, u_int32_t time_ms, ucb *thisdir);
 
 /**
@@ -301,10 +303,7 @@ measurement begins anew. LEDBAT thus requires that during idle
 periods, an implementation must maintain the base delay list.
 </aa>
 */
-/**	  	wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.a_address), 
-			ServiceName(pup->addr_pair.a_port));
-
+/**
  * <aa>see section 3.4.2 of "Low Extra Delay Background Transport (LEDBAT)
  * draft-ietf-ledbat-congestion-10.txt"</aa>
  */
@@ -485,6 +484,11 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
  	pup = thisdir->pup;
 	pup1= otherdir->pup;
 
+	//<aa>
+	#ifdef SEVERE_DEBUG
+	check_direction_consistency(thisdir);
+	#endif	
+
 #ifdef LEDBAT_DEBUG	
 		//1 IP Source
 		//2 Port Source
@@ -543,7 +547,13 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 			(putp->time_diff!=thisdir->utp.last_measured_time_diff) 
 		) || (estimated_qdF<120000) 
 	){
+		//<aa>At first, see if a window can be closed (not including the present pkt)
+                float qd_w1 = windowed_queueing_delay(
+			thisdir, ntohl(putp->time_ms) , estimated_qdF);
+		//</aa>
 
+		//<aa>Then, update all quantities related to the open window</aa>
+		//<aa>TODO: check what 
 		if (type_utp==UTP_DATA)
 			thisdir->utp.last_measured_time_diff=putp->time_diff;
 	
@@ -553,18 +563,15 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		thisdir->utp.qd_measured_sum+= (estimated_qdF/1000);
 		thisdir->utp.qd_measured_sum2+= ((estimated_qdF/1000)*(estimated_qdF/1000));
 
-         	  	wfprintf (fp_ledbat_logc, "%s %s ",
+       	  	wfprintf (fp_ledbat_logc, "%s %s ",
 			HostName(pup->addr_pair.a_address), 
 			ServiceName(pup->addr_pair.a_port));
-       if (thisdir->utp.ewma>0) {
+       		if (thisdir->utp.ewma>0) {
                    ewma=thisdir->utp.ewma;
                    thisdir->utp.ewma = alpha*(estimated_qdF/1000) + (1-alpha)*ewma;
-		}
-		else
-		{
+		}else
 		   thisdir->utp.ewma = estimated_qdF/1000;
-  		}  
-		       
+  		       
 #ifdef LEDBAT_DEBUG	
 			//15 Base_delay
        		 	//16 Queuing_delay float in ms
@@ -576,15 +583,15 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 			fprintf(fp_stdout," %f ",thisdir->utp.ewma);
 
  #endif
-		  	wfprintf (fp_ledbat_logc, "%s %s ",
+		  wfprintf (fp_ledbat_logc, "%s %s ",
 			HostName(pup->addr_pair.a_address), 
 			ServiceName(pup->addr_pair.a_port));
 	
-		
-
 		//utp-tma13 
+		/** <aa>The following instruction has been moved up</aa>
                 float qd_w1 =
 			windowed_queueing_delay(thisdir, ntohl(putp->time_ms) , estimated_qdF);
+		*/
 		
 		// <aa>???: Why do we calculate estimated_qdF in microseconds and 
 		// queueing_delay_max in milliseconds? </aa>
@@ -596,7 +603,6 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		if ((thisdir->utp.queueing_delay_min > (estimated_qdF/1000)))
 			thisdir->utp.queueing_delay_min= (estimated_qdF/1000);
 		
-
 		float estimated_99P;
 		float estimated_95P;
 		float estimated_90P;
@@ -606,7 +612,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		  	wfprintf (fp_ledbat_logc, "%s %s ",
 			HostName(pup->addr_pair.a_address), 
 			ServiceName(pup->addr_pair.a_port));
-		estimated_99P=PSquare(thisdir, (int)qd_w1, PERC_99);
+			estimated_99P=PSquare(thisdir, (int)qd_w1, PERC_99);
 			estimated_95P=PSquare(thisdir, (int)qd_w1, PERC_95);
 			estimated_90P=PSquare(thisdir, (int)qd_w1, PERC_90);
 			estimated_75P=PSquare(thisdir, (int)qd_w1, PERC_75);
@@ -615,8 +621,8 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	
 
 		#ifdef LEDBAT_DEBUG
-			//35 estimated_99percentile(w1) 36 estimated_95percentile(w1) 37 estimated_90percentile(w1) 38 estimated_75percentile(w1) 
-		  	wfprintf (fp_ledbat_logc, "%s %s ",
+		//35 estimated_99percentile(w1) 36 estimated_95percentile(w1) 37 estimated_90percentile(w1) 38 estimated_75percentile(w1) 
+		  wfprintf (fp_ledbat_logc, "%s %s ",
 			HostName(pup->addr_pair.a_address), 
 			ServiceName(pup->addr_pair.a_port));
 		fprintf(fp_stdout," %f %f %f %f ", estimated_99P, estimated_95P,  estimated_90P, estimated_75P );
@@ -630,9 +636,6 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 			fprintf(fp_stdout, " - - - - - - - - - - - - - - - - - - - - - - - - " );
 		#endif
 	}
-
-
-
 	
 	/*start of bittorrent message*/
 	u_int8_t *pputp=NULL;
@@ -742,7 +745,7 @@ udp_type udp_types[] = {UDP_UNKNOWN,FIRST_RTP,FIRST_RTCP,RTP,RTCP,SKYPE_E2E,SKYP
  * 	time_ms: the timestamp of the packet
  * 	qd: an estimate of the queueing delay
  */
-void print_last_window(ucb * thisdir, u_int32_t time_ms, u_int32_t actual_win_size,
+void print_last_window(ucb * thisdir, u_int32_t time_ms, unsigned int following_void_windows,
 	float qd_window, float window_error, int window_size)
 {
 	//We need to store the addresses returned by HostName. HostName calls
@@ -756,7 +759,7 @@ void print_last_window(ucb * thisdir, u_int32_t time_ms, u_int32_t actual_win_si
 		thisdir->utp.infoHASH,
 		thisdir->utp.time_zero_w1,
 	        time_ms,
-		actual_win_size,
+		following_void_windows,
 		a_address,
 		thisdir->pup->addr_pair.a_port,
 		b_address,
@@ -835,7 +838,8 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 
 		int N=utpstat.qd_measured_count_w1;
            
-		utpstat.queueing_delay_standev_w1 =Stdev(utpstat.qd_measured_sum_w1,utpstat.qd_measured_sum2_w1,N );
+		utpstat.queueing_delay_standev_w1 =Stdev(
+			utpstat.qd_measured_sum_w1,utpstat.qd_measured_sum2_w1,N );
 
           }
           else {
@@ -1010,6 +1014,118 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 
 }
 
+//<aa>
+float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
+{
+	//time_ms is in microsecond (10^-6)
+	//qd/1000 is in ms
+	//window in ms 
+
+	float qd_window;
+	float window_error;
+	float return_val=-1;
+	int window_size = 1;
+
+	ucb *thisdir;
+	thisdir = ( ucb *) pdir;
+
+	#ifdef SEVERE_DEBUG
+	check_direction_consistency(thisdir);
+	#endif
+
+	ucb* otherdir = (thisdir->dir == C2S) ? &(thisdir->pup->s2c) : &(thisdir->pup->c2s);
+
+	//initialize time_zero
+	//<aa>TODO: better if we have a single time_zero_w1
+	if (thisdir->utp.time_zero_w1==0){
+		//Remember: check_direction_consistency(...) guarantees that if in this
+		//direction time_zero_w1==0, then also in the opposite direction 
+		//utp.time_zero_w1==0
+		thisdir->utp.time_zero_w1=time_ms;
+		otherdir->utp.time_zero_w1=time_ms;
+	}
+
+	if ( (time_ms - thisdir->utp.time_zero_w1) >= 1000000)
+	{
+	 	// <aa>We can "close" the previous window and compute its statistics </aa>
+		qd_window=(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1)/
+			(thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1);
+
+		window_error=Stdev(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1, 
+		      thisdir->utp.qd_measured_sum2 - thisdir->utp.qd_sum2_w1,
+		      thisdir->utp.qd_measured_count - thisdir->utp.qd_count_w1 );
+		
+		//<aa>
+		#ifdef LEDBAT_DEBUG
+		if (thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1 < 0){
+			printf("\n\n\n\nledbat.c %d: ERROR: qd_measured_sum(%f) < qd_sum_w1(%f)\n\n\n",
+				__LINE__,thisdir->utp.qd_measured_sum, thisdir->utp.qd_sum_w1);
+			exit(-9987);
+		}
+		
+		if (thisdir->utp.qd_sum_w1 < 0){
+			printf("\n\n\nledbat.c %d: ERROR: qd_sum_w1(%f) < 0\n\n\n\n",
+				__LINE__,thisdir->utp.qd_sum_w1);
+			exit(-9911);
+		}
+		#endif
+		//</aa>
+
+		#ifdef LEDBAT_WINDOW_CHECK
+		//araldo!!
+		//  - windowed_log_engine
+		//  - at most once per second
+		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
+		//
+		
+		//number of windows after the closed one that contain non samples
+		//(and will be ignored)
+		unsigned int following_void_windows = (time_ms - thisdir->utp.time_zero_w1)/1000000;
+		print_last_window(thisdir, time_ms, following_void_windows, qd_window, window_error, window_size);
+		#endif
+
+		thisdir->utp.qd_sum_w1 += 
+			(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1);		
+		thisdir->utp.qd_count_w1 += (thisdir->utp.qd_measured_count-thisdir->utp.qd_count_w1);
+		thisdir->utp.qd_sum2_w1+=(thisdir->utp.qd_measured_sum2-thisdir->utp.qd_sum2_w1);
+
+		#ifdef SEVERE_DEBUG
+		u_int32_t old_time_zero = thisdir->utp.time_zero_w1;
+		#endif
+
+		//Compute the left edge of the following window
+		//offset is the time from the future window left edge and time_ms
+		u_int32_t offset = (time_ms - thisdir->utp.time_zero_w1)%1000000;
+		thisdir->utp.time_zero_w1 = time_ms - offset;
+		otherdir->utp.time_zero_w1= time_ms - offset;
+
+		#ifdef SEVERE_DEBUG
+		if ( (thisdir->utp.time_zero_w1 - old_time_zero)%1000000 != 0 ){
+			printf("\nledbat.c %d: thisdir->utp.time_zero_w1=%u, old_time_zero=%d",
+				__LINE__,thisdir->utp.time_zero_w1,old_time_zero);
+			exit(1111);
+		}
+		#endif
+		
+
+		//stqd_max_w1atistics
+		thisdir->utp.qd_measured_count_w1++;
+		thisdir->utp.qd_measured_sum_w1+=qd_window;
+		thisdir->utp.qd_measured_sum2_w1+=((qd_window)*(qd_window));
+
+		return_val = qd_window;
+	}
+
+	//<aa>Update the max
+	//TODO: why expressing qd in microseconds and qd_max_w1 in milliseconds?</aa>
+	if (qd/1000 >= thisdir->utp.qd_max_w1)
+		thisdir->utp.qd_max_w1=qd/1000;
+
+   return return_val;
+}//windowed
+//</aa>
+
+/*
 float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 {
 	//time_ms is in microsecond (10^-6)
@@ -1109,7 +1225,7 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 	}
    return res;
 }//windowed
-
+*/
 
 
 
@@ -1320,6 +1436,16 @@ void check_direction_consistency(ucb* thisdir){
 		printf("\nledbat.c %d: thisdir->dir=%d, other->dir=%d\n",
 			__LINE__,thisdir->dir, otherdir->dir);
 		exit(9898);
+	}
+
+	if (thisdir->utp.time_zero_w1 != otherdir->utp.time_zero_w1){
+		printf("\nledbat.c %d: thisdir->utp.time_zero_w1=%u, otherdir->utp.time_zero_w1=%u\n",
+			__LINE__,thisdir->utp.time_zero_w1, otherdir->utp.time_zero_w1);
+		exit(1000);
+	}
+	
+	if (thisdir->pup != otherdir->pup){
+		printf("\nledbat.c %d: Different pups\n", __LINE__);exit(21212);
 	}
 }
 #endif
