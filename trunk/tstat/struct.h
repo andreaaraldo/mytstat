@@ -1,3 +1,5 @@
+#ifndef _STRUCT_H_ 
+#define _STRUCT_H_
 /*
  *
  * Copyright (c) 2001
@@ -1287,4 +1289,4 @@ enum ip_direction {
  SRC_OUT_DST_IN  = 3,
  SRC_OUT_DST_OUT = 4
 };
-
+#endif
