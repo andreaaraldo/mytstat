@@ -274,9 +274,10 @@ typedef struct utp_stat
         int qd_measured_count_w1;
 
 	float qd_measured_sum_w1; // <aa>sum of all qd, each qd being the average of the 
-				  // estimated queueind dlys of the packets in a window </aa>
+				  // estimated queueind dlys of the packets in a window 
+				  // (milliseconds)</aa>
 	
-	float qd_measured_sum2_w1;//<aa>sum of all qd^2, each qd being as above</aa>
+	float qd_measured_sum2_w1;//<aa>sum of all qd^2, each qd being as above(milliseconds^2)</aa>
         float queueing_delay_average_w1;//<aa>mean of all qd, each qd being as above</aa>
         float queueing_delay_standev_w1;//<aa>standev of all qd, each qd being as above</aa>
 	// <aa>Windowed statistics: end </aa>
@@ -303,9 +304,9 @@ typedef struct utp_stat
 	// At the end of the current minute, the window moves---the earliest
 	// minimum is dropped and the latest minimum is added."
 	// </aa>
-        u_int32_t delay_base_hist[DELAY_BASE_HISTORY]; //delay base list
+        u_int32_t delay_base_hist[DELAY_BASE_HISTORY]; //delay base list<aa>(microseconds)</aa>
 
-        u_int32_t delay_base;
+        u_int32_t delay_base; //<aa>(microseconds)</aa>
 
 	// <aa>cur_delay_hist is a circular list to collect the last one-way delays
 	// (see [ledbat_draft] section 3.4.2). The position of the last added element 
