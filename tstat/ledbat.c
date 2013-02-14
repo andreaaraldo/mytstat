@@ -506,7 +506,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		//6 Version UTP
 		//7 Type UTP
 		//8 Extension UTP
-		  	wfprintf (fp_ledbat_logc, "%s %s ",
+		  wfprintf (fp_ledbat_logc, "%s %s ",
 			HostName(pup->addr_pair.a_address), 
 			ServiceName(pup->addr_pair.a_port));
 	fprintf(fp_stdout," %d %d %d",(putp->ver), 			                    
@@ -514,7 +514,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	
 		//9 Connection ID
 		//10 Sequence Number
-		  	wfprintf (fp_ledbat_logc, "%s %s ",
+		  wfprintf (fp_ledbat_logc, "%s %s ",
 			HostName(pup->addr_pair.a_address), 
 			ServiceName(pup->addr_pair.a_port));
 	//11 Ack Number
@@ -793,28 +793,29 @@ void print_last_window_directional(ucb * thisdir,
 	#endif
 
 	wfprintf(fp_ledbat_window_logc, " %s %d", 
-		udp_type_string[thisdir->type],		//11-24
-		thisdir->dir				//12-25
+		udp_type_string[thisdir->type],		//11-25
+		thisdir->dir				//12-26
 	);
 
 	if (qd_window == NOSAMPLES)
 		wfprintf(fp_ledbat_window_logc, " - -");
 	else
-		wfprintf(fp_ledbat_window_logc, " %g %g", 
-			qd_window,			//13-26
-			window_error			//14-27
+		wfprintf(fp_ledbat_window_logc, " %f %f", 
+			qd_window,			//13-27
+			window_error			//14-28
 		);
 
-	wfprintf(fp_ledbat_window_logc," %g %d %d %d %d %d %g %g %g",
-		thisdir->utp.qd_max_w1,			//15-28
-		(int)((int)qd_window/(window_size*1000)),//16-29
-		thisdir->utp.qd_count_w1, //window_no.	//17-30
-		thisdir->utp.qd_measured_count,		//18-31
+	wfprintf(fp_ledbat_window_logc," %f %d %d %d %d %d %f %f %f %u",
+		thisdir->utp.qd_max_w1,			//15-29
+		(int)((int)qd_window/(window_size*1000)),//16-30
+		thisdir->utp.qd_count_w1, //window_no.	//17-31
+		thisdir->utp.qd_measured_count,		//18-32
 		thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1,//no_of_pkts_in_windows
-		thisdir->utp.qd_measured_count_w1,	//20-33
-		thisdir->utp.qd_measured_sum,		//21-34
-		thisdir->utp.qd_measured_sum_w1,	//22-35
-		thisdir->utp.qd_sum_w1			//23-36
+		thisdir->utp.qd_measured_count_w1,	//20-34: no of not void windows
+		thisdir->utp.qd_measured_sum,		//21-35
+		thisdir->utp.qd_measured_sum_w1,	//22-36
+		thisdir->utp.qd_sum_w1,			//23-37
+		thisdir->utp.delay_base			//24-38
 	);
 }
 
