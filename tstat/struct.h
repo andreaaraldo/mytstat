@@ -324,8 +324,6 @@ typedef struct utp_stat
 	char peerID[9];
 	char infoHASH[21];
 
-	// <aa>??? what time_zero_w1 is? It cannot be the left edge of the window, because if
-	// it was the case, it should be initialized at every window closure, and it is not</aa>
         u_int32_t time_zero_w1;//<aa>In microseconds</aa>
 
 	// <aa>the max of the queueing delays collected in the last window (in milliseconds)
