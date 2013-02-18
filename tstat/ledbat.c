@@ -5,7 +5,7 @@
 		 *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 2 of the License, or12
  * (at your option) any later version.
  *
  * For bug report and other information please visit Tstat site:
@@ -89,7 +89,7 @@ BitTorrent_init ()
 {
 
 #ifdef LEDBAT_DEBUG
-	fprintf(fp_stdout, "\n1:ipsrc 2:portsrc 3:ipdest 4:portdest 5:uTPpkt_len 6:utP_version 7:uTP_type 8:uTP_extensions 9:uTP_connID 10:uTP_seqnum 11:uTP_acknum 12:uTP_timeMS 13:uTP_OWD 14:uTP_winsize 15:uTP_basedelay 16:uTP_queuingdelay_float[ms] 17:uTP_queuingdelay_int[ms] 18:last_update_time 19:uTP_ewma 20:qd_w1sec 21:st_dev_w1sec 22:max_qd_w1sec 23:floor(q/w)_w1sec 24:count(samples in w)_w1sec 25--29:w1b 30--34:w5 35:99percentile 36:95percentile 37:extensions? 38:type_ext? 39:first_word_BitTorrent_msg\n ");
+	fprintf(fp_stdout, "\n1:ipsrc 2:portsrc 3:ipdest 4:portdest 5:uTPpkt_len 6:utP_version 7:uTP_type 8:uTP_extensions 9:uTP_connID 10:uTP_seqnum 11:uTP_acknum 12:uTP_timeMS 13:uTP_OWD 14:uTP_winsize 15:uTP_basedelay 16:uTP_queuingdelay_float[ms] 17:uTP_queuingdelay_int[ms] 18:last_update_time 19:uTP_ewma 20:qd_w1sec 21:st_dev_w1sec 22:max_qd_w1sec 23:floor(q/w)_w1sec 24:count(samples_in_w)_w1sec 25--29:w1b 30--34:w5 35:99percentile 36:95percentile 37:extensions? 38:type_ext? 39:first_word_BitTorrent_msg 40:last_pkt_time(s) 41:last_pkt_time(us) 42:current_time(s) 43:current_time(us)\n ");
 #endif
 
 
@@ -132,7 +132,8 @@ void parser_BitTorrentMessages (void * pp, int tproto, void *pdir,int dir, void 
         thisdir = ( ucb *) pdir;
         otherdir = (ucb *)((dir == C2S) ? &(thisdir->pup->s2c) : &(thisdir->pup->c2s));
 
-	//<aa>TODO: remove this check
+	//<aa>
+	#ifdef SEVERE_DEBUG	
 	if (dir!=S2C && dir!=C2S){
 		printf("dir=%d\n", dir); exit(75);
 	}
@@ -142,6 +143,7 @@ void parser_BitTorrentMessages (void * pp, int tproto, void *pdir,int dir, void 
 	else if (dir != thisdir->dir){
 		printf("dir=%d, thisdir->dir=%d", dir, thisdir->dir); exit(74);
 	}
+	#endif
 	//</aa>
 
         void *streamBT;
@@ -488,6 +490,14 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	//<aa>
 	#ifdef SEVERE_DEBUG
 	check_direction_consistency(thisdir, __LINE__);
+	if( elapsed(current_time,thisdir->last_pkt_time) != 0 )
+	{
+		printf("\nledbat.c %d: current_time=%ldsec %ldusec last_pkt_seen=%ldsec %ldusec\n",
+			__LINE__,current_time.tv_sec, current_time.tv_usec, 
+			thisdir->last_pkt_time.tv_sec, thisdir->last_pkt_time.tv_usec);
+		exit(5646);
+	}
+	
 	#endif	//</aa>
 
 #ifdef LEDBAT_DEBUG	
@@ -506,20 +516,22 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		//6 Version UTP
 		//7 Type UTP
 		//8 Extension UTP
+		fprintf(fp_stdout," %d %d %d",(putp->ver), 			                    
+			(putp->type),(putp->ext));
+
 		  wfprintf (fp_ledbat_logc, "%s %s ",
 			HostName(pup->addr_pair.a_address), 
 			ServiceName(pup->addr_pair.a_port));
-	fprintf(fp_stdout," %d %d %d",(putp->ver), 			                    
-		(putp->type),(putp->ext));
+
+		  wfprintf (fp_ledbat_logc, "%s %s ",
+			HostName(pup->addr_pair.a_address), 
+			ServiceName(pup->addr_pair.a_port));
 	
 		//9 Connection ID
 		//10 Sequence Number
-		  wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.a_address), 
-			ServiceName(pup->addr_pair.a_port));
-	//11 Ack Number
+		//11 Ack Number
 		fprintf(fp_stdout," %d %d %d",ntohs(putp->conn_id), 			                    
-		ntohs(putp->seq_nr),ntohs(putp->ack_nr));	
+			ntohs(putp->seq_nr),ntohs(putp->ack_nr));	
 	
 		//<aa>putp is the pointer to the utp header of the packet in question</aa>
 
@@ -529,8 +541,6 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		fprintf(fp_stdout," %u %u %u",ntohl(putp->time_ms), 	           
 		ntohl(putp->time_diff),ntohl(putp->wnd_size));
 #endif
-	
-
 
 	update_delay_base(ntohl(putp->time_diff), ntohl(putp->time_ms), thisdir);
 	
@@ -538,6 +548,8 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 
 	//<aa>TODO:Why calling two times the same function?</aa>
 	u_int32_t estimated_qdI=get_queueing_delay(thisdir);
+
+
 
 
 
@@ -683,7 +695,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	if (((u_long) pputp - (u_long) putp) < (u_long)putplen   ) {
 		#ifdef LEDBAT_DEBUG
 			//39 1st bittorrent message word  
-			fprintf(fp_stdout, " %u \n",ntohl(*((u_int32_t *) pputp) ));
+			fprintf(fp_stdout, " %u",ntohl(*((u_int32_t *) pputp) ));
 		#endif
 
 		/*finished uTP header: handover to BitTorrent message parser... */
@@ -694,12 +706,18 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	}
 	else {
 		#ifdef LEDBAT_DEBUG
-			//39 1st bittorrent message word  
-			fprintf(fp_stdout, " - \n");
+			//39 1st bittorrent message word
+			fprintf(fp_stdout, " -");
 		#endif
 	}
 
-	
+	#ifdef LEDBAT_DEBUG
+	//<aa>TODO: remove this
+	//40:last_pkt_time(s) 41:last_pkt_time(us) 42:current_time(s) 43:current_time(us)
+	fprintf(fp_stdout, " %ld %ld %ld %ld\n", 
+		thisdir->last_pkt_time.tv_sec,thisdir->last_pkt_time.tv_usec,
+		current_time.tv_sec,current_time.tv_usec );
+	#endif
 }
 
 
@@ -747,33 +765,26 @@ udp_type udp_types[] = {UDP_UNKNOWN,FIRST_RTP,FIRST_RTCP,RTP,RTCP,SKYPE_E2E,SKYP
  */
 void print_last_window_general(ucb * thisdir, u_int32_t time_ms)
 {
+	printf("\nSono qui\n");exit(215);
 	//We need to store the addresses returned by HostName. HostName calls
 	//inet_ntoa and inet_ntoa overwrites the same buffer at every call.
 	sprintf(a_address, "%s", HostName(thisdir->pup->addr_pair.a_address));
 	sprintf(b_address, "%s", HostName(thisdir->pup->addr_pair.b_address));
 
-	//number of windows after the closed one that contain non samples
-	//(and will be ignored)
-	//<aa>TODO: This value is indicative only if time_ms is the time of the pkt in the 
-	//direction dir; if, on the contrary, the packet that is triggering the window closure
-	//is in the direction opposite to dir, there can be other void windows in the direction
-	//dir</aa>
-	unsigned int following_void_windows = (time_ms - thisdir->utp.time_zero_w1)/1000000;
-	
 	//<aa>TODO: maybe some of the following info describes a specidic direction rather than
 	// one. Check it</aa>
 
-	wfprintf(fp_ledbat_window_logc,"%d 0x%X 0x%X %u %u %u %s %hu %s %hu ",
-		thisdir->uTP_conn_id,			//1
-		thisdir->utp.peerID,			//2
-		thisdir->utp.infoHASH,			//3
-		thisdir->utp.time_zero_w1,		//4
-	        time_ms,				//5
-		following_void_windows,			//6
-		a_address,				//7
-		thisdir->pup->addr_pair.a_port,		//8
-		b_address,				//9
-		thisdir->pup->addr_pair.b_port		//10
+	wfprintf(fp_ledbat_window_logc,"%d 0x%X 0x%X %u %u %us%us %s %hu %s %hu ",
+		thisdir->uTP_conn_id,				//1
+		thisdir->utp.peerID,				//2
+		thisdir->utp.infoHASH,				//3
+		thisdir->utp.last_window_edge.tv_sec,		//4
+	        time_ms,					//5
+		current_time.tv_sec,current_time.tv_usec,	//6
+		a_address,					//7
+		thisdir->pup->addr_pair.a_port,			//8
+		b_address,					//9
+		thisdir->pup->addr_pair.b_port			//10
 	);
 }
 
@@ -792,10 +803,14 @@ void print_last_window_directional(ucb * thisdir,
 	}
 	#endif
 
-	wfprintf(fp_ledbat_window_logc, " %s %d", 
-		udp_type_string[thisdir->type],		//11-25
-		thisdir->dir				//12-26
-	);
+	wfprintf(fp_ledbat_window_logc, " %s",udp_type_string[thisdir->type]);//11-25
+
+	#ifdef SEVERE_DEBUG
+	wfprintf(fp_ledbat_window_logc, "  %d", thisdir->dir); //12-26
+	#else
+	wfprintf(fp_ledbat_window_logc, "  -"); //12-26
+	#endif
+	
 
 	if (qd_window == NOSAMPLES)
 		wfprintf(fp_ledbat_window_logc, " - -");
@@ -1061,40 +1076,37 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 	
 	ucb *thisdir;
 	thisdir = ( ucb *) pdir;
+	ucb* otherdir = (thisdir->dir == C2S) ? &(thisdir->pup->s2c) : &(thisdir->pup->c2s);
 
 	#ifdef SEVERE_DEBUG
 	check_direction_consistency(thisdir, __LINE__);
-	if(time_ms - thisdir->utp.time_zero_w1 < 0){
-		printf("\nledbat.c %d: ERROR:time_ms=%d, thisdir->utp.time_zero_w1=%d\n",
-			__LINE__,time_ms, thisdir->utp.time_zero_w1);
-		exit(7);
-	}
+	thisdir->utp.last_time_ms = time_ms;
 	#endif
 
-	ucb* otherdir = (thisdir->dir == C2S) ? &(thisdir->pup->s2c) : &(thisdir->pup->c2s);
 
-	//initialize time_zero
+	//initialize last_window_edge
 	//<aa>TODO: better if we have a single time_zero_w1
-	if (thisdir->utp.time_zero_w1==0){
+	if (thisdir->utp.last_window_edge.tv_sec ==0){
 		//Remember: check_direction_consistency(...) guarantees that if in this
-		//direction time_zero_w1==0, then also in the opposite direction 
-		//utp.time_zero_w1==0
-		thisdir->utp.time_zero_w1=time_ms;
-		otherdir->utp.time_zero_w1=time_ms;
+		//direction last_window_edge==0, then also in the opposite direction 
+		//utp.last_window_edge==0
+		thisdir->utp.last_window_edge.tv_sec = current_time.tv_sec;
+		otherdir->utp.last_window_edge.tv_sec = current_time.tv_sec;
 	}
-
-	if ( (time_ms - thisdir->utp.time_zero_w1) >= 1000000)
+	//<aa>TODO: we are computing (last_window_edge - current_time) 2 times: here and inside
+	// close_window(...). It's not efficient</aa>
+	else if ( thisdir->utp.last_window_edge.tv_sec - current_time.tv_sec >= 1)
 	{
 		#ifdef LEDBAT_WINDOW_CHECK
 		print_last_window_general(thisdir, time_ms);
 		#endif
 		float other_qd_window;
 		if (thisdir->dir==C2S){
-			qd_window = close_window(thisdir, time_ms);
-			other_qd_window = close_window(otherdir, time_ms);
+			qd_window = close_window(thisdir);
+			other_qd_window = close_window(otherdir);
 		}else{
-			other_qd_window = close_window(otherdir, time_ms);
-			qd_window = close_window(thisdir, time_ms);
+			other_qd_window = close_window(otherdir);
+			qd_window = close_window(thisdir);
 		}
 		wfprintf(fp_ledbat_window_logc,"\n");
 
@@ -1435,10 +1447,9 @@ void check_direction_consistency(ucb* thisdir, int call_line_number){
 		exit(9898);
 	}
 
-	if (thisdir->utp.time_zero_w1 != otherdir->utp.time_zero_w1){
+	if ( elapsed(thisdir->utp.last_window_edge, otherdir->utp.last_window_edge) != 0){
 		printf("\ncheck_direction_consistency called in line %d\n", call_line_number);
-		printf("\nledbat.c %d: thisdir->utp.time_zero_w1=%u, otherdir->utp.time_zero_w1=%u\n",
-			__LINE__,thisdir->utp.time_zero_w1, otherdir->utp.time_zero_w1);
+		printf("\nledbat.c %d: ERROR\n",__LINE__);
 		exit(1000);
 	}
 	
@@ -1447,13 +1458,23 @@ void check_direction_consistency(ucb* thisdir, int call_line_number){
 		printf("\nledbat.c %d: Different pups\n", __LINE__);exit(21212);
 	}
 
+	if (	elapsed(otherdir->last_pkt_time, current_time) < 0 ||
+		elapsed(thisdir->last_pkt_time, current_time) < 0   ){
+		printf("\nledbat.c %d: ERROR\n",__LINE__); exit(473);	
+	}
+
+	if (	thisdir->utp.last_window_edge.tv_usec != 0 || 
+		thisdir->utp.last_window_edge.tv_usec != 0	
+	){
+		printf("\nledbat.c %d: ERROR\n",__LINE__); exit(23232);
+	}
 }
 #endif
 //</aa>
 
 
 //<aa>
-float close_window(void* dir_, u_int32_t time_ms)
+float close_window(void* dir_)
 {
 	ucb* dir = (ucb*) dir_;
 	float qd_window;
@@ -1479,7 +1500,7 @@ float close_window(void* dir_, u_int32_t time_ms)
 		#ifdef LEDBAT_WINDOW_CHECK
 		print_last_window_directional(dir, NOSAMPLES, NOSAMPLES, window_size);
 		#endif
-		update_following_left_edge(dir, time_ms);
+		update_following_left_edge(dir);
 		return -1;
 	}
 
@@ -1516,7 +1537,7 @@ float close_window(void* dir_, u_int32_t time_ms)
 		dir->utp.qd_count_w1 += (dir->utp.qd_measured_count-dir->utp.qd_count_w1);
 		dir->utp.qd_sum2_w1+=(dir->utp.qd_measured_sum2-dir->utp.qd_sum2_w1);
 
-		update_following_left_edge(dir, time_ms);
+		update_following_left_edge(dir);
 
 		//stqd_max_w1atistics
 		dir->utp.qd_measured_count_w1++;
@@ -1525,35 +1546,27 @@ float close_window(void* dir_, u_int32_t time_ms)
 
 		return qd_window;
 }
+//</aa>
 
-void update_following_left_edge(void* dir_, u_int32_t time_ms){
-		ucb* dir = (ucb*) dir_;
-		
-		//Compute the left edge of the following not void window
-		//offset is the time from the future window left edge and time_ms
-		u_int32_t offset = (time_ms - dir->utp.time_zero_w1)%1000000;
-		
-		#ifdef SEVERE_DEBUG
-		unsigned int following_void_windows = (time_ms - dir->utp.time_zero_w1)/1000000;
-		
-		u_int32_t old_time_zero = dir->utp.time_zero_w1;
-		if (time_ms - ( dir->utp.time_zero_w1 + following_void_windows*1000000) != offset){
-			printf("\nledbat.c %d: offset=%u, following_void_windows=%d, time_ms=%u, dir->utp.time_zero_w1=%u\n",
-				__LINE__, offset, following_void_windows, time_ms, dir->utp.time_zero_w1);
-			exit(978);
-		}
-		#endif
+//<aa>
+void update_following_left_edge(void* dir_){
+	ucb* dir = (ucb*) dir_;
+	
+	//Compute the left edge of the following not void window
 
-		dir->utp.time_zero_w1 = time_ms - offset;
+	#ifdef SEVERE_DEBUG	
+	//offset is the time(seconds) from the future window left edge and current_time
+	time_t offset = current_time.tv_sec - dir->utp.last_window_edge.tv_sec;
+	//offset corresponds to the number of void windows between the last_window_edge and 
+	//current_time
 
-		#ifdef SEVERE_DEBUG
-		if ( (dir->utp.time_zero_w1 - old_time_zero)%1000000 != 0 ){
-			printf("\nledbat.c %d: dir->utp.time_zero_w1=%u, old_time_zero=%d",
-				__LINE__,dir->utp.time_zero_w1,old_time_zero);
-			exit(1111);
-		}
-		#endif
+	if (	elapsed(dir->utp.last_window_edge, current_time) >= 1e6*offset &&
+		elapsed(dir->utp.last_window_edge, current_time) <= 1e6*(offset+1)
+	){
+		printf("\nledbat.c %d: ERROR\n", __LINE__);exit(978);
+	}
+	#endif
 
+	dir->utp.last_window_edge.tv_sec = current_time.tv_sec;
 }
-
 //</aa>
