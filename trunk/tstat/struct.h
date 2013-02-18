@@ -327,10 +327,9 @@ typedef struct utp_stat
 	//<aa>It has been replaced by last_window_edge</aa>
         //u_int32_t time_zero_w1;//<aa>In microseconds</aa>
 	
-	// <aa> The instant when the last closed window ends. It is a "sniffer time" 
-	// (not the ledbat timestamp). It has seconds-granularity (microseconds part must be
-	// always 0)
-	timeval last_window_edge;
+	// <aa> The instant(seconds) when the last closed window ends. It is a "sniffer time" 
+	// (not the ledbat timestamp).
+	size_t last_window_edge;
 	// </aa>
 
 	// <aa>the max of the queueing delays collected in the last window (in milliseconds)

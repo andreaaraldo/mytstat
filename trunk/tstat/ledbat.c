@@ -765,7 +765,6 @@ udp_type udp_types[] = {UDP_UNKNOWN,FIRST_RTP,FIRST_RTCP,RTP,RTCP,SKYPE_E2E,SKYP
  */
 void print_last_window_general(ucb * thisdir, u_int32_t time_ms)
 {
-	printf("\nSono qui\n");exit(215);
 	//We need to store the addresses returned by HostName. HostName calls
 	//inet_ntoa and inet_ntoa overwrites the same buffer at every call.
 	sprintf(a_address, "%s", HostName(thisdir->pup->addr_pair.a_address));
@@ -778,7 +777,7 @@ void print_last_window_general(ucb * thisdir, u_int32_t time_ms)
 		thisdir->uTP_conn_id,				//1
 		thisdir->utp.peerID,				//2
 		thisdir->utp.infoHASH,				//3
-		thisdir->utp.last_window_edge.tv_sec,		//4
+		thisdir->utp.last_window_edge,			//4
 	        time_ms,					//5
 		current_time.tv_sec,current_time.tv_usec,	//6
 		a_address,					//7
@@ -1086,16 +1085,16 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 
 	//initialize last_window_edge
 	//<aa>TODO: better if we have a single time_zero_w1
-	if (thisdir->utp.last_window_edge.tv_sec ==0){
+	if (thisdir->utp.last_window_edge ==0){
 		//Remember: check_direction_consistency(...) guarantees that if in this
 		//direction last_window_edge==0, then also in the opposite direction 
 		//utp.last_window_edge==0
-		thisdir->utp.last_window_edge.tv_sec = current_time.tv_sec;
-		otherdir->utp.last_window_edge.tv_sec = current_time.tv_sec;
+		thisdir->utp.last_window_edge = current_time.tv_sec;
+		otherdir->utp.last_window_edge = current_time.tv_sec;
 	}
 	//<aa>TODO: we are computing (last_window_edge - current_time) 2 times: here and inside
 	// close_window(...). It's not efficient</aa>
-	else if ( thisdir->utp.last_window_edge.tv_sec - current_time.tv_sec >= 1)
+	else if ( thisdir->utp.last_window_edge - current_time.tv_sec >= 1)
 	{
 		#ifdef LEDBAT_WINDOW_CHECK
 		print_last_window_general(thisdir, time_ms);
@@ -1447,7 +1446,13 @@ void check_direction_consistency(ucb* thisdir, int call_line_number){
 		exit(9898);
 	}
 
-	if ( elapsed(thisdir->utp.last_window_edge, otherdir->utp.last_window_edge) != 0){
+	timeval last_window_edge, other_last_window_edge;
+	last_window_edge.tv_sec = thisdir->utp.last_window_edge;
+	last_window_edge.tv_usec = 0;
+	other_last_window_edge.tv_sec = otherdir->utp.last_window_edge;
+	other_last_window_edge.tv_usec = 0;
+
+	if ( elapsed(last_window_edge, other_last_window_edge) != 0){
 		printf("\ncheck_direction_consistency called in line %d\n", call_line_number);
 		printf("\nledbat.c %d: ERROR\n",__LINE__);
 		exit(1000);
@@ -1461,12 +1466,6 @@ void check_direction_consistency(ucb* thisdir, int call_line_number){
 	if (	elapsed(otherdir->last_pkt_time, current_time) < 0 ||
 		elapsed(thisdir->last_pkt_time, current_time) < 0   ){
 		printf("\nledbat.c %d: ERROR\n",__LINE__); exit(473);	
-	}
-
-	if (	thisdir->utp.last_window_edge.tv_usec != 0 || 
-		thisdir->utp.last_window_edge.tv_usec != 0	
-	){
-		printf("\nledbat.c %d: ERROR\n",__LINE__); exit(23232);
 	}
 }
 #endif
@@ -1554,19 +1553,27 @@ void update_following_left_edge(void* dir_){
 	
 	//Compute the left edge of the following not void window
 
-	#ifdef SEVERE_DEBUG	
+	#ifdef SEVERE_DEBUG
 	//offset is the time(seconds) from the future window left edge and current_time
-	time_t offset = current_time.tv_sec - dir->utp.last_window_edge.tv_sec;
+	time_t offset = current_time.tv_sec - dir->utp.last_window_edge;
 	//offset corresponds to the number of void windows between the last_window_edge and 
 	//current_time
 
-	if (	elapsed(dir->utp.last_window_edge, current_time) >= 1e6*offset &&
-		elapsed(dir->utp.last_window_edge, current_time) <= 1e6*(offset+1)
+	timeval last_window_edge;
+	last_window_edge.tv_sec = dir->utp.last_window_edge;
+	last_window_edge.tv_usec = 0;
+
+	if (	!
+		(	elapsed(last_window_edge, current_time) >= 1e6*offset &&
+			elapsed(last_window_edge, current_time) <= 1e6*(offset+1)    )
 	){
-		printf("\nledbat.c %d: ERROR\n", __LINE__);exit(978);
+		printf("\nledbat.c %d: ERROR:\n dir->utp.last_window_edge=%u;\n current_time=%us%uus;\n offset=%u\n elapsed(last_window_edge, current_time)=%f\n", 
+			__LINE__, dir->utp.last_window_edge, current_time.tv_sec,
+			current_time.tv_usec, offset, elapsed(last_window_edge, current_time));
+		exit(978);
 	}
 	#endif
 
-	dir->utp.last_window_edge.tv_sec = current_time.tv_sec;
+	dir->utp.last_window_edge = current_time.tv_sec;
 }
 //</aa>
