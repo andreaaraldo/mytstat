@@ -324,7 +324,14 @@ typedef struct utp_stat
 	char peerID[9];
 	char infoHASH[21];
 
-        u_int32_t time_zero_w1;//<aa>In microseconds</aa>
+	//<aa>It has been replaced by last_window_edge</aa>
+        //u_int32_t time_zero_w1;//<aa>In microseconds</aa>
+	
+	// <aa> The instant when the last closed window ends. It is a "sniffer time" 
+	// (not the ledbat timestamp). It has seconds-granularity (microseconds part must be
+	// always 0)
+	timeval last_window_edge;
+	// </aa>
 
 	// <aa>the max of the queueing delays collected in the last window (in milliseconds)
 	// (not microseconds) </aa>
@@ -346,6 +353,8 @@ typedef struct utp_stat
         float qd_sum2_w1; // <aa>sum of the square queue dly calculated as above
 	// <aa> Stored values: end </aa>
 
+	//<aa>TODO: maybe not used anymore</aa>
+	u_int32_t last_time_ms;//The time_ms of the last packet seen (microseconds)
 } utp_stat;
 
 
@@ -1116,9 +1125,7 @@ typedef struct ucb
   Bool is_VOD;
 
   //<aa>
-  #ifdef SEVERE_DEBUG
   int dir;
-  #endif
   //</aa>
 
   union

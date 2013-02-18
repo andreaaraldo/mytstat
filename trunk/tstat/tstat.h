@@ -196,7 +196,8 @@ void trace_init (void);
 void tcp_header_stat (struct tcphdr *ptcp, struct ip *pip);
 int tcp_flow_stat (struct ip *, struct tcphdr *ptcp, void *plast,
 			 int *dir);
-double elapsed (timeval, timeval);
+double elapsed (timeval, timeval); //<aa>Returns the time (microseconds) passed from t1 to t2
+				   //(negative if t1>t2)</aa>
 int tv_cmp (struct timeval lhs, struct timeval rhs);
 char *elapsed2str (double etime);
 double Average (double sum, int count);

@@ -46,10 +46,12 @@ struct utp_hdr
   unsigned int type:4;		/* type */
   unsigned int ver:4;		/* protocol version */
   unsigned int ext:8;		/**
+
  * For every packet, this function must be called to update the statistics of the last window
  * 	time_ms: the timestamp of the packet (in microseconds - see [utp_draft])
  * 	qd: an estimate of the queueing delay
  */
+//<aa>TODO: maybe time_ms is no more used
 float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd);/* header extension */
   
 
@@ -137,12 +139,12 @@ float PSquare(void *pdir, float q, int P);
  * dir: the descriptor of the direction of the window that you want to close (dir will be casyed to
  * ucb*)
  */
-float close_window(void* dir, u_int32_t time_ms);
+float close_window(void* dir);
 
 /**
  * It updates the left edge of the following not void window
  */
-void update_following_left_edge(void* dir, u_int32_t time_ms);
+void update_following_left_edge(void* dir);
 //</aa>
 
 
