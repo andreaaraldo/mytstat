@@ -773,8 +773,8 @@ void print_last_window_general(ucb * thisdir, u_int32_t time_ms)
 	//<aa>TODO: maybe some of the following info describes a specidic direction rather than
 	// one. Check it</aa>
 
-	wfprintf(fp_ledbat_window_logc,"%d 0x%X 0x%X %u %u %us%us %s %hu %s %hu ",
-		thisdir->uTP_conn_id,				//1
+	wfprintf(fp_ledbat_window_logc,"%s 0x%X 0x%X %u %u %us%us %s %hu %s %hu ",
+		"-",//<aa>:TODO:remove this</aa>		//1
 		thisdir->utp.peerID,				//2
 		thisdir->utp.infoHASH,				//3
 		thisdir->utp.last_window_edge,			//4
@@ -823,7 +823,7 @@ void print_last_window_directional(ucb * thisdir,
 		thisdir->utp.qd_max_w1,			//15-29
 		(int)((int)qd_window/(window_size*1000)),//16-30
 		thisdir->utp.qd_count_w1, //window_no.	//17-31
-		thisdir->utp.qd_measured_count,		//18-32
+		thisdir->uTP_conn_id,			//18-32
 		thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1,//no_of_pkts_in_windows
 		thisdir->utp.qd_measured_count_w1,	//20-34: no of not void windows
 		thisdir->utp.qd_measured_sum,		//21-35
