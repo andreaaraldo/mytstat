@@ -315,6 +315,10 @@ typedef struct utp_stat
 	// </aa>
         u_int32_t cur_delay_hist[CUR_DELAY_SIZE]; // queueing delay
 
+	//<aa>TODO: remove this
+	u_int32_t cur_owd_delay_hist[CUR_DELAY_SIZE];
+	//</aa>
+
         size_t cur_delay_idx;
 
 	//<aa>It corresponds to the "last_rollover" of [ledbat_draft]</aa>
