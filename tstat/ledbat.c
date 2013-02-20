@@ -294,6 +294,65 @@ int wrapping_compare_less(u_int32_t lhs, u_int32_t rhs)
 	return dist_up < dist_down;
 }
 
+//<aa>
+void update_delay_base(u_int32_t time_diff,u_int32_t time_ms, ucb *thisdir){
+	int j=0;
+	while ( j<DELAY_BASE_HISTORY ){
+		if (thisdir->utp.delay_base_hist[j]==0) thisdir->utp.delay_base_hist[j]=time_diff;
+		j++;
+		//thisdir->utp.delay_base=time_diff;
+	}
+
+	#ifdef SEVERE_DEBUG
+	if (elapsed(thisdir->utp.last_rollover, current_time)<=0 ){
+		printf("\nledbat.c %d: \n", __LINE__); exit(849);
+	}
+	#endif
+
+	if ( 	 elapsed(thisdir->utp.last_rollover, current_time) > 60e6 ) {
+		// <aa>"LEDBAT sender stores BASE_HISTORY separate minima---one each for the
+		// last BASE_HISTORY-1 minutes, and one for the running current minute.
+		// At the end of the current minute, the window moves---the earliest
+		// minimum is dropped and the latest minimum is added."
+		// </aa>
+
+		//<aa>It corresponds to the "last_rollover" in the draft</aa>
+		thisdir->utp.last_rollover=current_time;
+		
+		int i=1; //rollover della lista di base_delay
+		while ( i<DELAY_BASE_HISTORY ){
+			thisdir->utp.delay_base_hist[i-1]=thisdir->utp.delay_base_hist[i];
+			i++;
+		}
+		thisdir->utp.delay_base_hist[DELAY_BASE_HISTORY-1]=time_diff;
+	
+	}else{ //update the tail
+		if (wrapping_compare_less(time_diff,thisdir->utp.delay_base_hist[DELAY_BASE_HISTORY-1]))  
+			thisdir->utp.delay_base_hist[DELAY_BASE_HISTORY-1]=time_diff;
+			//<aa>according to the draft, we calculate the one-way delay minima over a
+			//one-minute interval</aa>
+	}
+
+   	//collect last CUR_DELAY_SIZE queueing delay 
+	thisdir->utp.delay_base=min_delay_base (thisdir);
+
+	//<aa>estimated queueing delay for the current packet</aa>
+	u_int32_t delay= time_diff - thisdir->utp.delay_base;
+
+	//<aa>The following two lines correspond to update_current_delay(...) in 
+	//section 3.4.2 of [ledbat_draft]</aa>
+	// <aa>[ledbat_draft] sec 3.4.2 says that update_current_delay(...)
+	// mantains a list of one-way delays, whereas we mantain a list of estimated queueing delays.
+	// But we handle this vector in a slightly different way and verified that this does not 
+	// affect the queueing delay estimation</aa>
+	thisdir->utp.cur_delay_hist[thisdir->utp.cur_delay_idx]=delay;
+	thisdir->utp.cur_delay_idx= (thisdir->utp.cur_delay_idx+1)% CUR_DELAY_SIZE;
+
+	//<aa>TODO: remove this
+	thisdir->utp.cur_owd_delay_hist[thisdir->utp.cur_delay_idx] = time_diff;
+	//</aa>	
+}
+//</aa>
 
 
 /**
@@ -310,8 +369,8 @@ periods, an implementation must maintain the base delay list.
  * <aa>see section 3.4.2 of "Low Extra Delay Background Transport (LEDBAT)
  * draft-ietf-ledbat-congestion-10.txt"</aa>
  */
+/*
 void update_delay_base(u_int32_t time_diff,u_int32_t time_ms, ucb *thisdir){
-	/*inizializzazione */
 	int j=0;
 	while ( j<DELAY_BASE_HISTORY ){
 		if (thisdir->utp.delay_base_hist[j]==0) thisdir->utp.delay_base_hist[j]=time_diff;
@@ -362,9 +421,10 @@ void update_delay_base(u_int32_t time_diff,u_int32_t time_ms, ucb *thisdir){
 
 	//<aa>The following two lines correspond to update_current_delay(...) in 
 	//section 3.4.2 of [ledbat_draft]</aa>
-	// <aa>CRITICAL: [ledbat_draft] sec 3.4.2 says that update_current_delay(...)
+	// <aa>[ledbat_draft] sec 3.4.2 says that update_current_delay(...)
 	// mantains a list of one-way delays, whereas we mantain a list of estimated queueing delays.
-	// Maybe it is not correct</aa>
+	// But we handle this vector in a slightly different way and verified that this does not 
+	// affect the queueing delay estimation</aa>
 	thisdir->utp.cur_delay_hist[thisdir->utp.cur_delay_idx]=delay;
 	thisdir->utp.cur_delay_idx= (thisdir->utp.cur_delay_idx+1)% CUR_DELAY_SIZE;
 
@@ -372,6 +432,7 @@ void update_delay_base(u_int32_t time_diff,u_int32_t time_ms, ucb *thisdir){
 	thisdir->utp.cur_owd_delay_hist[thisdir->utp.cur_delay_idx] = time_diff;
 	//</aa>	
 }
+*/
 
 //<aa>TODO: Find a more efficient way to compute the minimum</aa>
 u_int32_t min_delay_base(ucb *thisdir){
@@ -411,12 +472,13 @@ u_int32_t get_queueing_delay(ucb *thisdir) {
 	}
 
 	/** 
-	 * <aa>CRITICAL: if we want to implement the MIN FILTER described in [ledbat_draft] we must
-	 * calculate
+	 * <aa> if we wanted to implement the MIN FILTER described in [ledbat_draft] we
+	 * would calculate
 	 *	queue_dly_est = min(last 3 owd) - baseline
 	 * On the contrary, since an element of thisdir->utp.cur_delay_hist is a queueing dly, 
 	 * we are calculating
 	 * 	queue_dly_est = min(last 3 queue_dly) = min (last 3 owd - baseline)
+	 * We verified that this does not affect the queueing delay estimation
 	 * </aa>
 	 */
 	return min;
@@ -609,7 +671,8 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
         		//18 lastupdate
 			//19 ewma
         		fprintf(fp_stdout," %u %.0f %u ",thisdir->utp.delay_base, estimated_qdF/1000, estimated_qdI/1000 );
-       		 	fprintf(fp_stdout," %u ",thisdir->utp.last_update);
+       		 	fprintf(fp_stdout," %us-%uus ",thisdir->utp.last_rollover.tv_sec, 
+				thisdir->utp.last_rollover.tv_usec);
 			fprintf(fp_stdout," %f ",thisdir->utp.ewma);
 
  #endif
@@ -1180,7 +1243,7 @@ float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
 	if ( (time_ms - thisdir->utp.time_zero_w1) >= 1000000)
 	{
 	 	// <aa>Now we can "close" the window and compute its statistics </aa>
-		// <aa>CRITICAL: Suppose that the last packet (not the current one) arrived
+		// <aa>Suppose that the last packet (not the current one) arrived
 		// less then 1s after the window opened. Suppose that the current packet arrives		// 90s after the last one. We cannot close the window with the last packet, we 
 		// can close the window only after the current packet arrives. The problem is that
 		// this leads to a distorted window (larger than 1 s)

@@ -311,8 +311,9 @@ typedef struct utp_stat
 	// <aa>cur_delay_hist is a circular list to collect the last one-way delays
 	// (see [ledbat_draft] section 3.4.2). The position of the last added element 
 	// is cur_delay_idx</aa>
-	// <aa>CRITICAL: Instead, we are collecting estimated queueing delays. Maybe we are wrong
-	// </aa>
+	// <aa> Instead, we are collecting estimated queueing delays. 	
+	// But we handle this vector in a slightly different way and verified that this does not 
+	// affect the queueing delay estimation</aa>
         u_int32_t cur_delay_hist[CUR_DELAY_SIZE]; // queueing delay
 
 	//<aa>TODO: remove this
@@ -321,9 +322,13 @@ typedef struct utp_stat
 
         size_t cur_delay_idx;
 
-	//<aa>It corresponds to the "last_rollover" of [ledbat_draft]</aa>
-        u_int32_t last_update;
+	//<aa>It corresponds to the "last_rollover" of [ledbat_draft]. Now replaced by last_rollover
+        //u_int32_t last_update;
+	//</aa>
 
+	//<aa>It corresponds to the "last_rollover" of [ledbat_draft]
+	timeval last_rollover;
+	//</aa>
 
 	char peerID[9];
 	char infoHASH[21];
