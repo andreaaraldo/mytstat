@@ -1151,6 +1151,7 @@ typedef struct ucb
 #endif
 
   /* utp bittorrent */
+  //<aa>I should include this in ifdef-endif
   utp_stat utp;
 
 
