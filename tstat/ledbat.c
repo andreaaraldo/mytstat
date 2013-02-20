@@ -89,7 +89,7 @@ BitTorrent_init ()
 {
 
 #ifdef LEDBAT_DEBUG
-	fprintf(fp_stdout, "\n1:ipsrc 2:portsrc 3:ipdest 4:portdest 5:uTPpkt_len 6:utP_version 7:uTP_type 8:uTP_extensions 9:uTP_connID 10:uTP_seqnum 11:uTP_acknum 12:uTP_timeMS 13:uTP_OWD 14:uTP_winsize 15:uTP_basedelay 16:uTP_queuingdelay_float[ms] 17:uTP_queuingdelay_int[ms] 18:last_update_time 19:uTP_ewma 20:qd_w1sec 21:st_dev_w1sec 22:max_qd_w1sec 23:floor(q/w)_w1sec 24:count(samples_in_w)_w1sec 25--29:w1b 30--34:w5 35:99percentile 36:95percentile 37:extensions? 38:type_ext? 39:first_word_BitTorrent_msg 40:last_pkt_time(s) 41:last_pkt_time(us) 42:current_time(s) 43:current_time(us)\n ");
+	fprintf(fp_stdout, "\n1:ipsrc 2:portsrc 3:ipdest 4:portdest 5:uTPpkt_len 6:utP_version 7:uTP_type 8:uTP_extensions 9:uTP_connID 10:uTP_seqnum 11:uTP_acknum 12:uTP_timeMS 13:uTP_OWD 14:uTP_winsize 15:uTP_basedelay 16:uTP_queuingdelay_float[ms] 17:uTP_queuingdelay_int[ms] 18:last_update_time 19:uTP_ewma 20:qd_w1sec 21:st_dev_w1sec 22:max_qd_w1sec 23:floor(q/w)_w1sec 24:count(samples_in_w)_w1sec 25--29:w1b 30--34:w5 35:99percentile 36:95percentile 37:extensions? 38:type_ext? 39:first_word_BitTorrent_msg 40:last_pkt_time(s) 41:last_pkt_time(us) 42:current_time(s) 43:current_time(us) 44:qd_andrea\n ");
 #endif
 
 
@@ -367,7 +367,10 @@ void update_delay_base(u_int32_t time_diff,u_int32_t time_ms, ucb *thisdir){
 	// Maybe it is not correct</aa>
 	thisdir->utp.cur_delay_hist[thisdir->utp.cur_delay_idx]=delay;
 	thisdir->utp.cur_delay_idx= (thisdir->utp.cur_delay_idx+1)% CUR_DELAY_SIZE;
-	
+
+	//<aa>TODO: remove this
+	thisdir->utp.cur_owd_delay_hist[thisdir->utp.cur_delay_idx] = time_diff;
+	//</aa>	
 }
 
 //<aa>TODO: Find a more efficient way to compute the minimum</aa>
@@ -413,15 +416,28 @@ u_int32_t get_queueing_delay(ucb *thisdir) {
 	 *	queue_dly_est = min(last 3 owd) - baseline
 	 * On the contrary, since an element of thisdir->utp.cur_delay_hist is a queueing dly, 
 	 * we are calculating
-	 	  	wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.a_address), 
-			ServiceName(pup->addr_pair.a_port));
-* 	queue_dly_est = min(last 3 queue_dly) = min (last 3 owd - baseline)
+	 * 	queue_dly_est = min(last 3 queue_dly) = min (last 3 owd - baseline)
 	 * </aa>
 	 */
 	return min;
 }
 
+//<aa>TODO: remove this
+u_int32_t get_filtered_owd(ucb *thisdir) {
+	u_int32_t min;
+	min=thisdir->utp.cur_owd_delay_hist[0];	
+	int i=1;
+	while ( i<CUR_DELAY_SIZE ){
+		if (	((thisdir->utp.cur_owd_delay_hist[i]<min) && (thisdir->utp.cur_owd_delay_hist[i]>0))
+			|| (min==0)  
+		)
+		min=thisdir->utp.cur_owd_delay_hist[i];
+		i++;
+	}
+
+	return min;
+}
+//</aa>
 
 
 
@@ -543,15 +559,16 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 #endif
 
 	update_delay_base(ntohl(putp->time_diff), ntohl(putp->time_ms), thisdir);
+	//<aa> now thisdir->utp.delay_base is updated </aa>
 	
 	float estimated_qdF=(float)get_queueing_delay(thisdir);
 
 	//<aa>TODO:Why calling two times the same function?</aa>
 	u_int32_t estimated_qdI=get_queueing_delay(thisdir);
 
-
-
-
+	//<aa>TODO: remove this
+	float estimated_qdF_andrea= (float) get_filtered_owd(thisdir) - thisdir->utp.delay_base;
+	//</aa>
 
 	//to avoid overfitting, we neglect multiple consecutive equal queueing delay samples 
 	if (( 	(type_utp==UTP_STATE_ACK) || (type_utp==UTP_STATE_SACK) ) || 
@@ -591,7 +608,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
         		//17 Queuing_delay integer in ms - millisecond
         		//18 lastupdate
 			//19 ewma
-        		fprintf(fp_stdout," %u %f %u ",thisdir->utp.delay_base, estimated_qdF/1000, estimated_qdI/1000 );
+        		fprintf(fp_stdout," %u %.0f %u ",thisdir->utp.delay_base, estimated_qdF/1000, estimated_qdI/1000 );
        		 	fprintf(fp_stdout," %u ",thisdir->utp.last_update);
 			fprintf(fp_stdout," %f ",thisdir->utp.ewma);
 
@@ -713,10 +730,10 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 
 	#ifdef LEDBAT_DEBUG
 	//<aa>TODO: remove this
-	//40:last_pkt_time(s) 41:last_pkt_time(us) 42:current_time(s) 43:current_time(us)
-	fprintf(fp_stdout, " %ld %ld %ld %ld\n", 
+	//40:last_pkt_time(s) 41:last_pkt_time(us) 42:current_time(s) 43:current_time(us) 44:qd_andrea
+	fprintf(fp_stdout, " %ld %ld %ld %ld %.0f\n", 
 		thisdir->last_pkt_time.tv_sec,thisdir->last_pkt_time.tv_usec,
-		current_time.tv_sec,current_time.tv_usec );
+		current_time.tv_sec,current_time.tv_usec, estimated_qdF_andrea/1000);
 	#endif
 }
 
