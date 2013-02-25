@@ -68,6 +68,9 @@ static quadrant *whichquad (seqspace *, seqnum);
 static quadrant *create_quadrant (void);
 static int addseg (tcb *, quadrant *, seqnum, seglen, Bool *, u_short);
 static void rtt_retrans (tcb *, segment *);
+
+//<aa>It is called only if ANY preceding segment was xmitted after this one,
+//so that the RTT sample is invalid</aa>
 static enum t_ack rtt_ackin (tcb *, segment *, Bool rexmit);
 
 
@@ -578,8 +581,6 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       ptcb->rtt_sum += etime_rtt;
       ptcb->rtt_sum2 += etime_rtt * etime_rtt;
       ++ptcb->rtt_count;
-      //<aa></aa>
-      ciao
       ret = NORMAL;
 
 

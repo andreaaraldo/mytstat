@@ -3544,3 +3544,173 @@ void flush_histo_engine(void) {
     memset (&WEB_bitrate, 0, sizeof (struct WEB_bitrates));
     memset (&VIDEO_rate, 0, sizeof (struct VIDEO_rates));
 }
+
+
+//<aa>TODO: All that follows must be placed in a file named bufferbloat.c . How to insert this in
+//makefile?
+
+
+u_int32_t get_queueing_delay(utp_stat* bufferbloat_stat_p){
+	u_int32_t min_gross_delay;
+	min_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[0];	
+	int i=1;
+	while ( i<CUR_DELAY_SIZE ){
+		if (	((bufferbloat_stat_p->cur_gross_delay_hist[i]< min_gross_delay ) && 
+			(bufferbloat_stat_p->cur_gross_delay_hist[i]>0)	)	|| 
+			(min_gross_delay == 0)  
+		)
+		min_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[i];
+		i++;
+	}
+	
+	return min_gross_delay - bufferbloat_stat_p->delay_base;
+}
+
+
+// compare if lhs is less than rhs, taking wrapping
+// into account. if lhs is close to UINT_MAX and rhs
+// is close to 0, lhs is assumed to have wrapped and
+// considered smaller
+int wrapping_compare_less(u_int32_t lhs, u_int32_t rhs)
+{
+	//<aa>See http://stackoverflow.com/a/7221449 or 
+	// http://bytes.com/topic/c/answers/811289-subtracting-unsigned-entities
+	// for the behavior in case of subtraction between unsigned integers</aa>
+
+	// distance walking from lhs to rhs, downwards
+	const u_int32_t dist_down = lhs - rhs;
+	//<aa> if lhs<rhs, dist_down = MAX - (rhs-lhs)</aa>
+
+	// distance walking from lhs to rhs, upwards
+	const u_int32_t dist_up = rhs - lhs;
+	//<aa> if rhs<lhs, dist_down = MAX - (lhs-rhs)</aa>
+
+	// if the distance walking up is shorter, lhs
+	// is less than rhs. If the distance walking down
+	// is shorter, then rhs is less than lhs
+	return dist_up < dist_down;
+}
+
+
+
+//<aa>TODO: Find a more efficient way to compute the minimum</aa>
+u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p){
+	u_int32_t min;
+
+	min=bufferbloat_stat_p->delay_base_hist[0];
+	int i=1;
+	while ( i<DELAY_BASE_HISTORY ){
+		if (wrapping_compare_less(bufferbloat_stat_p->delay_base_hist[i],min)) 
+			min=bufferbloat_stat_p->delay_base_hist[i];
+		i++;
+	}	
+	return min;
+}
+
+//<aa>
+void update_delay_base(u_int32_t time_diff,u_int32_t time_ms, utp_stat* bufferbloat_stat_p){
+	int j=0;
+	while ( j<DELAY_BASE_HISTORY ){
+		if (bufferbloat_stat_p->delay_base_hist[j]==0) bufferbloat_stat_p->delay_base_hist[j]=time_diff;
+		j++;
+		//bufferbloat_stat_p->delay_base=time_diff;
+	}
+
+	if ( 	 elapsed(bufferbloat_stat_p->last_rollover, current_time) > 60e6 ) {
+		// <aa>"LEDBAT sender stores BASE_HISTORY separate minima---one each for the
+		// last BASE_HISTORY-1 minutes, and one for the running current minute.
+		// At the end of the current minute, the window moves---the earliest
+		// minimum is dropped and the latest minimum is added."
+		// </aa>
+
+		//<aa>It corresponds to the "last_rollover" in the draft</aa>
+		bufferbloat_stat_p->last_rollover=current_time;
+		
+		int i=1; //rollover della lista di base_delay
+		while ( i<DELAY_BASE_HISTORY ){
+			bufferbloat_stat_p->delay_base_hist[i-1]=bufferbloat_stat_p->delay_base_hist[i];
+			i++;
+		}
+		bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]=time_diff;
+	
+	}else{ //update the tail
+		if (wrapping_compare_less(time_diff,bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]))  
+			bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]=time_diff;
+			//<aa>according to the draft, we calculate the one-way delay minima over a
+			//one-minute interval</aa>
+	}
+
+   	//collect last CUR_DELAY_SIZE queueing delay 
+	bufferbloat_stat_p->delay_base=min_delay_base (bufferbloat_stat_p);
+
+	//<aa>estimated queueing delay for the current packet</aa>
+	u_int32_t delay= time_diff - bufferbloat_stat_p->delay_base;
+
+	//<aa>The following two lines correspond to update_current_delay(...) in 
+	//section 3.4.2 of [ledbat_draft]</aa>
+	// <aa>[ledbat_draft] sec 3.4.2 says that update_current_delay(...)
+	// mantains a list of one-way delays, whereas we mantain a list of estimated queueing delays.
+	// But we handle this vector in a slightly different way and verified that this does not 
+	// affect the queueing delay estimation</aa>
+	bufferbloat_stat_p->cur_delay_hist[bufferbloat_stat_p->cur_delay_idx]=delay;
+	bufferbloat_stat_p->cur_delay_idx= (bufferbloat_stat_p->cur_delay_idx+1)% CUR_DELAY_SIZE;
+
+	//<aa>TODO: remove this
+	bufferbloat_stat_p->cur_gross_delay_hist[bufferbloat_stat_p->cur_delay_idx] = time_diff;
+	//</aa>	
+}
+//</aa>
+
+void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
+	int dir,
+	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
+	const char* type, u_int16_t pkt_size)
+{
+	u_int32_t current_time_ms = 
+		current_time.tv_sec * 1000 + (u_int32_t)current_time.tv_usec/1000;
+	wfprintf(fp_logc,"%u \n",
+		current_time_ms		//1. milliseconds
+		
+	);
+	switch(dir)
+	{
+		case(C2S):
+			wfprintf (fp_logc, "%s %s ",
+        	           HostName (addr_pair->a_address),
+        	           ServiceName (addr_pair->a_port));
+        	  	wfprintf (fp_logc, "%s %s ",
+        	           HostName (addr_pair->b_address),
+        	           ServiceName (addr_pair->b_port));
+			break;
+		case(S2C):
+			wfprintf (fp_logc, "%s %s ",
+        	           HostName (addr_pair->b_address),
+        	           ServiceName (addr_pair->b_port));
+		        wfprintf (fp_logc, "%s %s ",
+                 	  HostName (addr_pair->a_address),
+                 	  ServiceName (addr_pair->a_port));
+			break;
+		default:
+			fprintf(stderr,"stat.c: %d: ERROR\n", __LINE__); exit(5468);
+	}
+	
+	switch(an_type){
+		case (LEDBAT):	wfprintf (fp_logc, "%d ", utp_conn_id); break;
+		case (TCP):	wfprintf (fp_logc, "- "); break;
+		default:	fprintf(stderr, "tstat.c %d: ERROR\n",__LINE__); exit(54321);
+	}
+
+	wfprintf (fp_logc, "%u %u ",
+		bufferbloat_stat_p->delay_base, 
+		estimated_qd
+	);
+
+	wfprintf (fp_logc, "- "); // flowtype
+	wfprintf (fp_logc, "%u\n", pkt_size); // flowtype
+	
+}
+
+
+
+
+//</aa>

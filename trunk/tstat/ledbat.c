@@ -50,18 +50,6 @@ float alpha=0.5;
 static int is_utp_pkt(struct ip *pip, void *pproto, void *pdir, void *plast);
 
 
-void update_delay_base(u_int32_t time_diff, u_int32_t time_ms, ucb *thisdir);
-
-/**
- * It returns the baseline, i.e. the minimum of the last DELAY_BASE_HISTORY one-way delays
- */
-u_int32_t min_delay_base(ucb *thisdir);
-
-
-/**
- * <aa> It returns 1 if lhs<rhs, 0 otherwise</aa>
- */
-int wrapping_compare_less(u_int32_t lhs, u_int32_t rhs); //libutp
 
 //<aa>
 #ifdef SEVERE_DEBUG
@@ -246,184 +234,6 @@ int is_utp_pkt(struct ip *pip, void *pproto, void *pdir, void *plast){
 
 
 
-// compare if lhs is less than rhs, taking wrapping
-// into account. if lhs is close to UINT_MAX and rhs
-// is close to 0, lhs is assumed to have wrapped and
-// considered smaller
-int wrapping_compare_less(u_int32_t lhs, u_int32_t rhs)
-{
-	//<aa>See http://stackoverflow.com/a/7221449 or 
-	// http://bytes.com/topic/c/answers/811289-subtracting-unsigned-entities
-	// for the behavior in case of subtraction between unsigned integers</aa>
-
-
-	// distance walking from lhs to rhs, downwards
-	const u_int32_t dist_down = lhs - rhs;
-	//<aa> if lhs<rhs, dist_down = MAX - (rhs-lhs)</aa>
-
-	// distance walking from lhs to rhs, upwards
-	const u_int32_t dist_up = rhs - lhs;
-	//<aa> if rhs<lhs, dist_down = MAX - (lhs-rhs)</aa>
-
-	// if the distance walking up is shorter, lhs
-	// is less than rhs. If the distance walking down
-	// is shorter, then rhs is less than lhs
-	return dist_up < dist_down;
-}
-
-//<aa>
-void update_delay_base(u_int32_t time_diff,u_int32_t time_ms, ucb *thisdir){
-	int j=0;
-	while ( j<DELAY_BASE_HISTORY ){
-		if (thisdir->utp.delay_base_hist[j]==0) thisdir->utp.delay_base_hist[j]=time_diff;
-		j++;
-		//thisdir->utp.delay_base=time_diff;
-	}
-
-	#ifdef SEVERE_DEBUG
-	if (elapsed(thisdir->utp.last_rollover, current_time)<=0 ){
-		printf("\nledbat.c %d: \n", __LINE__); exit(849);
-	}
-	#endif
-
-	if ( 	 elapsed(thisdir->utp.last_rollover, current_time) > 60e6 ) {
-		// <aa>"LEDBAT sender stores BASE_HISTORY separate minima---one each for the
-		// last BASE_HISTORY-1 minutes, and one for the running current minute.
-		// At the end of the current minute, the window moves---the earliest
-		// minimum is dropped and the latest minimum is added."
-		// </aa>
-
-		//<aa>It corresponds to the "last_rollover" in the draft</aa>
-		thisdir->utp.last_rollover=current_time;
-		
-		int i=1; //rollover della lista di base_delay
-		while ( i<DELAY_BASE_HISTORY ){
-			thisdir->utp.delay_base_hist[i-1]=thisdir->utp.delay_base_hist[i];
-			i++;
-		}
-		thisdir->utp.delay_base_hist[DELAY_BASE_HISTORY-1]=time_diff;
-	
-	}else{ //update the tail
-		if (wrapping_compare_less(time_diff,thisdir->utp.delay_base_hist[DELAY_BASE_HISTORY-1]))  
-			thisdir->utp.delay_base_hist[DELAY_BASE_HISTORY-1]=time_diff;
-			//<aa>according to the draft, we calculate the one-way delay minima over a
-			//one-minute interval</aa>
-	}
-
-   	//collect last CUR_DELAY_SIZE queueing delay 
-	thisdir->utp.delay_base=min_delay_base (thisdir);
-
-	//<aa>estimated queueing delay for the current packet</aa>
-	u_int32_t delay= time_diff - thisdir->utp.delay_base;
-
-	//<aa>The following two lines correspond to update_current_delay(...) in 
-	//section 3.4.2 of [ledbat_draft]</aa>
-	// <aa>[ledbat_draft] sec 3.4.2 says that update_current_delay(...)
-	// mantains a list of one-way delays, whereas we mantain a list of estimated queueing delays.
-	// But we handle this vector in a slightly different way and verified that this does not 
-	// affect the queueing delay estimation</aa>
-	thisdir->utp.cur_delay_hist[thisdir->utp.cur_delay_idx]=delay;
-	thisdir->utp.cur_delay_idx= (thisdir->utp.cur_delay_idx+1)% CUR_DELAY_SIZE;
-
-	//<aa>TODO: remove this
-	thisdir->utp.cur_owd_delay_hist[thisdir->utp.cur_delay_idx] = time_diff;
-	//</aa>	
-}
-//</aa>
-
-
-/**
- * <aa>TODO: check if we are compliant with the draft that says:
-if the connection is idle for a given minute, no data is available for the
-one-way delay and, therefore, a value of +INFINITY has to be stored
-in the list. If the connection has been idle for BASE_HISTORY
-minutes, all minima in the list are thus set to +INFINITY and
-measurement begins anew. LEDBAT thus requires that during idle
-periods, an implementation must maintain the base delay list.
-</aa>
-*/
-/**
- * <aa>see section 3.4.2 of "Low Extra Delay Background Transport (LEDBAT)
- * draft-ietf-ledbat-congestion-10.txt"</aa>
- */
-/*
-void update_delay_base(u_int32_t time_diff,u_int32_t time_ms, ucb *thisdir){
-	int j=0;
-	while ( j<DELAY_BASE_HISTORY ){
-		if (thisdir->utp.delay_base_hist[j]==0) thisdir->utp.delay_base_hist[j]=time_diff;
-		j++;
-		//thisdir->utp.delay_base=time_diff;
-	}
-
-	//<aa>In ordinary cases, thisdir->utp.last_update < time_ms
-	//(the timestamp of the present packet is greater than the one of the
-	//last packet used to update the baseline). When an out-of-order packet
-	//arrives, this inequality does not hold. In this case, we do not update
-	//</aa>
-
-	
-	if ( 	wrapping_compare_less( thisdir->utp.last_update, time_ms)  &&  
-
-		//<aa>we update the delay_base every minute</aa>
-		wrapping_compare_less( 60*1000*1000, (time_ms - thisdir->utp.last_update))
-	){
-		// <aa>"LEDBAT sender stores BASE_HISTORY separate minima---one each for the
-		// last BASE_HISTORY-1 minutes, and one for the running current minute.
-		// At the end of the current minute, the window moves---the earliest
-		// minimum is dropped and the latest minimum is added."
-		// </aa>
-
-		//<aa>It corresponds to the "last_rollover" in the draft</aa>
-		thisdir->utp.last_update=time_ms;
-		
-		int i=1; //rollover della lista di base_delay
-		while ( i<DELAY_BASE_HISTORY ){
-			thisdir->utp.delay_base_hist[i-1]=thisdir->utp.delay_base_hist[i];
-			i++;
-		}
-		thisdir->utp.delay_base_hist[DELAY_BASE_HISTORY-1]=time_diff;
-	
-	}else{ //update the tail
-		if (wrapping_compare_less(time_diff,thisdir->utp.delay_base_hist[DELAY_BASE_HISTORY-1]))  
-			thisdir->utp.delay_base_hist[DELAY_BASE_HISTORY-1]=time_diff;
-			//<aa>according to the draft, we calculate the one-way delay minima over a
-			//one-minute interval</aa>
-	}
-
-   	//collect last CUR_DELAY_SIZE queueing delay 
-	thisdir->utp.delay_base=min_delay_base (thisdir);
-
-	//<aa>estimated queueing delay for the current packet</aa>
-	u_int32_t delay= time_diff - thisdir->utp.delay_base;
-
-	//<aa>The following two lines correspond to update_current_delay(...) in 
-	//section 3.4.2 of [ledbat_draft]</aa>
-	// <aa>[ledbat_draft] sec 3.4.2 says that update_current_delay(...)
-	// mantains a list of one-way delays, whereas we mantain a list of estimated queueing delays.
-	// But we handle this vector in a slightly different way and verified that this does not 
-	// affect the queueing delay estimation</aa>
-	thisdir->utp.cur_delay_hist[thisdir->utp.cur_delay_idx]=delay;
-	thisdir->utp.cur_delay_idx= (thisdir->utp.cur_delay_idx+1)% CUR_DELAY_SIZE;
-
-	//<aa>TODO: remove this
-	thisdir->utp.cur_owd_delay_hist[thisdir->utp.cur_delay_idx] = time_diff;
-	//</aa>	
-}
-*/
-
-//<aa>TODO: Find a more efficient way to compute the minimum</aa>
-u_int32_t min_delay_base(ucb *thisdir){
-	u_int32_t min;
-
-	min=thisdir->utp.delay_base_hist[0];	
-	int i=1;
-		while ( i<DELAY_BASE_HISTORY ){
-			if (wrapping_compare_less(thisdir->utp.delay_base_hist[i],min)) min=thisdir->utp.delay_base_hist[i];
-			i++;
-		}	
-	return min;
-}
-
 /**
  * <aa>
  * It returns an estimate of the current queueing delay (in microseconds).
@@ -436,7 +246,7 @@ u_int32_t min_delay_base(ucb *thisdir){
  * Here, we implement this MIN filter.
  * </aa>
  */
-u_int32_t get_queueing_delay(ucb *thisdir) {
+u_int32_t get_queueing_delay_vecchio(ucb *thisdir) {
 	u_int32_t min;
 	min=thisdir->utp.cur_delay_hist[0];	
 	int i=1;
@@ -461,22 +271,6 @@ u_int32_t get_queueing_delay(ucb *thisdir) {
 	return min;
 }
 
-//<aa>TODO: remove this
-u_int32_t get_filtered_owd(ucb *thisdir) {
-	u_int32_t min;
-	min=thisdir->utp.cur_owd_delay_hist[0];	
-	int i=1;
-	while ( i<CUR_DELAY_SIZE ){
-		if (	((thisdir->utp.cur_owd_delay_hist[i]<min) && (thisdir->utp.cur_owd_delay_hist[i]>0))
-			|| (min==0)  
-		)
-		min=thisdir->utp.cur_owd_delay_hist[i];
-		i++;
-	}
-
-	return min;
-}
-//</aa>
 
 
 
@@ -597,16 +391,22 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		ntohl(putp->time_diff),ntohl(putp->wnd_size));
 #endif
 
-	update_delay_base(ntohl(putp->time_diff), ntohl(putp->time_ms), thisdir);
+	#ifdef SEVERE_DEBUG
+	if (elapsed(thisdir->utp.last_rollover, current_time)<=0 ){
+		printf("\nledbat.c %d: \n", __LINE__); exit(849);
+	}
+	#endif
+
+	update_delay_base(ntohl(putp->time_diff), ntohl(putp->time_ms), &(thisdir->utp) );
 	//<aa> now thisdir->utp.delay_base is updated </aa>
 	
-	float estimated_qdF=(float)get_queueing_delay(thisdir);
+	float estimated_qdF_vecchio=(float)get_queueing_delay_vecchio(thisdir);
 
 	//<aa>TODO:Why calling two times the same function?</aa>
-	u_int32_t estimated_qdI=get_queueing_delay(thisdir);
+	u_int32_t estimated_qdI_vecchio=get_queueing_delay_vecchio(thisdir);
 
 	//<aa>TODO: remove this or the other
-	float estimated_qdF_andrea= (float) get_filtered_owd(thisdir) - thisdir->utp.delay_base;
+	u_int32_t estimated_qd= get_queueing_delay(&(thisdir->utp) );
 	//</aa>
 
 	//to avoid overfitting, we neglect multiple consecutive equal queueing delay samples 
@@ -614,11 +414,11 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		( 
 			(type_utp==UTP_DATA) && 
 			(putp->time_diff!=thisdir->utp.last_measured_time_diff) 
-		) || (estimated_qdF<120000) 
+		) || (estimated_qd<120000) 
 	){
 		//<aa>At first, see if a window can be closed (not including the present pkt)
                 float qd_w1 = windowed_queueing_delay(
-			thisdir, ntohl(putp->time_ms) , estimated_qdF);
+			thisdir, ntohl(putp->time_ms) , estimated_qd);
 		//</aa>
 
 		//<aa>Then, update all quantities related to the open window</aa>
@@ -629,17 +429,17 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		float ewma; //Exponentially-Weighted Moving Average
 		//update statistics on queueing delay in ms 
 		thisdir->utp.qd_measured_count++;
-		thisdir->utp.qd_measured_sum+= (estimated_qdF/1000);
-		thisdir->utp.qd_measured_sum2+= ((estimated_qdF/1000)*(estimated_qdF/1000));
+		thisdir->utp.qd_measured_sum+= (estimated_qd/1000);
+		thisdir->utp.qd_measured_sum2+= ((estimated_qd/1000)*(estimated_qd/1000));
 
        	  	wfprintf (fp_ledbat_logc, "%s %s ",
 			HostName(pup->addr_pair.a_address), 
 			ServiceName(pup->addr_pair.a_port));
        		if (thisdir->utp.ewma>0) {
                    ewma=thisdir->utp.ewma;
-                   thisdir->utp.ewma = alpha*(estimated_qdF/1000) + (1-alpha)*ewma;
+                   thisdir->utp.ewma = alpha*(estimated_qd/1000) + (1-alpha)*ewma;
 		}else
-		   thisdir->utp.ewma = estimated_qdF/1000;
+		   thisdir->utp.ewma = estimated_qd/1000;
   		       
 #ifdef LEDBAT_DEBUG	
 			//15 Base_delay
@@ -647,7 +447,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
         		//17 Queuing_delay integer in ms - millisecond
         		//18 lastupdate
 			//19 ewma
-        		fprintf(fp_stdout," %u %.0f %u ",thisdir->utp.delay_base, estimated_qdF/1000, estimated_qdI/1000 );
+        		fprintf(fp_stdout," %u %.0f %u ",thisdir->utp.delay_base, estimated_qd/1000, estimated_qdI_vecchio/1000 );
        		 	fprintf(fp_stdout," %us-%uus ",thisdir->utp.last_rollover.tv_sec, 
 				thisdir->utp.last_rollover.tv_usec);
 			fprintf(fp_stdout," %f ",thisdir->utp.ewma);
@@ -665,13 +465,13 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		
 		// <aa>???: Why do we calculate estimated_qdF in microseconds and 
 		// queueing_delay_max in milliseconds? </aa>
-		if ((thisdir->utp.queueing_delay_max < (estimated_qdF/1000)))
-			thisdir->utp.queueing_delay_max= (estimated_qdF/1000);
+		if ((thisdir->utp.queueing_delay_max < (estimated_qd/1000)))
+			thisdir->utp.queueing_delay_max= (estimated_qd/1000);
 
 		// <aa>???: Why do we calculate estimated_qdF in microseconds and 
 		// queueing_delay_min in milliseconds? </aa>
-		if ((thisdir->utp.queueing_delay_min > (estimated_qdF/1000)))
-			thisdir->utp.queueing_delay_min= (estimated_qdF/1000);
+		if ((thisdir->utp.queueing_delay_min > (estimated_qd/1000)))
+			thisdir->utp.queueing_delay_min= (estimated_qd/1000);
 		
 		float estimated_99P;
 		float estimated_95P;
@@ -773,7 +573,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	//40:last_pkt_time(s) 41:last_pkt_time(us) 42:current_time(s) 43:current_time(us) 44:qd_andrea
 	fprintf(fp_stdout, " %ld %ld %ld %ld %.0f\n", 
 		thisdir->last_pkt_time.tv_sec,thisdir->last_pkt_time.tv_usec,
-		current_time.tv_sec,current_time.tv_usec, estimated_qdF_andrea/1000);
+		current_time.tv_sec,current_time.tv_usec, estimated_qd/1000);
 	#endif
 }
 

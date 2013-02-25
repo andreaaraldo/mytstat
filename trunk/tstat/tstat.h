@@ -783,3 +783,42 @@ extern double prof_cps;              // clock per seconds give by sysconf()
 
 #define PROFILE_IDLE 1
 
+
+//<aa>TODO: All that follows must be placed in a file named bufferbloat.c . How to insert this in
+//makefile?
+u_int32_t get_queueing_delay(utp_stat* bufferbloat_stat_p);
+
+/**
+ * <aa> It returns 1 if lhs<rhs, 0 otherwise</aa>
+ */
+int wrapping_compare_less(u_int32_t lhs, u_int32_t rhs); //libutp
+
+/**
+ * It returns the baseline, i.e. the minimum of the last DELAY_BASE_HISTORY gross delays
+ */
+u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p);
+
+void update_delay_base(u_int32_t time_diff, u_int32_t time_ms, utp_stat* bufferbloat_stat_p);
+
+
+
+
+enum analysis_type { 
+	TCP = 1,
+	LEDBAT = 2
+};
+
+
+#define NO_MATTER =-1
+
+/**
+ * type: <bit_torrent_client_1>:<bit_torrent_client2> for ledbat case. flowtype for tcp case
+ * addr_pair: it can be also an udp_pair_addrblock* casted to tcp_pair_addrblock* .
+ * utp_conn_id: in the tcp case, it will be ignored
+ * estimated_qd: in milliseconds
+ * dir: can be C2S or S2C
+ */
+void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
+	int dir,
+	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
+	const char* type, u_int16_t pkt_size);

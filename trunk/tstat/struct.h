@@ -26,11 +26,16 @@
  */
 
 
-// <aa> If it is defined, a lot of redundant and overabundant checks will be performed to 
+// <aa>TODO: where do I have to put this
+//  If it is defined, a lot of redundant and overabundant checks will be performed to 
 // check for inconsistent states or data. This can be useful when you edit the code to be
 // sure that the modifications do not produce those inconcistencies
 #define SEVERE_DEBUG
 // </aa>
+
+// <aa>TODO: where do I have to put this
+#define BUFFERBLOAT_ANALYSIS
+//</aa>
 
 
 /* we want LONG LONG in some places */
@@ -316,8 +321,10 @@ typedef struct utp_stat
 	// affect the queueing delay estimation</aa>
         u_int32_t cur_delay_hist[CUR_DELAY_SIZE]; // queueing delay
 
-	//<aa>TODO: remove this
-	u_int32_t cur_owd_delay_hist[CUR_DELAY_SIZE];
+	//<aa>TODO: remove cur delay hist
+	//Gross delays are one one-way  delays in the case of ledbat bufferbloat analysis. 
+	//They are round trip delays in the case of tcp ledbat analysis
+	u_int32_t cur_gross_delay_hist[CUR_DELAY_SIZE];
 	//</aa>
 
         size_t cur_delay_idx;
@@ -678,6 +685,11 @@ typedef struct tcb
  u_int  rate_bytes;
  u_int  rate_empty_streak;
  u_int  rate_begin_bytes[10];
+#endif
+
+
+#ifdef BUFFERBLOAT_ANALYSIS
+ utp_stat utp;
 #endif
 }
 tcb;
@@ -1160,8 +1172,9 @@ typedef struct ucb
 #endif
 
   /* utp bittorrent */
-  //<aa>I should include this in ifdef-endif
+  //<aa>TODO: I should include this in ifdef-endif</aa>
   utp_stat utp;
+  //<aa>TODO: use a more general name that is meaningful also in the TCP case
 
 
 #ifdef CHECK_UDP_DUP
