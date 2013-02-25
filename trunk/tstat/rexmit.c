@@ -578,7 +578,11 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       ptcb->rtt_sum += etime_rtt;
       ptcb->rtt_sum2 += etime_rtt * etime_rtt;
       ++ptcb->rtt_count;
+      //<aa></aa>
+      ciao
       ret = NORMAL;
+
+
     }
   else
     {

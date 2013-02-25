@@ -37,7 +37,6 @@ extern FILE *fp_ledbat_logc;
 
 #ifdef LEDBAT_WINDOW_CHECK
 extern FILE *fp_ledbat_window_logc;
-extern FILE *fp_ledbat_window_andrea_logc;
 #endif
 
 
@@ -160,28 +159,6 @@ void parser_BitTorrentMessages (void * pp, int tproto, void *pdir,int dir, void 
 
         	memcpy(infoHASH, (((u_int32_t *)streamBT+5+2)), 8  );
                 memcpy(peerID, (((u_int32_t *)streamBT+5+2+5)), 8 );
-
-//araldo!!
-//#define CENSURE_NON_PRINTABLE
-/*
-#ifdef CENSURE_NON_PRINTABLE
-                int i=0;           
-               	while (i<8){
-                	if ( peerID[i]>=122 || (peerID[i])<=47 ) {
-	                        peerID[i]='-';
-                        }
-                        i++;
-                 }
-
-                i=0;
-                while (i<20){
-                	if ( infoHASH[i]>=122 || infoHASH[i]<=47 ) {
-                        	infoHASH[i]='.';
-                        }
-                        i++;
-                }
-#endif
-*/
 
                 strncpy(otherdir->utp.infoHASH, infoHASH,20);
                 strncpy(otherdir->utp.peerID, peerID, 8);
@@ -628,7 +605,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	//<aa>TODO:Why calling two times the same function?</aa>
 	u_int32_t estimated_qdI=get_queueing_delay(thisdir);
 
-	//<aa>TODO: remove this
+	//<aa>TODO: remove this or the other
 	float estimated_qdF_andrea= (float) get_filtered_owd(thisdir) - thisdir->utp.delay_base;
 	//</aa>
 
