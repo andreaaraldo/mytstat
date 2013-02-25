@@ -27,7 +27,7 @@
 
 #include "tstat.h"
 
-/* define LEDBAT_DEBUG if you want to see all identified pkts */
+/* define  if you want to see all identified pkts */
 #define LEDBAT_DEBUG
 
 //Use it as a signal when there are no samples in a window

@@ -1,7 +1,7 @@
 /*
  *
  * Copyright (c) 2001
- *	Politecnico di Torino.  All rights reserved.
+ *      Politecnico di Torino.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,10 +17,10 @@
 */
 
 
-/* 
+/*
  * rexmit.c -- Determine if a segment is a retransmit and perform RTT stats
- * 
- * implements the algorithm described in 
+ *
+ * implements the algorithm described in
  * Marco Mellia, Michela Meo, Luca Muscariello,
  * "TCP Anomalies: identification and analysis",
  * 2005 Tyrrhenian International Workshop on Digital Communications
@@ -34,16 +34,16 @@
 
 /*
 This function rexmit() checks to see if a particular packet
-is a retransmit. It returns 0 if it isn't a retransmit and 
-returns the number of bytes retransmitted if it is a retransmit - 
-considering the fact that it might be a partial retransmit. 
+is a retransmit. It returns 0 if it isn't a retransmit and
+returns the number of bytes retransmitted if it is a retransmit -
+considering the fact that it might be a partial retransmit.
 It can also keep track of packets that come out of order.
 */
 
 /*LM modified functions:
 static segment *create_seg (seqnum, seglen, u_short);  
 int rexmit (tcb * ptcb, seqnum seq, seglen len, Bool * pout_order, u_short this_ip_id)
-static int addseg (tcb * ptcb,	quadrant * pquad, seqnum thisseg_firstbyte, seglen len, Bool * pout_order, u_short this_ip_id)
+static int addseg (tcb * ptcb,  quadrant * pquad, seqnum thisseg_firstbyte, seglen len, Bool * pout_order, u_short this_ip_id)
 differences: added only the ip_id field in the segment struct for implementing a retransmission
 identification heuristic. Functions have been modified to manage this new field.
 */
@@ -73,10 +73,10 @@ static enum t_ack rtt_ackin (tcb *, segment *, Bool rexmit);
 
 /* LM start return the type of segment */
 void rules_test (tcb *, segment *, seglen, quadrant *, u_short,
-		 Bool pkt_already_seen, double recovery_time);
+                 Bool pkt_already_seen, double recovery_time);
 char real_rules_test (tcb * thisdir, segment * pseg, seglen len,
-		      quadrant * pquad, u_short this_ip_id,
-		      Bool pkt_already_seen, double *recovery_time);
+                      quadrant * pquad, u_short this_ip_id,
+                      Bool pkt_already_seen, double *recovery_time);
 /* LM stop*/
 
 /*
@@ -86,7 +86,7 @@ char real_rules_test (tcb * thisdir, segment * pseg, seglen len,
  */
 int
 rexmit (tcb * ptcb, seqnum seq, seglen len, Bool * pout_order,
-	u_short this_ip_id)
+        u_short this_ip_id)
 {
   seqspace *sspace = ptcb->ss;
   seqnum seq_last = seq + len - 1;
@@ -116,7 +116,7 @@ rexmit (tcb * ptcb, seqnum seq, seglen len, Bool * pout_order,
       seq2 = FIRST_SEQ (QUADNUM (seq_last));
       len2 = len - len1;
       rexlen +=
-	addseg (ptcb, pquad->next, seq2, len2, pout_order, this_ip_id);
+        addseg (ptcb, pquad->next, seq2, len2, pout_order, this_ip_id);
     }
   else
     {
@@ -130,9 +130,9 @@ rexmit (tcb * ptcb, seqnum seq, seglen len, Bool * pout_order,
 /********************************************************************/
 static int
 addseg (tcb * ptcb,
-	quadrant * pquad,
-	seqnum thisseg_firstbyte, seglen len, Bool * pout_order,
-	u_short this_ip_id)
+        quadrant * pquad,
+        seqnum thisseg_firstbyte, seglen len, Bool * pout_order,
+        u_short this_ip_id)
 {
   seqnum thisseg_lastbyte = thisseg_firstbyte + len - 1;
   segment *pseg;
@@ -144,9 +144,9 @@ addseg (tcb * ptcb,
   /* check each segment in the segment list */
   pseg = pquad->seglist_head;
 
-  /* LM - all the segments are memorized in the seglist 
+  /* LM - all the segments are memorized in the seglist
      Here has been implemented the heuristic discussed in
-     S. Jaiswal, G.Iannaccone, C. Diot, J.F. Kurose, D.Towsley 
+     S. Jaiswal, G.Iannaccone, C. Diot, J.F. Kurose, D.Towsley
      Measurement and Classification of Out-of-Sequence Packets in a Tier-1 IP Backbone
      INFOCOM 2003 http://www.ieee-infocom.org/2003/technical_programs.htm
    */
@@ -159,86 +159,86 @@ addseg (tcb * ptcb,
     {
 
       if (thisseg_firstbyte > pseg->seq_lastbyte)
-	{
-	  /* goes beyond this one */
-	  continue;
-	}
+        {
+          /* goes beyond this one */
+          continue;
+        }
 
       if (thisseg_firstbyte < pseg->seq_firstbyte)
-	{
-	  /* starts BEFORE this recorded segment */
+        {
+          /* starts BEFORE this recorded segment */
 
-	  /* if it also FINISHES before this segment, then it's */
-	  /* out of order (otherwise it's a resend the collapsed */
-	  /* multiple segments into one */
-	  if (thisseg_lastbyte < pseg->seq_lastbyte)
-	    *pout_order = TRUE;
+          /* if it also FINISHES before this segment, then it's */
+          /* out of order (otherwise it's a resend the collapsed */
+          /* multiple segments into one */
+          if (thisseg_lastbyte < pseg->seq_lastbyte)
+            *pout_order = TRUE;
 
-	  /* make a new segment record for it */
-	  pseg_new = create_seg (thisseg_firstbyte, len, this_ip_id);
-	  insert_seg_between (pquad, pseg_new, pseg->prev, pseg);
+          /* make a new segment record for it */
+          pseg_new = create_seg (thisseg_firstbyte, len, this_ip_id);
+          insert_seg_between (pquad, pseg_new, pseg->prev, pseg);
 
-	  /* see if we overlap the next segment in the list */
-	  if (thisseg_lastbyte <= pseg->seq_firstbyte)
-	    {
-	      /* we don't overlap, so we're done */
-	      // LM start
-	      rules_test (ptcb, pseg, len, pquad, this_ip_id, FALSE,
-			  recovery_time);
-	      return (rexlen);
-	    }
-	  else
-	    {
-	      /* overlap him, split myself in 2 */
-	      //fprintf(fp_stdout, "split %lu %lu\n", 
+          /* see if we overlap the next segment in the list */
+          if (thisseg_lastbyte <= pseg->seq_firstbyte)
+            {
+              /* we don't overlap, so we're done */
+              // LM start
+              rules_test (ptcb, pseg, len, pquad, this_ip_id, FALSE,
+                          recovery_time);
+              return (rexlen);
+            }
+          else
+            {
+              /* overlap him, split myself in 2 */
+              //fprintf(fp_stdout, "split %lu %lu\n",
           //    len,  pseg_new->seq_lastbyte-pseg_new->seq_firstbyte);
-	      /* adjust new piece to mate with old piece */
-	      pseg_new->seq_lastbyte = pseg->seq_firstbyte - 1;
+              /* adjust new piece to mate with old piece */
+              pseg_new->seq_lastbyte = pseg->seq_firstbyte - 1;
 
-	      // LM start
-	      rules_test (ptcb, pseg,
-			  pseg_new->seq_lastbyte - pseg_new->seq_firstbyte,
-			  pquad, this_ip_id, FALSE, recovery_time);
+              // LM start
+              rules_test (ptcb, pseg,
+                          pseg_new->seq_lastbyte - pseg_new->seq_firstbyte,
+                          pquad, this_ip_id, FALSE, recovery_time);
 
-	      /* pretend to be just the second half of this segment */
-	      thisseg_firstbyte = pseg->seq_firstbyte;
-	      len = thisseg_lastbyte - thisseg_firstbyte + 1;
+              /* pretend to be just the second half of this segment */
+              thisseg_firstbyte = pseg->seq_firstbyte;
+              len = thisseg_lastbyte - thisseg_firstbyte + 1;
 
-	      /* fall through */
-	    }
-	}
+              /* fall through */
+            }
+        }
 
       /* no ELSE, we might have fallen through */
       if (thisseg_firstbyte >= pseg->seq_firstbyte)
-	{
-	  /* starts within this recorded sequence */
-	  ++pseg->retrans;
-	  recovery_time =
-	    time2double (current_time) - time2double (pseg->time);
-	  if (!split)
-	    rtt_retrans (ptcb, pseg);	/* must be a retransmission */
-	  if (thisseg_lastbyte <= pseg->seq_lastbyte)
-	    {
-	      /* entirely contained within this sequence */
-	      rexlen += len;
-	      // LM start
-	      rules_test (ptcb, pseg, len, pquad, this_ip_id, TRUE,
-			  recovery_time);
+        {
+          /* starts within this recorded sequence */
+          ++pseg->retrans;
+          recovery_time =
+            time2double (current_time) - time2double (pseg->time);
+          if (!split)
+            rtt_retrans (ptcb, pseg);   /* must be a retransmission */
+          if (thisseg_lastbyte <= pseg->seq_lastbyte)
+            {
+              /* entirely contained within this sequence */
+              rexlen += len;
+              // LM start
+              rules_test (ptcb, pseg, len, pquad, this_ip_id, TRUE,
+                          recovery_time);
 
-	      return (rexlen);
-	    }
-	  /* else */
-	  /* we extend beyond this sequence, split ourself in 2 */
-	  /* (pretend to be just the second half of this segment) */
-	  split = TRUE;
-	  rexlen += pseg->seq_lastbyte - thisseg_firstbyte + 1;
-	  thisseg_firstbyte = pseg->seq_lastbyte + 1;
+              return (rexlen);
+            }
+          /* else */
+          /* we extend beyond this sequence, split ourself in 2 */
+          /* (pretend to be just the second half of this segment) */
+          split = TRUE;
+          rexlen += pseg->seq_lastbyte - thisseg_firstbyte + 1;
+          thisseg_firstbyte = pseg->seq_lastbyte + 1;
 
-	  // LM start
-	  rules_test (ptcb, pseg, rexlen, pquad, this_ip_id, TRUE,
-		      recovery_time);
-	  len = thisseg_lastbyte - thisseg_firstbyte + 1;
-	}
+          // LM start
+          rules_test (ptcb, pseg, rexlen, pquad, this_ip_id, TRUE,
+                      recovery_time);
+          len = thisseg_lastbyte - thisseg_firstbyte + 1;
+        }
     }
   /* if we got to the end, then it doesn't go BEFORE anybody, */
   /* tack it onto the end */
@@ -255,7 +255,7 @@ addseg (tcb * ptcb,
 
       /* rebuild the list */
       if (tmp_pseg->next != NULL)
-	tmp_pseg->next->prev = tmp_pseg->prev;
+        tmp_pseg->next->prev = tmp_pseg->prev;
       pquad->seglist_head = tmp_pseg->next;
       /* recall the initial segment byte */
       pquad->seglist_head->seq_firstbyte = tmp_pseg->seq_firstbyte;
@@ -285,7 +285,7 @@ addseg (tcb * ptcb,
       add_histo (tcp_anomalies_loc, IN_SEQUENCE);
     }
 
-  if ((&(ptcb->ptp->c2s)) == ptcb)	//(dir == C2S)
+  if ((&(ptcb->ptp->c2s)) == ptcb)      //(dir == C2S)
     {
       add_histo (tcp_anomalies_c2s, IN_SEQUENCE);
     }
@@ -447,48 +447,48 @@ collapse_quad (quadrant * pquad)
     {
       freed = FALSE;
       if (pseg->next == NULL)
-	break;
+        break;
 
       /* if this segment has not been ACKed, then neither have the */
       /* ones that follow, so no need to continue */
       if (!pseg->acked)
-	break;
+        break;
 
       /* if this segment and the next one have both been ACKed and they */
       /* "fit together", then collapse them into one (larger) segment   */
       if (pseg->acked && pseg->next->acked &&
-	  (pseg->seq_lastbyte + 1 == pseg->next->seq_firstbyte))
-	{
-	  pseg->seq_lastbyte = pseg->next->seq_lastbyte;
+          (pseg->seq_lastbyte + 1 == pseg->next->seq_firstbyte))
+        {
+          pseg->seq_lastbyte = pseg->next->seq_lastbyte;
 
-	  /* the new ACK count is the ACK count of the later segment */
-	  pseg->acked = pseg->next->acked;
+          /* the new ACK count is the ACK count of the later segment */
+          pseg->acked = pseg->next->acked;
 
-	  /* the new "transmit time" is the greater of the two */
-	  /* the new "ip_id" is the greater of the two */
-	  /* the new "type_of_segment" is the greater of the two */
-	  if (tv_gt (pseg->next->time, pseg->time))
-	    {
-	      pseg->time = pseg->next->time;
-	      pseg->ip_id = pseg->next->ip_id;
-	      pseg->type_of_segment = pseg->next->type_of_segment;
-	    }
+          /* the new "transmit time" is the greater of the two */
+          /* the new "ip_id" is the greater of the two */
+          /* the new "type_of_segment" is the greater of the two */
+          if (tv_gt (pseg->next->time, pseg->time))
+            {
+              pseg->time = pseg->next->time;
+              pseg->ip_id = pseg->next->ip_id;
+              pseg->type_of_segment = pseg->next->type_of_segment;
+            }
 
-	  tmpseg = pseg->next;
-	  pseg->next = pseg->next->next;
-	  if (pseg->next != NULL)
-	    pseg->next->prev = pseg;
-	  if (tmpseg == pquad->seglist_tail)
-	    pquad->seglist_tail = pseg;
-	  //free (tmpseg);
-	  segment_release (tmpseg);
-	  pquad->no_of_segments--;
-	  //segment_list_info();
-	  freed = TRUE;
-	}
+          tmpseg = pseg->next;
+          pseg->next = pseg->next->next;
+          if (pseg->next != NULL)
+            pseg->next->prev = pseg;
+          if (tmpseg == pquad->seglist_tail)
+            pquad->seglist_tail = pseg;
+          //free (tmpseg);
+          segment_release (tmpseg);
+          pquad->no_of_segments--;
+          //segment_list_info();
+          freed = TRUE;
+        }
 
       if (!freed)
-	pseg = pseg->next;
+        pseg = pseg->next;
       /* else, see if the next one also can be collapsed into me */
     }
 
@@ -503,8 +503,8 @@ collapse_quad (quadrant * pquad)
 
 static void
 insert_seg_between (quadrant * pquad,
-		    segment * pseg_new,
-		    segment * pseg_before, segment * pseg_after)
+                    segment * pseg_new,
+                    segment * pseg_before, segment * pseg_after)
 {
   /* adding a new segment to this quadrant - MGM */
   pquad->no_of_segments++;
@@ -549,25 +549,25 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       /* first, check for the situation in which the segment being ACKed */
       /* was sent a while ago, and we've been piddling around */
       /* retransmitting lost segments that came before it */
-      ptcb->rtt_last = 0.0;	/* don't use this sample, it's very long */
+      ptcb->rtt_last = 0.0;     /* don't use this sample, it's very long */
       etime_rtt = 0.0;
 
-      ++ptcb->rtt_nosample;	/* no sample, even though not ambig */
+      ++ptcb->rtt_nosample;     /* no sample, even though not ambig */
       ret = NOSAMP;
     }
   else if (pseg->retrans == 0)
     {
       ptcb->rtt_last = etime_rtt;
       if ((ptcb->rtt_min == 0) || (ptcb->rtt_min > etime_rtt))
-	ptcb->rtt_min = etime_rtt;
+        ptcb->rtt_min = etime_rtt;
 
       if (ptcb->rtt_max < etime_rtt)
-	ptcb->rtt_max = etime_rtt;
+        ptcb->rtt_max = etime_rtt;
 
       /* smoothed RTT and stdev estimation */
       /* see RFC 2988 */
       ptcb->rttvar =
-	(1.0 - BETA) * ptcb->rttvar + BETA * abs (ptcb->srtt - etime_rtt);
+        (1.0 - BETA) * ptcb->rttvar + BETA * abs (ptcb->srtt - etime_rtt);
 
       ptcb->srtt = (1.0 - ALPHA) * ptcb->srtt + BETA * etime_rtt;
 
@@ -602,12 +602,12 @@ rtt_retrans (tcb * ptcb, segment * pseg)
       /* are no longer meaningful */
       etime = elapsed (pseg->time, current_time);
       if (pseg->retrans > ptcb->retr_max)
-	ptcb->retr_max = pseg->retrans;
+        ptcb->retr_max = pseg->retrans;
 
       if (etime > ptcb->retr_max_tm)
-	ptcb->retr_max_tm = etime;
+        ptcb->retr_max_tm = etime;
       if ((ptcb->retr_min_tm == 0) || (etime < ptcb->retr_min_tm))
-	ptcb->retr_min_tm = etime;
+        ptcb->retr_min_tm = etime;
 
       ptcb->retr_tm_sum += etime;
       ptcb->retr_tm_sum2 += etime * etime;
@@ -635,15 +635,15 @@ ack_in (tcb * ptcb, seqnum ack, unsigned tcp_data_length)
   for (pseg = pquad_prev->seglist_head; pseg != NULL; pseg = pseg->next)
     {
       if (!pseg->acked)
-	{
-	  ++pseg->acked;
-	  changed_one = TRUE;
-	  ++ptcb->rtt_cumack;
+        {
+          ++pseg->acked;
+          changed_one = TRUE;
+          ++ptcb->rtt_cumack;
 
-	  /* keep track of the newest transmission */
-	  if (tv_gt (pseg->time, last_xmit))
-	    last_xmit = pseg->time;
-	}
+          /* keep track of the newest transmission */
+          if (tv_gt (pseg->time, last_xmit))
+            last_xmit = pseg->time;
+        }
     }
   if (changed_one)
     collapse_quad (pquad_prev);
@@ -653,55 +653,55 @@ ack_in (tcb * ptcb, seqnum ack, unsigned tcp_data_length)
   for (pseg = pquad->seglist_head; pseg != NULL; pseg = pseg->next)
     {
       if (ack <= pseg->seq_firstbyte)
-	{
-	  /* doesn't cover anything else on the list */
-	  break;
-	}
+        {
+          /* doesn't cover anything else on the list */
+          break;
+        }
 
       /* keep track of the newest transmission */
       if (tv_gt (pseg->time, last_xmit))
-	last_xmit = pseg->time;
+        last_xmit = pseg->time;
 
       /* (ELSE) ACK covers this sequence */
       if (pseg->acked)
-	{
-	  /* already acked this one */
-	  ++pseg->acked;
-	  if (ack == (pseg->seq_lastbyte + 1))
-	    {
-	      ++ptcb->rtt_dupack;	/* one more duplicate ack */
-	      ret = CUMUL;
-	      if (pseg->acked == 4)
-		{
-		  /* some people say these CAN'T have data */
-		  if ((tcp_data_length == 0))
-		    {
-		      ++ptcb->rtt_triple_dupack;
-		      ret = TRIPLE;
-		    }
-		}
-	    }
-	  continue;
-	}
+        {
+          /* already acked this one */
+          ++pseg->acked;
+          if (ack == (pseg->seq_lastbyte + 1))
+            {
+              ++ptcb->rtt_dupack;       /* one more duplicate ack */
+              ret = CUMUL;
+              if (pseg->acked == 4)
+                {
+                  /* some people say these CAN'T have data */
+                  if ((tcp_data_length == 0))
+                    {
+                      ++ptcb->rtt_triple_dupack;
+                      ret = TRIPLE;
+                    }
+                }
+            }
+          continue;
+        }
       /* ELSE !acked */
 
       ++pseg->acked;
       changed_one = TRUE;
 
       if (ack == (pseg->seq_lastbyte + 1))
-	{
-	  /* if ANY preceding segment was xmitted after this one,
-	     the the RTT sample is invalid */
-	  intervening_xmits = (tv_gt (last_xmit, pseg->time));
+        {
+          /* if ANY preceding segment was xmitted after this one,
+             the the RTT sample is invalid */
+          intervening_xmits = (tv_gt (last_xmit, pseg->time));
 
-	  ret = rtt_ackin (ptcb, pseg, intervening_xmits);
-	}
+          ret = rtt_ackin (ptcb, pseg, intervening_xmits);
+        }
       else
-	{
-	  /* cumulatively ACKed */
-	  ++ptcb->rtt_cumack;
-	  ret = CUMUL;
-	}
+        {
+          /* cumulatively ACKed */
+          ++ptcb->rtt_cumack;
+          ret = CUMUL;
+        }
     }
   if (changed_one)
     collapse_quad (pquad);
@@ -710,16 +710,16 @@ ack_in (tcb * ptcb, seqnum ack, unsigned tcp_data_length)
 
 
  /* LM start - Rule number one
-  ** R1.a IP_id_new not equal to IP_id_old 
-  ** R1.b this_seg_time-prev_seg_time > 
+  ** R1.a IP_id_new not equal to IP_id_old
+  ** R1.b this_seg_time-prev_seg_time >
   ** R1.c number of acks > 3 (or max number permitted)
   ** DeltaT1: Time between current segment and the last segment before a ooo
   ** DeltaT2: Time between current segment and the received segment with the maximum sequence number
   */
 char
 real_rules_test (tcb * thisdir, segment * pseg, seglen len, quadrant * pquad,
-		 u_short this_ip_id, Bool pkt_already_seen,
-		 double *recovery_time)
+                 u_short this_ip_id, Bool pkt_already_seen,
+                 double *recovery_time)
 {
   double RTO, RTT, Mean_RTT;
   int Rule1a, Rule1b, Rule1d;
@@ -734,8 +734,8 @@ real_rules_test (tcb * thisdir, segment * pseg, seglen len, quadrant * pquad,
   otherdir = (dir == C2S) ? &(thisdir->ptp->s2c) : &(thisdir->ptp->c2s);
   Mean_RTT =
     Average (thisdir->rtt_sum,
-	     thisdir->rtt_count) + Average (otherdir->rtt_sum,
-					    otherdir->rtt_count);
+             thisdir->rtt_count) + Average (otherdir->rtt_sum,
+                                            otherdir->rtt_count);
   RTO =
     Mean_RTT +
     4 *
@@ -751,7 +751,7 @@ real_rules_test (tcb * thisdir, segment * pseg, seglen len, quadrant * pquad,
   if (RTT < RTT_MIN)
     RTT = RTT_MIN;
 
-  if (!pkt_already_seen)	/* if pkt_already_seen then *recovery_time is passed otherwise it is set below */
+  if (!pkt_already_seen)        /* if pkt_already_seen then *recovery_time is passed otherwise it is set below */
     *recovery_time =
       (pseg->prev->prev !=
        NULL) ? time2double (current_time) -
@@ -761,11 +761,11 @@ real_rules_test (tcb * thisdir, segment * pseg, seglen len, quadrant * pquad,
   if (pseg->prev != NULL)
     {
       if (pkt_already_seen)
-	prev_tos = pseg->prev->type_of_segment;
+        prev_tos = pseg->prev->type_of_segment;
       else
-	prev_tos =
-	  (pseg->prev->prev !=
-	   NULL) ? pseg->prev->prev->type_of_segment : IN_SEQUENCE;
+        prev_tos =
+          (pseg->prev->prev !=
+           NULL) ? pseg->prev->prev->type_of_segment : IN_SEQUENCE;
     }
   else
     prev_tos = IN_SEQUENCE;
@@ -776,8 +776,8 @@ real_rules_test (tcb * thisdir, segment * pseg, seglen len, quadrant * pquad,
       RTO = INITIAL_RTO;
       /* if *recovery_time is -1 then this is the first packet and use next segment as recovery time */
       if (*recovery_time == -1.0)
-	*recovery_time =
-	  time2double (current_time) - time2double (pseg->time);
+        *recovery_time =
+          time2double (current_time) - time2double (pseg->time);
     }
 
   Rule1a = (pseg->ip_id != this_ip_id);
@@ -785,52 +785,52 @@ real_rules_test (tcb * thisdir, segment * pseg, seglen len, quadrant * pquad,
   Rule1d = (*recovery_time < Mean_RTT);
   if (pkt_already_seen)
     Rule2b = (pseg->prev != NULL) ? (pseg->prev->acked > 3
-				     && *recovery_time < RTO) : 0;
+                                     && *recovery_time < RTO) : 0;
   else
     Rule2b = (pseg->prev->prev != NULL) ? (pseg->prev->prev->acked > 3
-					   && *recovery_time < RTO) : 0;
+                                           && *recovery_time < RTO) : 0;
 
   Rule2c = (time2double (current_time) - time2double (pseg->time) < RTT);
 
   RuleProbing = ((len == 1) && (otherdir->win_curr == 0)
-		 && (thisdir->syn_count != 0) && (otherdir->syn_count != 0));
+                 && (thisdir->syn_count != 0) && (otherdir->syn_count != 0));
 
   if (RuleProbing)
     return FLOW_CONTROL;
   if (Rule1d && prev_tos != IN_SEQUENCE)
-    return (prev_tos | BATCH_CLASSIFICATION);	/* Old Classification with the first bit is 1 */
+    return (prev_tos | BATCH_CLASSIFICATION);   /* Old Classification with the first bit is 1 */
 
 
   if (!pseg->acked)
     {
       if (pkt_already_seen)
-	{
-	  if (!Rule1a)
-	    return CLASSIFICATION (NETWORK_DUPLICATE);
-	  if (Rule1a && (Rule1b || Rule2b))
-	    return CLASSIFICATION (Rule2b ? RETRANSMISSION_FR :
-				   RETRANSMISSION_RTO);
-	  if (Rule1d)
-	    return
-	      CLASSIFICATION (DUPLICATE_WITH_RC_LESS_THAN_RTT_NOT_3DUP_ACK);
-	  if (!Rule1b)
-	    return
-	      CLASSIFICATION
-	      (DUPLICATE_WITH_RC_LESS_THAN_RTO_AND_GREATER_THAN_RTT_NOT_3DUP_ACK);
-	  return CLASSIFICATION (UNKNOWN);
-	}
+        {
+          if (!Rule1a)
+            return CLASSIFICATION (NETWORK_DUPLICATE);
+          if (Rule1a && (Rule1b || Rule2b))
+            return CLASSIFICATION (Rule2b ? RETRANSMISSION_FR :
+                                   RETRANSMISSION_RTO);
+          if (Rule1d)
+            return
+              CLASSIFICATION (DUPLICATE_WITH_RC_LESS_THAN_RTT_NOT_3DUP_ACK);
+          if (!Rule1b)
+            return
+              CLASSIFICATION
+              (DUPLICATE_WITH_RC_LESS_THAN_RTO_AND_GREATER_THAN_RTT_NOT_3DUP_ACK);
+          return CLASSIFICATION (UNKNOWN);
+        }
 
       if (Rule1b || Rule2b)
-	return CLASSIFICATION (Rule2b ? RETRANSMISSION_FR :
-			       RETRANSMISSION_RTO);
+        return CLASSIFICATION (Rule2b ? RETRANSMISSION_FR :
+                               RETRANSMISSION_RTO);
       if (Rule2c)
-	return CLASSIFICATION (REORDERING);
+        return CLASSIFICATION (REORDERING);
       if (Rule1d)
-	return CLASSIFICATION (OOO_WITH_RC_LESS_THAN_RTT_NOT_3DUP_ACK);
+        return CLASSIFICATION (OOO_WITH_RC_LESS_THAN_RTT_NOT_3DUP_ACK);
       if (!Rule1b)
-	return
-	  CLASSIFICATION
-	  (OOO_WITH_RC_LESS_THAN_RTO_AND_GREATER_THAN_RTT_NOT_3DUP_ACK);
+        return
+          CLASSIFICATION
+          (OOO_WITH_RC_LESS_THAN_RTO_AND_GREATER_THAN_RTT_NOT_3DUP_ACK);
       return CLASSIFICATION (UNKNOWN);
 
     }
@@ -839,7 +839,7 @@ real_rules_test (tcb * thisdir, segment * pseg, seglen len, quadrant * pquad,
     return CLASSIFICATION (NETWORK_DUPLICATE);
   if ((Rule1b || Rule2b))
     return CLASSIFICATION (Rule2b ? UNNECESSARY_RETRANSMISSION_FR :
-			   UNNECESSARY_RETRANSMISSION_RTO);
+                           UNNECESSARY_RETRANSMISSION_RTO);
   if (Rule1d)
     return
       CLASSIFICATION
@@ -859,12 +859,12 @@ real_rules_test (tcb * thisdir, segment * pseg, seglen len, quadrant * pquad,
 
 void
 rules_test (tcb * thisdir, segment * pseg, seglen len, quadrant * pquad,
-	    u_short this_ip_id, Bool pkt_already_seen, double recovery_time)
+            u_short this_ip_id, Bool pkt_already_seen, double recovery_time)
 {
   double DeltaT2, RTO, Mean_RTT, RTT_min;
   char type_of_segment =
     real_rules_test (thisdir, pseg, len, pquad, this_ip_id, pkt_already_seen,
-		     &recovery_time);
+                     &recovery_time);
   tcb *otherdir;
   int dir, num_acked;
 #ifdef LOG_OOO
@@ -891,8 +891,8 @@ rules_test (tcb * thisdir, segment * pseg, seglen len, quadrant * pquad,
 
   Mean_RTT =
     Average (thisdir->rtt_sum,
-	     thisdir->rtt_count) + Average (otherdir->rtt_sum,
-					    otherdir->rtt_count);
+             thisdir->rtt_count) + Average (otherdir->rtt_sum,
+                                            otherdir->rtt_count);
   RTO =
     Mean_RTT +
     4 *
@@ -907,43 +907,43 @@ rules_test (tcb * thisdir, segment * pseg, seglen len, quadrant * pquad,
   if (type_of_segment != 0)
     {
       wfprintf (fp_dup_ooo_log, "T: %f ",
-	       (elapsed (first_packet, current_time) / 1000.0));
+               (elapsed (first_packet, current_time) / 1000.0));
       if (dir == C2S)
-	{
-	  wfprintf (fp_dup_ooo_log, "%s %s ",
-		   HostName (thisdir->ptp->addr_pair.a_address),
-		   ServiceName (thisdir->ptp->addr_pair.a_port));
-	  wfprintf (fp_dup_ooo_log, "%s %s ",
-		   HostName (thisdir->ptp->addr_pair.b_address),
-		   ServiceName (thisdir->ptp->addr_pair.b_port));
-	}
+        {
+          wfprintf (fp_dup_ooo_log, "%s %s ",
+                   HostName (thisdir->ptp->addr_pair.a_address),
+                   ServiceName (thisdir->ptp->addr_pair.a_port));
+          wfprintf (fp_dup_ooo_log, "%s %s ",
+                   HostName (thisdir->ptp->addr_pair.b_address),
+                   ServiceName (thisdir->ptp->addr_pair.b_port));
+        }
       else
-	{
-	  wfprintf (fp_dup_ooo_log, "%s %s ",
-		   HostName (thisdir->ptp->addr_pair.b_address),
-		   ServiceName (thisdir->ptp->addr_pair.b_port));
-	  wfprintf (fp_dup_ooo_log, "%s %s ",
-		   HostName (thisdir->ptp->addr_pair.a_address),
-		   ServiceName (thisdir->ptp->addr_pair.a_port));
-	}
+        {
+          wfprintf (fp_dup_ooo_log, "%s %s ",
+                   HostName (thisdir->ptp->addr_pair.b_address),
+                   ServiceName (thisdir->ptp->addr_pair.b_port));
+          wfprintf (fp_dup_ooo_log, "%s %s ",
+                   HostName (thisdir->ptp->addr_pair.a_address),
+                   ServiceName (thisdir->ptp->addr_pair.a_port));
+        }
 
       wfprintf (fp_dup_ooo_log,
-	       "%lu %lu %d %d %u %d %u %d %lf %lf %lu %lf %lf %lf %d",
-	       thisdir->data_pkts,
-	       thisdir->data_bytes,
-	       (type_of_segment & 15),
-	       thisdir->fsack_req && otherdir->fsack_req,
-	       thisdir->mss,
-	       (dir == C2S),
-	       (internal_dst),
-	       thisdir->initialwin_bytes,
-	       recovery_time / 1000.0,
-	       DeltaT2 / 1000.0,
-	       len, RTO / 1000.0, RTT_min / 1000.0, Mean_RTT / 1000.0,
-	       num_acked);
+               "%lu %lu %d %d %u %d %u %d %lf %lf %lu %lf %lf %lf %d",
+               thisdir->data_pkts,
+               thisdir->data_bytes,
+               (type_of_segment & 15),
+               thisdir->fsack_req && otherdir->fsack_req,
+               thisdir->mss,
+               (dir == C2S),
+               (internal_dst),
+               thisdir->initialwin_bytes,
+               recovery_time / 1000.0,
+               DeltaT2 / 1000.0,
+               len, RTO / 1000.0, RTT_min / 1000.0, Mean_RTT / 1000.0,
+               num_acked);
       wfprintf (fp_dup_ooo_log, " %f %f %f %f\n", thisdir->srtt / 1000.0,
-	       thisdir->rttvar / 1000.0, otherdir->srtt / 1000.0,
-	       otherdir->rttvar / 1000.0);
+               thisdir->rttvar / 1000.0, otherdir->srtt / 1000.0,
+               otherdir->rttvar / 1000.0);
     }
 
 #endif
@@ -1005,3 +1005,4 @@ rules_test (tcb * thisdir, segment * pseg, seglen len, quadrant * pquad,
       thisdir->unknown++;
     }
 }
+
