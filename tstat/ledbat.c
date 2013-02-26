@@ -35,9 +35,15 @@
 
 extern FILE *fp_ledbat_logc;
 
+//<aa>
 #ifdef LEDBAT_WINDOW_CHECK
 extern FILE *fp_ledbat_window_logc;
 #endif
+
+#ifdef BUFFERBLOAT_ANALYSIS
+extern FILE *fp_ledbat_qd_sample_logc;
+#endif
+//</aa>
 
 
 extern Bool log_engine;
@@ -447,8 +453,8 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
         		//17 Queuing_delay integer in ms - millisecond
         		//18 lastupdate
 			//19 ewma
-        		fprintf(fp_stdout," %u %.0f %u ",thisdir->utp.delay_base, estimated_qd/1000, estimated_qdI_vecchio/1000 );
-       		 	fprintf(fp_stdout," %us-%uus ",thisdir->utp.last_rollover.tv_sec, 
+        		fprintf(fp_stdout," %u %u %u ",thisdir->utp.delay_base, estimated_qd/1000, estimated_qdI_vecchio/1000 );
+       		 	fprintf(fp_stdout," %lus-%luus ",thisdir->utp.last_rollover.tv_sec, 
 				thisdir->utp.last_rollover.tv_usec);
 			fprintf(fp_stdout," %f ",thisdir->utp.ewma);
 
@@ -497,6 +503,9 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 			ServiceName(pup->addr_pair.a_port));
 		fprintf(fp_stdout," %f %f %f %f ", estimated_99P, estimated_95P,  estimated_90P, estimated_75P );
 		#endif
+
+		print_queueing_dly_sample(fp_ledbat_qd_sample_logc,LEDBAT, &(pup->addr_pair), 
+			dir, &(thisdir->utp), thisdir->uTP_conn_id, estimated_qd, "-", putplen);
 	}
 	else
 	{
@@ -571,7 +580,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	#ifdef LEDBAT_DEBUG
 	//<aa>TODO: remove this
 	//40:last_pkt_time(s) 41:last_pkt_time(us) 42:current_time(s) 43:current_time(us) 44:qd_andrea
-	fprintf(fp_stdout, " %ld %ld %ld %ld %.0f\n", 
+	fprintf(fp_stdout, " %ld %ld %ld %ld %u\n", 
 		thisdir->last_pkt_time.tv_sec,thisdir->last_pkt_time.tv_usec,
 		current_time.tv_sec,current_time.tv_usec, estimated_qd/1000);
 	#endif
@@ -1424,7 +1433,7 @@ void update_following_left_edge(void* dir_){
 		(	elapsed(last_window_edge, current_time) >= 1e6*offset &&
 			elapsed(last_window_edge, current_time) <= 1e6*(offset+1)    )
 	){
-		printf("\nledbat.c %d: ERROR:\n dir->utp.last_window_edge=%u;\n current_time=%us%uus;\n offset=%u\n elapsed(last_window_edge, current_time)=%f\n", 
+		printf("\nledbat.c %d: ERROR:\n dir->utp.last_window_edge=%lu;\n current_time=%lus%luus;\n offset=%lu\n elapsed(last_window_edge, current_time)=%f\n", 
 			__LINE__, dir->utp.last_window_edge, current_time.tv_sec,
 			current_time.tv_usec, offset, elapsed(last_window_edge, current_time));
 		exit(978);
