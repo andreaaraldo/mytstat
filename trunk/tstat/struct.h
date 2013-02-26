@@ -345,7 +345,7 @@ typedef struct utp_stat
 	
 	// <aa> The instant(seconds) when the last closed window ends. It is a "sniffer time" 
 	// (not the ledbat timestamp).
-	size_t last_window_edge;
+	time_t last_window_edge;
 	// </aa>
 
 	// <aa>the max of the queueing delays collected in the last window (in milliseconds)

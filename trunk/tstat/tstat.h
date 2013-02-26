@@ -786,6 +786,10 @@ extern double prof_cps;              // clock per seconds give by sysconf()
 
 //<aa>TODO: All that follows must be placed in a file named bufferbloat.c . How to insert this in
 //makefile?
+
+/**
+ * returns an estimation of the queueing delay in microseconds
+ */
 u_int32_t get_queueing_delay(utp_stat* bufferbloat_stat_p);
 
 /**
@@ -798,7 +802,10 @@ int wrapping_compare_less(u_int32_t lhs, u_int32_t rhs); //libutp
  */
 u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p);
 
-void update_delay_base(u_int32_t time_diff, u_int32_t time_ms, utp_stat* bufferbloat_stat_p);
+/**
+ * time_us, time_diff: in microseconds
+ */
+void update_delay_base(u_int32_t time_diff, u_int32_t time_us, utp_stat* bufferbloat_stat_p);
 
 
 

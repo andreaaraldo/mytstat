@@ -272,10 +272,16 @@ FILE *fp_skype_logc = NULL;
 FILE *fp_udp_logc = NULL;
 FILE *fp_ledbat_logc = NULL;
 
+//<aa>
 #ifdef LEDBAT_WINDOW_CHECK
 	FILE *fp_ledbat_window_logc = NULL;
 	FILE *fp_ledbat_window_andrea_logc = NULL;
 #endif
+
+#ifdef BUFFERBLOAT_ANALYSIS
+	FILE *fp_ledbat_qd_sample_logc= NULL;
+#endif
+//</aa>
 
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
 FILE *fp_chat_logc = NULL;
@@ -884,10 +890,16 @@ create_new_outfiles (char *filename)
 //<aa>TODO: why don't we wrap it in ifdef-endif?</aa>
          reopen_logfile(&fp_ledbat_logc,basename,"log_ledbat_complete");
 
+//<aa>
 #ifdef LEDBAT_WINDOW_CHECK
          reopen_logfile(&fp_ledbat_window_logc,basename,"log_ledbat_window");
          reopen_logfile(&fp_ledbat_window_andrea_logc,basename,"log_ledbat_andrea_window");
 #endif
+
+#ifdef BUFFERBLOAT_ANALYSIS
+         reopen_logfile(&fp_ledbat_qd_sample_logc,basename,"log_ledbat_qd_sample");
+#endif
+//</aa>
       
 	/* MSN+Yahoo+Jabber log */
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
@@ -3666,47 +3678,46 @@ void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pai
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
 	const char* type, u_int16_t pkt_size)
 {
+	#ifdef SEVERE_DEBUG
+	if (dir!=S2C && dir!=C2S) {
+		printf("ERROR: dir not valid\n"); exit(7777);
+	}
+	#endif
+
 	u_int32_t current_time_ms = 
 		current_time.tv_sec * 1000 + (u_int32_t)current_time.tv_usec/1000;
-	wfprintf(fp_logc,"%u \n",
+	wfprintf(fp_logc,"%u ",
 		current_time_ms		//1. milliseconds
 		
-	);
-	switch(dir)
-	{
-		case(C2S):
-			wfprintf (fp_logc, "%s %s ",
-        	           HostName (addr_pair->a_address),
-        	           ServiceName (addr_pair->a_port));
-        	  	wfprintf (fp_logc, "%s %s ",
-        	           HostName (addr_pair->b_address),
-        	           ServiceName (addr_pair->b_port));
-			break;
-		case(S2C):
-			wfprintf (fp_logc, "%s %s ",
-        	           HostName (addr_pair->b_address),
-        	           ServiceName (addr_pair->b_port));
-		        wfprintf (fp_logc, "%s %s ",
-                 	  HostName (addr_pair->a_address),
-                 	  ServiceName (addr_pair->a_port));
-			break;
-		default:
-			fprintf(stderr,"stat.c: %d: ERROR\n", __LINE__); exit(5468);
-	}
+	);	
+
+	wfprintf (fp_logc, "%s %s ",
+      	           HostName (addr_pair->a_address),	//2.ip_addr_1
+       	           ServiceName (addr_pair->a_port));	//3.port_1
+  	wfprintf (fp_logc, "%s %s ",
+       	           HostName (addr_pair->b_address),	//4.ip_addr_2
+       	           ServiceName (addr_pair->b_port));	//5.port_2
+
+
+	wfprintf (fp_logc, "%d ", dir); 		//6.dir
 	
 	switch(an_type){
-		case (LEDBAT):	wfprintf (fp_logc, "%d ", utp_conn_id); break;
+		case (LEDBAT):	wfprintf (fp_logc, "%d ", utp_conn_id); 
+							//7.conn_id
+				break; 
+
 		case (TCP):	wfprintf (fp_logc, "- "); break;
-		default:	fprintf(stderr, "tstat.c %d: ERROR\n",__LINE__); exit(54321);
+		default:	fprintf(stderr, "ERROR: analysis type not valid\n"); 
+				exit(54321);
 	}
 
 	wfprintf (fp_logc, "%u %u ",
-		bufferbloat_stat_p->delay_base, 
-		estimated_qd
+		bufferbloat_stat_p->delay_base,		//8.delay_base
+		estimated_qd				//9.estimated_qd
 	);
 
-	wfprintf (fp_logc, "- "); // flowtype
-	wfprintf (fp_logc, "%u\n", pkt_size); // flowtype
+	wfprintf (fp_logc, "- "); 			//10.flowtype
+	wfprintf (fp_logc, "%u\n", pkt_size); 		//11.pkt_size
 	
 }
 
