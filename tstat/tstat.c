@@ -3565,19 +3565,21 @@ void flush_histo_engine(void) {
 
 
 u_int32_t get_queueing_delay(utp_stat* bufferbloat_stat_p){
-	u_int32_t min_gross_delay;
-	min_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[0];	
+	u_int32_t filtered_gross_delay;
+	filtered_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[0];	
 	int i=1;
 	while ( i<CUR_DELAY_SIZE ){
-		if (	((bufferbloat_stat_p->cur_gross_delay_hist[i]< min_gross_delay ) && 
-			(bufferbloat_stat_p->cur_gross_delay_hist[i]>0)	)	|| 
-			(min_gross_delay == 0)  
+		if (	((bufferbloat_stat_p->cur_gross_delay_hist[i]< filtered_gross_delay ) && 
+			(bufferbloat_stat_p->cur_gross_delay_hist[i]>0)	)	
+				|| 
+			filtered_gross_delay == 0
 		)
-		min_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[i];
+			filtered_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[i];
+	
 		i++;
 	}
 	
-	return min_gross_delay - bufferbloat_stat_p->delay_base;
+	return filtered_gross_delay - bufferbloat_stat_p->delay_base;
 }
 
 
@@ -3682,14 +3684,14 @@ void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pai
 {
 	#ifdef SEVERE_DEBUG
 	if (dir!=S2C && dir!=C2S) {
-		printf("ERROR: dir not valid\n"); exit(7777);
+		printf("ERROR: dir (%d) not valid\n",dir); exit(7777);
 	}
 	#endif
 
 	u_int32_t current_time_ms = 
 		current_time.tv_sec * 1000 + (u_int32_t)current_time.tv_usec/1000;
 	wfprintf(fp_logc,"%u ",
-		current_time_ms		//1. milliseconds
+		current_time_ms				//1. milliseconds
 		
 	);	
 
@@ -3715,12 +3717,11 @@ void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pai
 
 	wfprintf (fp_logc, "%u %u ",
 		bufferbloat_stat_p->delay_base,		//8.delay_base
-		estimated_qd				//9.estimated_qd
+		estimated_qd				//9.estimated_qd (milliseconds)
 	);
 
 	wfprintf (fp_logc, "- "); 			//10.flowtype
 	wfprintf (fp_logc, "%u\n", pkt_size); 		//11.pkt_size
-	
 }
 
 

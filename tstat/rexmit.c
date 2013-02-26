@@ -606,7 +606,7 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
 
       const char* type = "non_lo_so";
 
-      int dir = (&(ptcb->ptp->c2s) == ptcb); 
+      int dir = (&(ptcb->ptp->c2s) == ptcb)? C2S: S2C; 
 
       print_queueing_dly_sample(fp_tcp_qd_sample_logc, TCP, &( (ptcb->ptp)->addr_pair), 
 		dir, &(ptcb->utp), 0, estimated_qd, type, pkt_size);

@@ -504,6 +504,13 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		fprintf(fp_stdout," %f %f %f %f ", estimated_99P, estimated_95P,  estimated_90P, estimated_75P );
 		#endif
 
+		#ifdef SEVERE_DEBUG
+		if (dir!=S2C && dir!=C2S) {
+			printf("ledbat.c %d: ERROR: dir (%d) not valid\n",__LINE__,dir); 
+			exit(7777);
+		}
+		#endif
+
 		print_queueing_dly_sample(fp_ledbat_qd_sample_logc,LEDBAT, &(pup->addr_pair), 
 			dir, &(thisdir->utp), thisdir->uTP_conn_id, estimated_qd, "-", putplen);
 	}
