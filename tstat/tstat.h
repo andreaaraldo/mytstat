@@ -803,9 +803,11 @@ int wrapping_compare_less(u_int32_t lhs, u_int32_t rhs); //libutp
 u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p);
 
 /**
+ * Update the delay_base, bufferbloat_stat_p->cur_gross_delay_hist and 
+ * bufferbloat_stat_p->delay_base_hist
  * time_us, time_diff: in microseconds
  */
-void update_delay_base(u_int32_t time_diff, u_int32_t time_us, utp_stat* bufferbloat_stat_p);
+void update_delay_base(u_int32_t time_diff, utp_stat* bufferbloat_stat_p);
 
 
 
@@ -816,7 +818,7 @@ enum analysis_type {
 };
 
 
-#define NO_MATTER =-1
+#define NO_MATTER -1
 
 /**
  * type: <bit_torrent_client_1>:<bit_torrent_client2> for ledbat case. flowtype for tcp case
@@ -828,4 +830,4 @@ enum analysis_type {
 void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
 	int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
-	const char* type, u_int16_t pkt_size);
+	const char* type, u_int32_t pkt_size);
