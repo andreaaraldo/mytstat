@@ -280,6 +280,7 @@ FILE *fp_ledbat_logc = NULL;
 
 #ifdef BUFFERBLOAT_ANALYSIS
 	FILE *fp_ledbat_qd_sample_logc= NULL;
+	FILE *fp_tcp_qd_sample_logc= NULL;
 #endif
 //</aa>
 
@@ -898,6 +899,7 @@ create_new_outfiles (char *filename)
 
 #ifdef BUFFERBLOAT_ANALYSIS
          reopen_logfile(&fp_ledbat_qd_sample_logc,basename,"log_ledbat_qd_sample");
+         reopen_logfile(&fp_tcp_qd_sample_logc,basename,"log_tcp_qd_sample");
 #endif
 //</aa>
       
@@ -3620,7 +3622,7 @@ u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p){
 }
 
 //<aa>
-void update_delay_base(u_int32_t time_diff,u_int32_t time_ms, utp_stat* bufferbloat_stat_p){
+void update_delay_base(u_int32_t time_diff,utp_stat* bufferbloat_stat_p){
 	int j=0;
 	while ( j<DELAY_BASE_HISTORY ){
 		if (bufferbloat_stat_p->delay_base_hist[j]==0) bufferbloat_stat_p->delay_base_hist[j]=time_diff;
@@ -3676,7 +3678,7 @@ void update_delay_base(u_int32_t time_diff,u_int32_t time_ms, utp_stat* bufferbl
 void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
 	int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
-	const char* type, u_int16_t pkt_size)
+	const char* type, u_int32_t pkt_size)
 {
 	#ifdef SEVERE_DEBUG
 	if (dir!=S2C && dir!=C2S) {

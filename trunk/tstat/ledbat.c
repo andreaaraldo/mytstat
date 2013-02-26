@@ -403,7 +403,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	}
 	#endif
 
-	update_delay_base(ntohl(putp->time_diff), ntohl(putp->time_ms), &(thisdir->utp) );
+	update_delay_base(ntohl(putp->time_diff), &(thisdir->utp) );
 	//<aa> now thisdir->utp.delay_base is updated </aa>
 	
 	float estimated_qdF_vecchio=(float)get_queueing_delay_vecchio(thisdir);

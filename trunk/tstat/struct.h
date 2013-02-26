@@ -455,7 +455,9 @@ typedef struct segment
 {
   seqnum seq_firstbyte;		/* seqnumber of first byte */
   seqnum seq_lastbyte;		/* seqnumber of last byte */
-  u_char retrans;		/* retransmit count */
+  u_char retrans;		/* retransmit count */ 
+				//<aa>How many time this segment has been retransmitted</aa>
+
   u_int acked;			/* how MANY times has has it been acked? */
   timeval time;			/* time the segment was sent */
   /* LM start - add field to implement an heuristic to identify 
