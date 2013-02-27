@@ -3680,7 +3680,7 @@ void update_delay_base(u_int32_t time_diff,utp_stat* bufferbloat_stat_p){
 void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
 	int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
-	const char* type, u_int32_t pkt_size)
+	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay)
 {
 	#ifdef SEVERE_DEBUG
 	if (dir!=S2C && dir!=C2S) {
@@ -3721,7 +3721,8 @@ void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pai
 	);
 
 	wfprintf (fp_logc, "- "); 			//10.flowtype
-	wfprintf (fp_logc, "%u\n", pkt_size); 		//11.pkt_size
+	wfprintf (fp_logc, "%u ", pkt_size); 		//11.pkt_size
+	wfprintf (fp_logc, "%u \n", last_gross_delay); 	//12.last_gross_delay(microseconds)
 }
 
 

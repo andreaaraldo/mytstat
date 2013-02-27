@@ -548,7 +548,7 @@ insert_seg_between (quadrant * pquad,
 static enum t_ack
 rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
 {
-  double etime_rtt;
+  double etime_rtt;//<aa>microseconds</aa>
   enum t_ack ret;
 
   /* how long did it take */
@@ -600,16 +600,23 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       //We consider as packet size the size of the segment being acked
       u_int32_t pkt_size = pseg->seq_lastbyte - pseg->seq_firstbyte +1;
 
-      update_delay_base((u_int32_t)etime_rtt, &(ptcb->utp) );//ptcp is thisdir
+      //<aa>Reactivate this</aa<
+      //update_delay_base((u_int32_t)etime_rtt, &(ptcb->utp) );//ptcp is thisdir
+
+      //<aa>TODO: remove this
+      if(etime_rtt < ptcb->utp.delay_base) 
+		ptcb->utp.delay_base = (u_int32_t)etime_rtt;
+      //</aa>
       
-      u_int32_t estimated_qd= get_queueing_delay(&(ptcb->utp) );
+      u_int32_t estimated_qd = (u_int32_t)etime_rtt - ptcb->utp.delay_base;//microseconds
+	//get_queueing_delay(&(ptcb->utp) );
 
       const char* type = "non_lo_so";
 
       int dir = (&(ptcb->ptp->c2s) == ptcb)? C2S: S2C; 
 
       print_queueing_dly_sample(fp_tcp_qd_sample_logc, TCP, &( (ptcb->ptp)->addr_pair), 
-		dir, &(ptcb->utp), 0, estimated_qd, type, pkt_size);
+		dir, &(ptcb->utp), 0, estimated_qd/1000, type, pkt_size, etime_rtt);
       #endif
       //</aa>
 

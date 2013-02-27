@@ -512,7 +512,8 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		#endif
 
 		print_queueing_dly_sample(fp_ledbat_qd_sample_logc,LEDBAT, &(pup->addr_pair), 
-			dir, &(thisdir->utp), thisdir->uTP_conn_id, estimated_qd, "-", putplen);
+			dir, &(thisdir->utp), thisdir->uTP_conn_id, estimated_qd, "-", 
+			putplen, ntohl(putp->time_ms) );
 	}
 	else
 	{
