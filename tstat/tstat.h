@@ -826,8 +826,9 @@ enum analysis_type {
  * utp_conn_id: in the tcp case, it will be ignored
  * estimated_qd: in milliseconds
  * dir: can be C2S or S2C
+ * last_gross_delay (microseconds)
  */
 void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
 	int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
-	const char* type, u_int32_t pkt_size);
+	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay);
