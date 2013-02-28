@@ -28,6 +28,7 @@ extern FILE *fp_rtp_logc;
 extern FILE *fp_video_logc;
 extern FILE *fp_streaming_logc;
 
+
 extern Bool is_stdin;
 extern Bool printticks;
 extern unsigned long int fcount;
@@ -684,6 +685,12 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
    /*TOPIX*/ double delta_t = 0;
   /*end TOPIX */
 
+  //<aa>
+  #ifdef BUFFERBLOAT_ANALYSIS
+  u_int32_t current_intertime_int = 0; //the elapsed time between two data segments
+  #endif
+  //</aa>
+
   /* make sure we have enough of the packet */
   if ((unsigned long) ptcp + sizeof (struct tcphdr) - 1 >
       (unsigned long) plast)
@@ -1013,33 +1020,56 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 	thisdir->first_data_time = current_time;
       thisdir->last_data_time = current_time;
 
-#ifdef PACKET_STATS
-      thisdir->data_pkts_sum2 += tcp_data_length*tcp_data_length; 
-      
-      { double current_intertime;
-      if (thisdir->seg_count==0)
-       {
-         thisdir->last_seg_time=time2double(current_time);
-       }
-      else
-       {
-         current_intertime = 
-	      time2double(current_time) - thisdir->last_seg_time;
-         thisdir->last_seg_time=time2double(current_time);
-	 thisdir->seg_intertime_sum += current_intertime;
-	 thisdir->seg_intertime_sum2 += current_intertime*current_intertime;
-       }
+//<aa> OR condition added (only ifdef PACKET_STATS before)</aa>
+#if defined(PACKET_STATS) || defined(BUFFERBLOAT_ANALYSIS)
+      thisdir->data_pkts_sum2 += tcp_data_length*tcp_data_length;      
+      { 
+	      double current_intertime;
+	      if (thisdir->seg_count==0)
+	       {
+		 thisdir->last_seg_time=time2double(current_time);
+		 printf("tcp.c %d: thisdir->seg_count=%u\n",
+				__LINE__, thisdir->seg_count);
+	       }
+	      else
+	       {
+		 current_intertime = 
+		      time2double(current_time) - thisdir->last_seg_time;
+		 thisdir->last_seg_time=time2double(current_time);
+		 thisdir->seg_intertime_sum += current_intertime;
+		 thisdir->seg_intertime_sum2 += current_intertime*current_intertime;
 
-      if (thisdir->seg_count<MAX_COUNT_SEGMENTS)
-       {
-         thisdir->seg_size[thisdir->seg_count] = tcp_data_length;
-	 if (thisdir->seg_count>0)
-	  {
-	    thisdir->seg_intertime[thisdir->seg_count-1] = current_intertime;
-	  }
-       }
+		 //<aa>
+		 current_intertime_int = (u_int32_t) current_intertime;
+		printf("tcp.c %d: current_intertime=%f, current_intertime=%u\n",
+				__LINE__, current_intertime, current_intertime_int);
 
-	 thisdir->seg_count++;
+
+
+		 #ifdef SEVERE_DEBUG
+		 if (current_intertime > UINT32_MAX){
+			printf("tcp.c %d: ERROR", __LINE__); exit(98999);
+		 }
+		 if (current_intertime == 0 || current_intertime_int == 0){
+			printf("tcp.c %d: current_intertime=%f, current_intertime=%u\n",
+				__LINE__, current_intertime, current_intertime_int);
+			exit(87934);
+		 }
+		 #endif
+		 //</aa>
+
+	       }
+
+	      if (thisdir->seg_count<MAX_COUNT_SEGMENTS)
+	       {
+		 thisdir->seg_size[thisdir->seg_count] = tcp_data_length;
+		 if (thisdir->seg_count>0)
+		  {
+		    thisdir->seg_intertime[thisdir->seg_count-1] = current_intertime;
+		  }
+	       }
+
+		 thisdir->seg_count++;
       }
 #endif
 #ifdef VIDEO_DETAILS
@@ -1144,41 +1174,79 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
   out_order = FALSE;
   retrans_num_bytes = 0;
   if (SYN_SET (ptcp) || FIN_SET (ptcp) || tcp_data_length > 0)
-    {
-      int len = tcp_data_length;
-      int retrans;
-      if (SYN_SET (ptcp))
-	++len;
-      if (FIN_SET (ptcp))
-	++len;
+  {
+	      int len = tcp_data_length;
+	      int retrans;
+	      if (SYN_SET (ptcp))
+		++len;
+	      if (FIN_SET (ptcp))
+		++len;
 
-      retrans = retrans_num_bytes =
-	rexmit (thisdir, start, len, &out_order, pip->ip_id);
+	      retrans = retrans_num_bytes =
+		rexmit (thisdir, start, len, &out_order, pip->ip_id);
+	      
+	      //<aa>
+	      #ifdef SEVERE_DEBUG
+	      if (thisdir->seg_count == 0){
+			printf("tcp.c %d: ERROR\n",__LINE__);
+	      }
+	      #endif
+	      #ifdef BUFFERBLOAT_ANALYSIS
+		 printf("tcp.c %d: thisdir->seg_count=%u\n",
+				__LINE__, thisdir->seg_count);
 
-      /* count anything NOT retransmitted as "unique" */
-      /* exclude SYN and FIN */
-      if (SYN_SET (ptcp))
-	{
-	  /* don't count the SYN as data */
-	  --len;
-	  /* if the SYN was rexmitted, then don't count it */
-	  if (thisdir->syn_count > 1)
-	    --retrans;
-	}
-      if (FIN_SET (ptcp))
-	{
-	  /* don't count the FIN as data */
-	  --len;
-	  /* if the FIN was rexmitted, then don't count it */
-	  if (thisdir->fin_count > 1)
-	    --retrans;
-	}
-      if (retrans < len)
-	thisdir->unique_bytes += (len - retrans);
+	      if (retrans == FALSE //the segment does not contain any retransmitted byte
+			&& out_order == FALSE && 
+			thisdir->seg_count > 1  //beacause if this is the first segment
+						//we don't have a previous segment to 
+						//measure the gross_delay
+		)
+	      {
+		    char type[16];
+		    sprintf(type,"%u:%u", (thisdir->ptp)->con_type, (thisdir->ptp)->p2p_type);
 
-    }
-  if (out_order)
-    thisdir->out_order_pkts++;
+		    int utp_conn_id = NO_MATTER; //not meaningful in tcp contest
+
+		    #ifdef SEVERE_DEBUG
+		    if (current_intertime_int == 0){
+			printf("tcp.c %d: current_intertime_int=%u\n",
+				__LINE__, current_intertime_int);
+			exit(87934);
+		    }
+		    #endif
+	 
+		    bufferbloat_analysis(TCP,
+				&(thisdir->ptp->addr_pair), *dir, &(thisdir->utp),
+				utp_conn_id, type, tcp_data_length, 
+				current_intertime_int);
+	      }
+	      #endif
+	      //</aa>
+
+	      /* count anything NOT retransmitted as "unique" */
+	      /* exclude SYN and FIN */
+	      if (SYN_SET (ptcp))
+		{
+		  /* don't count the SYN as data */
+		  --len;
+		  /* if the SYN was rexmitted, then don't count it */
+		  if (thisdir->syn_count > 1)
+		    --retrans;
+		}
+	      if (FIN_SET (ptcp))
+		{
+		  /* don't count the FIN as data */
+		  --len;
+		  /* if the FIN was rexmitted, then don't count it */
+		  if (thisdir->fin_count > 1)
+		    --retrans;
+		}
+	      if (retrans < len)
+		thisdir->unique_bytes += (len - retrans);
+
+  }
+    if (out_order)
+  	thisdir->out_order_pkts++;
 
    /*TOPIX*/
     /* delta_t evaluation if packets are data packets */
@@ -1219,6 +1287,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
     {
       thisdir->seq = end;
     }
+
 
   /* check for RESET */
   if (RESET_SET (ptcp))

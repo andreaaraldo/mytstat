@@ -208,8 +208,17 @@ char *ServiceName (portnum);
 char *HostName (ipaddr);
 char *HostAddr (ipaddr);
 char * Timestamp (void);
+
+//<aa>
+/*
+ * rexmit: is the specified segment a retransmit?
+ *   returns: number of retransmitted bytes in segment, 0 if not a rexmit
+ *            *pout_order to to TRUE if segment is out of order
+ */
+//</aa>
 int rexmit (tcb * ptcb, seqnum seq, seglen len, Bool * pout_order,
 	    u_short this_ip_id);
+
 enum t_ack ack_in (tcb *, seqnum, unsigned tcp_data_length);
 struct mfile *Mfopen (char *fname, char *mode);
 void Minit (void);
@@ -804,10 +813,10 @@ u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p);
 
 /**
  * Update the delay_base, bufferbloat_stat_p->cur_gross_delay_hist and 
- * bufferbloat_stat_p->delay_base_hist
- * time_us, time_diff: in microseconds
+ * bufferbloat_stat_p->delay_base_hist.
+ * - time_us, time_diff: in microseconds
  */
-void update_delay_base(u_int32_t time_diff, utp_stat* bufferbloat_stat_p);
+void update_delay_base(u_int32_t gross_delay, utp_stat* bufferbloat_stat_p);
 
 
 
@@ -828,7 +837,17 @@ enum analysis_type {
  * dir: can be C2S or S2C
  * last_gross_delay (microseconds)
  */
-void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
-	int dir,
+void print_queueing_dly_sample(enum analysis_type an_type, 
+	tcp_pair_addrblock* addr_pair, int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
+	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay);
+
+
+/**
+ * Estimates queueing delay, updates the data structure needed to calculate the queueing delay
+ * and print queueing delay logs
+ */
+void bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
+	int dir,
+	utp_stat* bufferbloat_stat_p, int utp_conn_id,
 	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay);

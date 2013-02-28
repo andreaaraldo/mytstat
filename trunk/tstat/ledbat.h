@@ -38,7 +38,7 @@ struct utp_hdr
 {
 #if UTP_BIG_ENDIAN
   unsigned int ver:4;		/* protocol version */
-  unsigned int type:4;		/* type */
+  unsigned int type:4;		/* type */ //<aa>example: DATA, FIN, SYN, RESET</aa>
   unsigned int ext:8;		/* header extension */
 
 
