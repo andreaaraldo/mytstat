@@ -39,10 +39,6 @@ extern FILE *fp_ledbat_logc;
 #ifdef LEDBAT_WINDOW_CHECK
 extern FILE *fp_ledbat_window_logc;
 #endif
-
-#ifdef BUFFERBLOAT_ANALYSIS
-extern FILE *fp_ledbat_qd_sample_logc;
-#endif
 //</aa>
 
 
@@ -511,7 +507,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		}
 		#endif
 
-		print_queueing_dly_sample(fp_ledbat_qd_sample_logc,LEDBAT, &(pup->addr_pair), 
+		print_queueing_dly_sample(LEDBAT, &(pup->addr_pair), 
 			dir, &(thisdir->utp), thisdir->uTP_conn_id, estimated_qd, "-", 
 			putplen, ntohl(putp->time_ms) );
 	}

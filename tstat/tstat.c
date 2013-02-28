@@ -3624,12 +3624,18 @@ u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p){
 }
 
 //<aa>
-void update_delay_base(u_int32_t time_diff,utp_stat* bufferbloat_stat_p){
+void update_delay_base(u_int32_t gross_delay,utp_stat* bufferbloat_stat_p){
+	#ifdef SEVERE_DEBUG
+	if (gross_delay==0){
+		printf("Error: gross delay = 0\n"); exit(541);
+	}
+	#endif
 	int j=0;
 	while ( j<DELAY_BASE_HISTORY ){
-		if (bufferbloat_stat_p->delay_base_hist[j]==0) bufferbloat_stat_p->delay_base_hist[j]=time_diff;
+		if (bufferbloat_stat_p->delay_base_hist[j]==0) 
+			bufferbloat_stat_p->delay_base_hist[j]=gross_delay;
 		j++;
-		//bufferbloat_stat_p->delay_base=time_diff;
+		//bufferbloat_stat_p->delay_base=gross_delay;
 	}
 
 	if ( 	 elapsed(bufferbloat_stat_p->last_rollover, current_time) > 60e6 ) {
@@ -3647,11 +3653,11 @@ void update_delay_base(u_int32_t time_diff,utp_stat* bufferbloat_stat_p){
 			bufferbloat_stat_p->delay_base_hist[i-1]=bufferbloat_stat_p->delay_base_hist[i];
 			i++;
 		}
-		bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]=time_diff;
+		bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]=gross_delay;
 	
 	}else{ //update the tail
-		if (wrapping_compare_less(time_diff,bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]))  
-			bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]=time_diff;
+		if (wrapping_compare_less(gross_delay,bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]))  
+			bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]=gross_delay;
 			//<aa>according to the draft, we calculate the one-way delay minima over a
 			//one-minute interval</aa>
 	}
@@ -3660,7 +3666,7 @@ void update_delay_base(u_int32_t time_diff,utp_stat* bufferbloat_stat_p){
 	bufferbloat_stat_p->delay_base=min_delay_base (bufferbloat_stat_p);
 
 	//<aa>estimated queueing delay for the current packet</aa>
-	u_int32_t delay= time_diff - bufferbloat_stat_p->delay_base;
+	u_int32_t delay= gross_delay - bufferbloat_stat_p->delay_base;
 
 	//<aa>The following two lines correspond to update_current_delay(...) in 
 	//section 3.4.2 of [ledbat_draft]</aa>
@@ -3672,16 +3678,26 @@ void update_delay_base(u_int32_t time_diff,utp_stat* bufferbloat_stat_p){
 	bufferbloat_stat_p->cur_delay_idx= (bufferbloat_stat_p->cur_delay_idx+1)% CUR_DELAY_SIZE;
 
 	//<aa>TODO: remove this
-	bufferbloat_stat_p->cur_gross_delay_hist[bufferbloat_stat_p->cur_delay_idx] = time_diff;
+	bufferbloat_stat_p->cur_gross_delay_hist[bufferbloat_stat_p->cur_delay_idx] = gross_delay;
 	//</aa>	
 }
 //</aa>
 
-void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
-	int dir,
+void print_queueing_dly_sample(enum analysis_type an_type, 
+	tcp_pair_addrblock* addr_pair, 	int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
 	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay)
 {
+
+	FILE* fp_qd;
+	switch (an_type){
+		case TCP:	fp_qd = fp_tcp_qd_sample_logc; break;
+
+		case LEDBAT:	fp_qd = fp_tcp_qd_sample_logc; break;
+
+		default:	printf("ERROR: invalid an_type\n"); exit(7);
+	}
+
 	#ifdef SEVERE_DEBUG
 	if (dir!=S2C && dir!=C2S) {
 		printf("ERROR: dir (%d) not valid\n",dir); exit(7777);
@@ -3690,42 +3706,56 @@ void print_queueing_dly_sample(FILE* fp_logc,enum analysis_type an_type, tcp_pai
 
 	u_int32_t current_time_ms = 
 		current_time.tv_sec * 1000 + (u_int32_t)current_time.tv_usec/1000;
-	wfprintf(fp_logc,"%u ",
+	wfprintf(fp_qd,"%u ",
 		current_time_ms				//1. milliseconds
 		
 	);	
 
-	wfprintf (fp_logc, "%s %s ",
+	wfprintf (fp_qd, "%s %s ",
       	           HostName (addr_pair->a_address),	//2.ip_addr_1
        	           ServiceName (addr_pair->a_port));	//3.port_1
-  	wfprintf (fp_logc, "%s %s ",
+  	wfprintf (fp_qd, "%s %s ",
        	           HostName (addr_pair->b_address),	//4.ip_addr_2
        	           ServiceName (addr_pair->b_port));	//5.port_2
 
 
-	wfprintf (fp_logc, "%d ", dir); 		//6.dir
+	wfprintf (fp_qd, "%d ", dir); 		//6.dir
 	
 	switch(an_type){
-		case (LEDBAT):	wfprintf (fp_logc, "%d ", utp_conn_id); 
+		case (LEDBAT):	wfprintf (fp_qd, "%d ", utp_conn_id); 
 							//7.conn_id
 				break; 
 
-		case (TCP):	wfprintf (fp_logc, "- "); break;
+		case (TCP):	wfprintf (fp_qd, "- "); break;
 		default:	fprintf(stderr, "ERROR: analysis type not valid\n"); 
 				exit(54321);
 	}
 
-	wfprintf (fp_logc, "%u %u ",
+	wfprintf (fp_qd, "%u %u ",
 		bufferbloat_stat_p->delay_base,		//8.delay_base
 		estimated_qd				//9.estimated_qd (milliseconds)
 	);
 
-	wfprintf (fp_logc, "- "); 			//10.flowtype
-	wfprintf (fp_logc, "%u ", pkt_size); 		//11.pkt_size
-	wfprintf (fp_logc, "%u \n", last_gross_delay); 	//12.last_gross_delay(microseconds)
+	wfprintf (fp_qd, "- "); 			//10.flowtype
+	wfprintf (fp_qd, "%u ", pkt_size); 		//11.pkt_size
+	wfprintf (fp_qd, "%u ", last_gross_delay); 	//12.last_gross_delay(microseconds)
+	wfprintf (fp_qd, "%s\n", type);	 		//13.type
+
 }
 
 
+//<aa>TODO: verify if the compiler do the call inlining</aa>
+void bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
+	int dir,
+	utp_stat* bufferbloat_stat_p, int utp_conn_id,
+	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay)
+{
+      update_delay_base(last_gross_delay, bufferbloat_stat_p );//ptcp is thisdir
+      
+      u_int32_t estimated_qd = get_queueing_delay(bufferbloat_stat_p ); //microseconds
 
-
+      print_queueing_dly_sample(an_type, addr_pair, 
+		dir, bufferbloat_stat_p, 0, estimated_qd/1000, type, pkt_size, 
+		last_gross_delay);
+}
 //</aa>
