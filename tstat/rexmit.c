@@ -71,8 +71,10 @@ static quadrant *create_quadrant (void);
 static int addseg (tcb *, quadrant *, seqnum, seglen, Bool *, u_short);
 static void rtt_retrans (tcb *, segment *);
 
-//<aa>It is called only if ANY preceding segment was xmitted after this one,
-//so that the RTT sample is invalid</aa>
+/**<aa>
+ * - rexmit: true if the rtt is invalid, for the segment being acked with the present ack
+		is not the last transmitted one
+ */ //</aa>
 static enum t_ack rtt_ackin (tcb *, segment *, Bool rexmit);
 
 
@@ -549,7 +551,7 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
   /* how long did it take */
   etime_rtt = elapsed (pseg->time, current_time); //<aa>microseconds</aa>
 //fprintf (fp_stdout, "%f\n",etime_rtt);
-  if (rexmit_prev)
+  if (rexmit_prev) //<aa>The segment being acked is not the last transmitted one</aa>
     {
       /* first, check for the situation in which the segment being ACKed */
       /* was sent a while ago, and we've been piddling around */
@@ -561,8 +563,9 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       ret = NOSAMP;
     }
   else if (pseg->retrans == 0)
-    { //<aa>The segment this ack is related to, was transmitted only once, without
-      //any retransmission</aa>
+    { //<aa>The segment being acked was transmitted only once, without
+      // any retransmission and it is the last transmitted one. We can use it to do
+      // measures</aa>
       
       ptcb->rtt_last = etime_rtt;
       if ((ptcb->rtt_min == 0) || (ptcb->rtt_min > etime_rtt))
@@ -585,6 +588,13 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       ptcb->rtt_sum += etime_rtt;
       ptcb->rtt_sum2 += etime_rtt * etime_rtt;
       ++ptcb->rtt_count;
+
+      //<aa>
+      #ifdef BUFFERBLOAT_ANALYSIS
+      printf("current_time=%f, Sono qua e ho settato a TRUE\n",time2double(current_time));
+      ptcb->last_ack_is_valid_for_bufferbloat_measures = TRUE;
+      #endif
+      //</aa>
 
       ret = NORMAL;
 
@@ -674,11 +684,10 @@ ack_in (tcb * ptcb, seqnum ack, unsigned tcp_data_length)
 
       /* (ELSE) ACK covers this sequence */
       if (pseg->acked)
-        {
+      {
           /* already acked this one */
           ++pseg->acked;
-          if (ack == (pseg->seq_lastbyte + 1))
-            {
+          if (ack == (pseg->seq_lastbyte + 1)){
               ++ptcb->rtt_dupack;       /* one more duplicate ack */
               ret = CUMUL;
               if (pseg->acked == 4)
@@ -690,22 +699,27 @@ ack_in (tcb * ptcb, seqnum ack, unsigned tcp_data_length)
                       ret = TRIPLE;
                     }
                 }
-            }
+          }
           continue;
-        }
-      /* ELSE !acked */
+      }
+      /* ELSE !acked */ //<aa>This is the firt time that this segment has been acked </aa>
 
       ++pseg->acked;
       changed_one = TRUE;
 
-      if (ack == (pseg->seq_lastbyte + 1))
-        {
+      if (ack == (pseg->seq_lastbyte + 1)){
           /* if ANY preceding segment was xmitted after this one,
              the the RTT sample is invalid */
           intervening_xmits = (tv_gt (last_xmit, pseg->time));
+	  //<aa> The RTT is valid only if the segment being acked with the present ack is 
+	  // the last transmitted one;
+	  // In order to be sure of this, we check id last_xmit > pseg_time. If this is the
+	  // case, intervening_xmits is true and the RTT is not invalid.
+	  // If, instead, intervening_xmits is false, the RTT is valid </aa>
+	  // to be sure that the present
 
           ret = rtt_ackin (ptcb, pseg, intervening_xmits);
-        }
+      }
       else
         {
           /* cumulatively ACKed */

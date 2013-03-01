@@ -247,10 +247,12 @@ void CopyAddr (tcp_pair_addrblock * ptpa,
 	}
     }
 #endif
-  //<aa>TODO: remove this check
+
+#ifdef SEVERE_DEBUG
   if (memcmp(&(ptpa->a_address), &(ptpa->b_address), sizeof(ipaddr) ) ==0 ){
 	printf("tcp.c %d: a and b have the same address\n",__LINE__);exit(878);
   }
+#endif
   //</aa>
 }
 
@@ -685,11 +687,6 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
    /*TOPIX*/ double delta_t = 0;
   /*end TOPIX */
 
-  //<aa>
-  #ifdef BUFFERBLOAT_ANALYSIS
-  u_int32_t current_intertime_int = 0; //the elapsed time between two data segments
-  #endif
-  //</aa>
 
   /* make sure we have enough of the packet */
   if ((unsigned long) ptcp + sizeof (struct tcphdr) - 1 >
@@ -1020,8 +1017,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 	thisdir->first_data_time = current_time;
       thisdir->last_data_time = current_time;
 
-//<aa> OR condition added (only ifdef PACKET_STATS before)</aa>
-#if defined(PACKET_STATS) || defined(BUFFERBLOAT_ANALYSIS)
+#ifdef PACKET_STATS
       thisdir->data_pkts_sum2 += tcp_data_length*tcp_data_length;      
       { 
 	      double current_intertime;
@@ -1040,19 +1036,10 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 		 thisdir->seg_intertime_sum2 += current_intertime*current_intertime;
 
 		 //<aa>
-		 current_intertime_int = (u_int32_t) current_intertime;
-		printf("tcp.c %d: current_intertime=%f, current_intertime=%u\n",
-				__LINE__, current_intertime, current_intertime_int);
-
-
-
 		 #ifdef SEVERE_DEBUG
-		 if (current_intertime > UINT32_MAX){
-			printf("tcp.c %d: ERROR", __LINE__); exit(98999);
-		 }
-		 if (current_intertime == 0 || current_intertime_int == 0){
-			printf("tcp.c %d: current_intertime=%f, current_intertime=%u\n",
-				__LINE__, current_intertime, current_intertime_int);
+		 if (current_intertime == 0){
+			printf("tcp.c %d: current_intertime=%f\n",
+				__LINE__, current_intertime);
 			exit(87934);
 		 }
 		 #endif
@@ -1186,31 +1173,41 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 		rexmit (thisdir, start, len, &out_order, pip->ip_id);
 	      
 	      //<aa>
-	      #ifdef SEVERE_DEBUG
+	      #if defined(SEVERE_DEBUG) && defined(PACKET_STATS)
 	      if (thisdir->seg_count == 0){
-			printf("tcp.c %d: ERROR\n",__LINE__);
+			printf("tcp.c %d: ERROR: If you are here, thisdir->seg_count should have been incremented sime line ago\n",
+				__LINE__);
+			exit(2135);
 	      }
 	      #endif
-	      #ifdef BUFFERBLOAT_ANALYSIS
-		 printf("tcp.c %d: thisdir->seg_count=%u\n",
-				__LINE__, thisdir->seg_count);
 
+
+	      printf("current_time=%f, thisdir->last_ack_is_valid_for_bufferbloat_measures=%d\n",
+				time2double(current_time), thisdir->last_ack_is_valid_for_bufferbloat_measures);
+
+	      #ifdef BUFFERBLOAT_ANALYSIS
 	      if (retrans == FALSE //the segment does not contain any retransmitted byte
-			&& out_order == FALSE && 
-			thisdir->seg_count > 1  //beacause if this is the first segment
+			&& out_order == FALSE 
+//			&& thisdir->seg_count > 1  //beacause if this is the first segment
 						//we don't have a previous segment to 
 						//measure the gross_delay
+			&& thisdir->last_ack_is_valid_for_bufferbloat_measures == TRUE
 		)
 	      {
 		    char type[16];
 		    sprintf(type,"%u:%u", (thisdir->ptp)->con_type, (thisdir->ptp)->p2p_type);
 
 		    int utp_conn_id = NO_MATTER; //not meaningful in tcp contest
+		    u_int32_t gross_delay = 
+			(u_int32_t) elapsed(thisdir->last_ack_time, current_time);
 
 		    #ifdef SEVERE_DEBUG
-		    if (current_intertime_int == 0){
-			printf("tcp.c %d: current_intertime_int=%u\n",
-				__LINE__, current_intertime_int);
+		    if (elapsed(thisdir->last_ack_time, current_time) > UINT32_MAX){
+			printf("tcp.c %d ERROR\n",__LINE__); exit(99999);
+		    }
+		    if (gross_delay == 0){
+			printf("tcp.c %d: gross_delay=%u\n",
+				__LINE__, gross_delay);
 			exit(87934);
 		    }
 		    #endif
@@ -1218,7 +1215,13 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 		    bufferbloat_analysis(TCP,
 				&(thisdir->ptp->addr_pair), *dir, &(thisdir->utp),
 				utp_conn_id, type, tcp_data_length, 
-				current_intertime_int);
+				gross_delay);
+	
+		   // The last valid ack was consumed. 
+		   // For now we suppose conservatively that subsequent ack is not valid. 
+		   // If it will be valid, the followig 
+		   // variable will be set to true in the following lines
+		   thisdir->last_ack_is_valid_for_bufferbloat_measures = FALSE;
 	      }
 	      #endif
 	      //</aa>
@@ -1247,6 +1250,15 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
   }
     if (out_order)
   	thisdir->out_order_pkts++;
+
+  //<aa>
+  #ifdef BUFFERBLOAT_ANALYSIS
+  if (ACK_SET (ptcp)){ //This is an ack
+	thisdir->last_ack_time = current_time;
+  }
+  #endif
+  //</aa>
+
 
    /*TOPIX*/
     /* delta_t evaluation if packets are data packets */
