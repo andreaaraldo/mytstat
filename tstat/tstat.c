@@ -3732,13 +3732,13 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 	}
 
 	wfprintf (fp_qd, "%u %u ",
-		bufferbloat_stat_p->delay_base,		//8.delay_base
-		estimated_qd				//9.estimated_qd (milliseconds)
+		bufferbloat_stat_p->delay_base/1000,	//8.delay_base (milliseconds)
+		estimated_qd/1000			//9.estimated_qd (milliseconds)
 	);
 
 	wfprintf (fp_qd, "- "); 			//10.flowtype
 	wfprintf (fp_qd, "%u ", pkt_size); 		//11.pkt_size
-	wfprintf (fp_qd, "%u ", last_gross_delay); 	//12.last_gross_delay(microseconds)
+	wfprintf (fp_qd, "%u ", last_gross_delay/1000);	//12.last_gross_delay(milliseconds)
 	wfprintf (fp_qd, "%s\n", type);	 		//13.type
 
 }
@@ -3755,7 +3755,7 @@ void bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_p
       u_int32_t estimated_qd = get_queueing_delay(bufferbloat_stat_p ); //microseconds
 
       print_queueing_dly_sample(an_type, addr_pair, 
-		dir, bufferbloat_stat_p, 0, estimated_qd/1000, type, pkt_size, 
+		dir, bufferbloat_stat_p, 0, estimated_qd, type, pkt_size, 
 		last_gross_delay);
 }
 //</aa>
