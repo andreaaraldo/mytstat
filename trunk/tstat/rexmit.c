@@ -649,6 +649,18 @@ ack_in (tcb * ptcb, seqnum ack, unsigned tcp_data_length)
   timeval last_xmit = { 0, 0 };
   enum t_ack ret = 0;
 
+  //<aa>
+  #ifdef BUFFERBLOAT_ANALYSIS
+  ptcb->last_ack_time = current_time;
+  
+  // For now we suppose conservatively that the ack is not valid. 
+  // If it will be valid, the followig 
+  // variable will be set to true, later on
+  ptcb->last_ack_is_valid_for_bufferbloat_measures = FALSE;
+  #endif
+  //</aa>
+
+
   /* check each segment in the segment list for the PREVIOUS quadrant */
   pquad = whichquad (ptcb->ss, ack);
   pquad_prev = pquad->prev;
