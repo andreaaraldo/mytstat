@@ -1181,10 +1181,6 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 	      }
 	      #endif
 
-
-	      printf("current_time=%f, thisdir->last_ack_is_valid_for_bufferbloat_measures=%d\n",
-				time2double(current_time), thisdir->last_ack_is_valid_for_bufferbloat_measures);
-
 	      #ifdef BUFFERBLOAT_ANALYSIS
 	      if (	retrans == FALSE
 				//the segment does not contain any retransmitted byte

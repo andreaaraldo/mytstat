@@ -643,7 +643,6 @@ typedef struct tcb
   upper_protocols u_protocols;
 
 #ifdef BUFFERBLOAT_ANALYSIS
-  Bool last_ack_is_valid_for_bufferbloat_measures;
   timeval last_ack_time; //<aa>the time when the last ack was received</aa>
 #endif
 

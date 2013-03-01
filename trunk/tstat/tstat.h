@@ -838,10 +838,10 @@ enum analysis_type {
 /**
  * type: <bit_torrent_client_1>:<bit_torrent_client2> for ledbat case. flowtype for tcp case
  * addr_pair: it can be also an udp_pair_addrblock* casted to tcp_pair_addrblock* .
- * utp_conn_id: in the tcp case, it will be ignored
- * estimated_qd: in milliseconds
- * dir: can be C2S or S2C
- * last_gross_delay (microseconds)
+ * - utp_conn_id: in the tcp case, it will be ignored
+ * - estimated_qd (microseconds) (it will be printed on the logfile in milliseconds)
+ * - dir: can be C2S or S2C
+ * - last_gross_delay (microseconds) (it will be printed on the logfile in milliseconds)
  */
 void print_queueing_dly_sample(enum analysis_type an_type, 
 	tcp_pair_addrblock* addr_pair, int dir,
@@ -852,6 +852,7 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 /**
  * Estimates queueing delay, updates the data structure needed to calculate the queueing delay
  * and print queueing delay logs
+ * - last_gross_delay (microseconds)
  */
 void bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
 	int dir,
