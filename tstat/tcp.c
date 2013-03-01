@@ -1191,7 +1191,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 //			&& thisdir->seg_count > 1  //beacause if this is the first segment
 						//we don't have a previous segment to 
 						//measure the gross_delay
-			&& thisdir->last_ack_is_valid_for_bufferbloat_measures == TRUE
+			&& otherdir->last_ack_is_valid_for_bufferbloat_measures == TRUE
 		)
 	      {
 		    char type[16];
@@ -1199,10 +1199,10 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 
 		    int utp_conn_id = NO_MATTER; //not meaningful in tcp contest
 		    u_int32_t gross_delay = 
-			(u_int32_t) elapsed(thisdir->last_ack_time, current_time);
+			(u_int32_t) elapsed(otherdir->last_ack_time, current_time);
 
 		    #ifdef SEVERE_DEBUG
-		    if (elapsed(thisdir->last_ack_time, current_time) > UINT32_MAX){
+		    if (elapsed(otherdir->last_ack_time, current_time) > UINT32_MAX){
 			printf("tcp.c %d ERROR\n",__LINE__); exit(99999);
 		    }
 		    if (gross_delay == 0){
@@ -1217,11 +1217,6 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 				utp_conn_id, type, tcp_data_length, 
 				gross_delay);
 	
-		   // The last valid ack was consumed. 
-		   // For now we suppose conservatively that subsequent ack is not valid. 
-		   // If it will be valid, the followig 
-		   // variable will be set to true in the following lines
-		   thisdir->last_ack_is_valid_for_bufferbloat_measures = FALSE;
 	      }
 	      #endif
 	      //</aa>
@@ -1250,15 +1245,6 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
   }
     if (out_order)
   	thisdir->out_order_pkts++;
-
-  //<aa>
-  #ifdef BUFFERBLOAT_ANALYSIS
-  if (ACK_SET (ptcp)){ //This is an ack
-	thisdir->last_ack_time = current_time;
-  }
-  #endif
-  //</aa>
-
 
    /*TOPIX*/
     /* delta_t evaluation if packets are data packets */
