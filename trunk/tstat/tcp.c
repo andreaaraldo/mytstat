@@ -1186,12 +1186,17 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 				time2double(current_time), thisdir->last_ack_is_valid_for_bufferbloat_measures);
 
 	      #ifdef BUFFERBLOAT_ANALYSIS
-	      if (retrans == FALSE //the segment does not contain any retransmitted byte
+	      if (	retrans == FALSE
+				//the segment does not contain any retransmitted byte
 			&& out_order == FALSE 
-//			&& thisdir->seg_count > 1  //beacause if this is the first segment
-						//we don't have a previous segment to 
-						//measure the gross_delay
-			&& otherdir->last_ack_is_valid_for_bufferbloat_measures == TRUE
+
+			&& start == otherdir->ack //we can do bufferbloat measurements only
+						//this is the segment sent as a response to
+						//the last ack
+
+			&& !(otherdir->last_ack_time.tv_sec == 0 && otherdir->last_ack_time.tv_usec == 0)
+						// discard the calculation no acks has been
+						//observed
 		)
 	      {
 		    char type[16];
@@ -1203,7 +1208,9 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 
 		    #ifdef SEVERE_DEBUG
 		    if (elapsed(otherdir->last_ack_time, current_time) > UINT32_MAX){
-			printf("tcp.c %d ERROR\n",__LINE__); exit(99999);
+			printf("tcp.c %d ERROR: elapsed(otherdir->last_ack_time, current_time)=%f\n",
+				__LINE__, elapsed(otherdir->last_ack_time, current_time)); 
+			exit(99999);
 		    }
 		    if (gross_delay == 0){
 			printf("tcp.c %d: gross_delay=%u\n",
