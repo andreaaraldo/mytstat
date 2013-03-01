@@ -219,7 +219,13 @@ char * Timestamp (void);
 int rexmit (tcb * ptcb, seqnum seq, seglen len, Bool * pout_order,
 	    u_short this_ip_id);
 
-enum t_ack ack_in (tcb *, seqnum, unsigned tcp_data_length);
+/**  <aa>
+ * - ack_num: the acknowledgment number taken from the tcp segment, i.e. 
+ * 		the next sequence number that the receiver is expecting
+ */ //</aa>
+enum t_ack ack_in (tcb *, seqnum ack_num, unsigned tcp_data_length);
+
+
 struct mfile *Mfopen (char *fname, char *mode);
 void Minit (void);
 int Mfileno (MFILE * pmf);

@@ -499,8 +499,7 @@ typedef struct upper_protocols
 /* Only store the size for the first 4 messages */
 #define MAX_COUNT_MESSAGES 10
 
-//<aa> OR condition added (only ifdef PACKET_STATS before)</aa>
-#if defined(PACKET_STATS) || defined(BUFFERBLOAT_ANALYSIS)
+#ifdef PACKET_STATS
 #define MAX_COUNT_SEGMENTS 10
 #endif
 
@@ -631,7 +630,7 @@ typedef struct tcb
 //  timeval thru_firsttime;	/* time of first packet this interval */
 //  u_long thru_bytes;		/* number of bytes this interval */
 //  u_long thru_pkts;		/* number of packets this interval */
-//  timeval thru_lasttime;	/* time of previous segment */
+//  tPACKET_STATSPACKET_STATSimeval thru_lasttime;	/* time of previous segment */
 
   /* data transfer time stamps - mallman */
   timeval first_data_time;
@@ -642,6 +641,12 @@ typedef struct tcb
   timeval last_time;		/* last packet SENT from this side */
 
   upper_protocols u_protocols;
+
+#ifdef BUFFERBLOAT_ANALYSIS
+  Bool last_ack_is_valid_for_bufferbloat_measures;
+  timeval last_ack_time; //<aa>the time when the last ack was received</aa>
+#endif
+
   skype_stat *skype;
 #ifdef MSN_CLASSIFIER
     msn_stat msn;
@@ -666,9 +671,7 @@ typedef struct tcb
  u_int msg_size[MAX_COUNT_MESSAGES];
 
 /* Store information on the first MAX_COUNT_SEGMENTS segments */
-//<aa>TODO: take only what I really need for bufferbloat_analysis</aa>
-//<aa> OR condition added (only ifdef PACKET_STATS before)</aa>
-#if defined(PACKET_STATS) || defined(BUFFERBLOAT_ANALYSIS)
+#ifdef PACKET_STATS
  u_int seg_count;
  u_int seg_size[MAX_COUNT_SEGMENTS];
  double last_seg_time;
