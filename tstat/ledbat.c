@@ -394,23 +394,31 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 #endif
 
 	#ifdef SEVERE_DEBUG
+	if (ntohl(putp->time_diff) > 1000*1000000){
+		printf("\nledbat.c %d: ERROR: time_diff is %u, more than a quarter of hour\n",
+			__LINE__, ntohl(putp->time_diff));
+		printf("putp->time_diff=%X\n",putp->time_diff);
+		exit(213254);
+	}
 	if (elapsed(thisdir->utp.last_rollover, current_time)<=0 ){
 		printf("\nledbat.c %d: \n", __LINE__); exit(849);
 	}
 	#endif
 
-	update_delay_base(ntohl(putp->time_diff), &(thisdir->utp) );
-	//<aa> now thisdir->utp.delay_base is updated </aa>
+	const char* type = "-";
+
+	u_int32_t estimated_qd = bufferbloat_analysis(LEDBAT, &(pup->addr_pair), dir, 
+		&(thisdir->utp), thisdir->uTP_conn_id,
+		type, putplen, ntohl(putp->time_diff) );
+
 	
+	//<aa>TODO: not used anymore</aa>
 	float estimated_qdF_vecchio=(float)get_queueing_delay_vecchio(thisdir);
 
 	//<aa>TODO:Why calling two times the same function?</aa>
 	u_int32_t estimated_qdI_vecchio=get_queueing_delay_vecchio(thisdir);
 
-	//<aa>TODO: remove this or the other
-	u_int32_t estimated_qd= get_queueing_delay(&(thisdir->utp) );
-	//</aa>
-
+	
 	//to avoid overfitting, we neglect multiple consecutive equal queueing delay samples 
 	if (( 	(type_utp==UTP_STATE_ACK) || (type_utp==UTP_STATE_SACK) ) || 
 		( 
@@ -506,10 +514,6 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 			exit(7777);
 		}
 		#endif
-
-		print_queueing_dly_sample(LEDBAT, &(pup->addr_pair), 
-			dir, &(thisdir->utp), thisdir->uTP_conn_id, estimated_qd, "-", 
-			putplen, ntohl(putp->time_ms) );
 	}
 	else
 	{

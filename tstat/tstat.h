@@ -255,8 +255,18 @@ int IP_SAMEADDR (ipaddr addr1, ipaddr addr2);
 void PcapSavePacket (char *filename, struct ip *pip, void *plast);
 void StringToArgv (char *buf, int *pargc, char ***pargv);
 void CopyAddr (tcp_pair_addrblock *, struct ip *pip, portnum, portnum);
+
+
 int WhichDir (tcp_pair_addrblock *, tcp_pair_addrblock *);
-int SameConn (tcp_pair_addrblock *, tcp_pair_addrblock *, int *);
+
+//<aa>Returns 1 if the (address,port) couples that figure in ptp1 and ptp2 are 
+// the same. Returns 0 otherwise.
+// If the order in which the two (address,port) couples figure in ptpa1
+// is the same of ptpa2, the int pointed by pdir will be C2S. If the couples figure
+// in the inverse order, the int pointed by pdir will be S2C.
+//</aa>
+int SameConn (tcp_pair_addrblock *ptpa1, tcp_pair_addrblock *ptpa2, int *pdir);
+
 Bool ip_cksum_valid (struct ip *pip, void *plast);
 Bool tcp_cksum_valid (struct ip *pip, struct tcphdr *ptcp, void *plast);
 Bool udp_cksum_valid (struct ip *pip, struct udphdr *pudp, void *plast);
@@ -853,8 +863,9 @@ void print_queueing_dly_sample(enum analysis_type an_type,
  * Estimates queueing delay, updates the data structure needed to calculate the queueing delay
  * and print queueing delay logs
  * - last_gross_delay (microseconds)
+ * - return queueing delay estimation (microseconds)
  */
-void bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
+u_int32_t bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
 	int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,
 	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay);

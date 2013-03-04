@@ -518,7 +518,9 @@ typedef struct tcb
   timeval ack_start_time;	/* time of first ack (not syn) */
 
   /* TCP information */
-  seqnum ack;
+  seqnum ack;			//<aa>The acknowledgment number of the last ack-segment
+				//seen in this direction </aa>
+			
   seqnum seq;
   seqnum syn;
   seqnum fin;
@@ -644,6 +646,7 @@ typedef struct tcb
 
 #ifdef BUFFERBLOAT_ANALYSIS
   timeval last_ack_time; //<aa>the time when the last ack was received</aa>
+  Bool last_ack_is_valid_for_bufferbloat_analysis;
 #endif
 
   skype_stat *skype;

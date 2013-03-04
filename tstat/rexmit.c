@@ -589,15 +589,13 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       ptcb->rtt_sum2 += etime_rtt * etime_rtt;
       ++ptcb->rtt_count;
 
-      //<aa>
+      printf("\nciaociaobambina\n");
+
       #ifdef BUFFERBLOAT_ANALYSIS
-      printf("current_time=%f, Sono qua e ho settato a TRUE\n",time2double(current_time));
-      #endif
-      //</aa>
+      ptcb->last_ack_is_valid_for_bufferbloat_analysis = TRUE;
+      #endif      
 
       ret = NORMAL;
-
-
     }
   else
     {
@@ -651,6 +649,10 @@ ack_in (tcb * ptcb, seqnum ack, unsigned tcp_data_length)
   //<aa>
   #ifdef BUFFERBLOAT_ANALYSIS
   ptcb->last_ack_time = current_time;
+
+  //At first, we conservately suppose that the current ack is not valid
+  //If this is not the case, that variable will be put to TRUE in what follows
+  ptcb->last_ack_is_valid_for_bufferbloat_analysis = FALSE;
   #endif
   //</aa>
 
