@@ -3569,8 +3569,9 @@ u_int32_t get_queueing_delay(utp_stat* bufferbloat_stat_p){
 	filtered_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[0];	
 	int i=1;
 	while ( i<CUR_DELAY_SIZE ){
-		if (	((bufferbloat_stat_p->cur_gross_delay_hist[i]< filtered_gross_delay ) && 
-			(bufferbloat_stat_p->cur_gross_delay_hist[i]>0)	)	
+		if (	( (bufferbloat_stat_p->cur_gross_delay_hist[i]< filtered_gross_delay ) 
+			&&  (bufferbloat_stat_p->cur_gross_delay_hist[i]>0)	
+			)	
 				|| 
 			filtered_gross_delay == 0
 		)
@@ -3689,11 +3690,13 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay)
 {
 
+
+
 	FILE* fp_qd;
 	switch (an_type){
 		case TCP:	fp_qd = fp_tcp_qd_sample_logc; break;
 
-		case LEDBAT:	fp_qd = fp_tcp_qd_sample_logc; break;
+		case LEDBAT:	fp_qd = fp_ledbat_qd_sample_logc; break;
 
 		default:	printf("ERROR: invalid an_type\n"); exit(7);
 	}
@@ -3745,7 +3748,7 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 
 
 //<aa>TODO: verify if the compiler do the call inlining</aa>
-void bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
+u_int32_t bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
 	int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,
 	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay)
@@ -3757,5 +3760,7 @@ void bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_p
       print_queueing_dly_sample(an_type, addr_pair, 
 		dir, bufferbloat_stat_p, 0, estimated_qd, type, pkt_size, 
 		last_gross_delay);
+
+      return estimated_qd;
 }
 //</aa>

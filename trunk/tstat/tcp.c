@@ -279,7 +279,7 @@ WhichDir (tcp_pair_addrblock * ptpa1, tcp_pair_addrblock * ptpa2)
       if ((ptpa1->a_port == ptpa2->b_port))
 	if ((ptpa1->b_port == ptpa2->a_port))
 	  return (S2C);
-#else /* BROKEN_COMPILER */
+#else /* <aa>not(?)</aa> BROKEN_COMPILER */
   /* same as first packet */
   if (IP_SAMEADDR (ptpa1->a_address, ptpa2->a_address) &&
       IP_SAMEADDR (ptpa1->b_address, ptpa2->b_address) &&
@@ -851,7 +851,8 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
   if ((ACK_SET (ptcp)) &&
       (otherdir->fin_count >= 1) && (th_ack >= (otherdir->fin_seqno + 1)))
     {
-      // This is the ACK to the FIN
+      // This is the ACK to the FIN 
+      //<aa>(The FIN that was seen in the opposite direction</aa>
       otherdir->closed = TRUE;
     }
 
@@ -927,7 +928,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 	  thisdir->bad_behavior = TRUE;
 	}
       thisdir->syn = start;
-      otherdir->ack = start;
+      otherdir->ack = start; //<aa>???: why?</aa>
       /* bug fix for Rob Austein <sra@epilogue.com> */
     }
   if (FIN_SET (ptcp))
@@ -1186,23 +1187,37 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 				//the segment does not contain any retransmitted byte
 			&& out_order == FALSE 
 
-			&& start == otherdir->ack //we can do bufferbloat measurements only
+			&& start == otherdir->ack //we can do bufferbloat measurements only if
 						//this is the segment sent as a response to
 						//the last ack
 
-			&& !(otherdir->last_ack_time.tv_sec == 0 && otherdir->last_ack_time.tv_usec == 0)
-						// discard the calculation no acks has been
-						//observed
+			&& otherdir->last_ack_is_valid_for_bufferbloat_analysis
 		)
 	      {
 		    char type[16];
 		    sprintf(type,"%u:%u", (thisdir->ptp)->con_type, (thisdir->ptp)->p2p_type);
 
 		    int utp_conn_id = NO_MATTER; //not meaningful in tcp contest
-		    u_int32_t gross_delay = 
+
+		    //RTT(s,d)
+		    u_int32_t previous_segment_to_ack_time = (u_int32_t)otherdir->rtt_last;
+
+		    u_int32_t ack_to_segment_time =  //RTT(d,s)
 			(u_int32_t) elapsed(otherdir->last_ack_time, current_time);
 
+		    u_int32_t gross_delay = 
+				previous_segment_to_ack_time + ack_to_segment_time;
+
 		    #ifdef SEVERE_DEBUG
+		    if (otherdir->last_ack_time.tv_sec == 0 && otherdir->last_ack_time.tv_usec == 0){
+			printf("\ntcp.c %d: ERROR: if the last ack in the opposite direction was valid, last_ack_time should not be 0\n",
+				__LINE__);
+			exit(78415);
+		    }
+
+		    if (otherdir->rtt_last + ack_to_segment_time > UINT32_MAX){
+			printf("tcp.c %d: ERROR\n",__LINE__); exit(55523);
+		    }
 		    if (elapsed(otherdir->last_ack_time, current_time) > UINT32_MAX){
 			printf("tcp.c %d ERROR: elapsed(otherdir->last_ack_time, current_time)=%f\n",
 				__LINE__, elapsed(otherdir->last_ack_time, current_time)); 
@@ -1352,8 +1367,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 
 
   /* do window stats (include first SYN too!) */
-  if (ACK_SET (ptcp) || SYN_SET (ptcp))
-    {
+  if (ACK_SET (ptcp) || SYN_SET (ptcp)){
       thisdir->win_curr = eff_win;
       if (eff_win > thisdir->win_max)
 	thisdir->win_max = eff_win;
@@ -1361,10 +1375,9 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 	  ((thisdir->win_min == 0) || (eff_win < thisdir->win_min)))
 	thisdir->win_min = eff_win;
       thisdir->win_tot += eff_win;
-    }
+  }
 
-  if (ACK_SET (ptcp))
-    {
+  if (ACK_SET (ptcp)){
       seqnum ack = th_ack;
       u_long winend;
 
@@ -1376,14 +1389,14 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
       ++thisdir->ack_pkts;
       if ((tcp_data_length == 0) &&
 	  !SYN_SET (ptcp) && !FIN_SET (ptcp) && !RESET_SET (ptcp))
-	{
+      {
 	  ++thisdir->pureack_pkts;
-	}
+      }
 
       thisdir->time = current_time;
       thisdir->ack = ack;
 
-    }
+  }
 
   /* do stats for initial window (first slow start) */
   /* (if there's data in this and we've NEVER seen */
