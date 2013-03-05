@@ -837,13 +837,12 @@ u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p);
 void update_delay_base(u_int32_t gross_delay, utp_stat* bufferbloat_stat_p);
 
 
-
-
+#ifdef BUFFERBLOAT_ANALYSIS
 enum analysis_type { 
 	TCP = 1,
 	LEDBAT = 2
 };
-
+#endif
 
 #define NO_MATTER -1
 
@@ -871,3 +870,26 @@ u_int32_t bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* a
 	int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,
 	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay);
+
+
+void print_last_window_general(enum analysis_type an_type, tcp_pair_addrblock* addr_pair,
+	utp_stat* bufferbloat_stat_p);
+
+//compute statistics
+/** <aa>
+ * If the previous window can be closed (i.e. more than 1s has passed), it closes it and 
+ * returns the estimated queueing delay for that window. It returns -1 otherwise.
+ * 	time_ms: the timestamp of the packet
+ * 	qd: an estimate of the queueing delay of the packet
+ * </aa>
+ */
+float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, 
+	u_int32_t time_ms, float qd );
+
+#ifdef SEVERE_DEBUG
+//Check if the direction of the current packet and the opposite direction are handled
+//consistently. If it is not the case, the program will terminate
+void check_direction_consistency(enum analysis_type an_type,
+	void* thisdir_, int call_line_number);
+#endif
+

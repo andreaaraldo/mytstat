@@ -1237,8 +1237,8 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 		    }
 		    #endif
 	 
-		    bufferbloat_analysis(TCP,
-				&(thisdir->ptp->addr_pair), *dir, &(thisdir->utp),
+		    bufferbloat_analysis(TCP,&(thisdir->ptp->addr_pair),
+				*dir, &(thisdir->bufferbloat_stat),
 				utp_conn_id, type, tcp_data_length, 
 				gross_delay);
 	
@@ -1303,7 +1303,6 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 
   /* do rtt stats */
   if (ACK_SET (ptcp)){
-      ack_type = ack_in (otherdir, th_ack, tcp_data_length);
       #ifdef SEVERE_DEBUG
       if((int)ack_type == 0 || (int)ack_type>T_ACK_NUMBER){
 		printf("tcp.c %d: ERROR\n",__LINE__); exit(111238);

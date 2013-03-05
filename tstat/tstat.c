@@ -274,13 +274,17 @@ FILE *fp_ledbat_logc = NULL;
 
 //<aa>
 #ifdef LEDBAT_WINDOW_CHECK
+	//<aa>TODO: remove it</aa>
 	FILE *fp_ledbat_window_logc = NULL;
-	FILE *fp_ledbat_window_andrea_logc = NULL;
 #endif
 
 #ifdef BUFFERBLOAT_ANALYSIS
+	//<aa>TODO: sample by sample log should be optional </aa>	
 	FILE *fp_ledbat_qd_sample_logc= NULL;
 	FILE *fp_tcp_qd_sample_logc= NULL;
+
+	FILE *fp_ledbat_windowed_qd_logc = NULL;
+	FILE *fp_tcp_windowed_qd_logc = NULL;
 #endif
 #ifdef SEVERE_DEBUG
 	unsigned int ack_type_counter[T_ACK_NUMBER+1];
@@ -907,12 +911,14 @@ create_new_outfiles (char *filename)
 //<aa>
 #ifdef LEDBAT_WINDOW_CHECK
          reopen_logfile(&fp_ledbat_window_logc,basename,"log_ledbat_window");
-         reopen_logfile(&fp_ledbat_window_andrea_logc,basename,"log_ledbat_andrea_window");
 #endif
 
 #ifdef BUFFERBLOAT_ANALYSIS
          reopen_logfile(&fp_ledbat_qd_sample_logc,basename,"log_ledbat_qd_sample");
          reopen_logfile(&fp_tcp_qd_sample_logc,basename,"log_tcp_qd_sample");
+         reopen_logfile(&fp_ledbat_windowed_qd_logc,basename,"log_ledbat_windowed_qd");
+         reopen_logfile(&fp_tcp_windowed_qd_logc,basename,"log_tcp_windowed_qd");
+
 #endif
 //</aa>
       
@@ -983,8 +989,6 @@ void close_all_logfiles()
 #ifdef LEDBAT_WINDOW_CHECK 
       if (fp_ledbat_window_logc != NULL) 
 	{ gzclose(fp_ledbat_window_logc); fp_ledbat_window_logc=NULL; }
-	if (fp_ledbat_window_andrea_logc != NULL) 
-	{ gzclose(fp_ledbat_window_andrea_logc); fp_ledbat_window_andrea_logc=NULL; }
 #endif
 
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
@@ -1032,13 +1036,6 @@ void close_all_logfiles()
 
 //<aa>TODO: Why don't we wrap it in ifdef-endif</aa>?
       if (fp_ledbat_logc != NULL) { fclose(fp_ledbat_logc); fp_ledbat_logc=NULL; }
-
-#ifdef LEDBAT_WINDOW_CHECK
-	if (fp_ledbat_window_logc != NULL) 
-	{ fclose(fp_ledbat_window_logc); fp_ledbat_window_logc=NULL; }
-	if (fp_ledbat_window_andrea_logc != NULL) 
-	{ fclose(fp_ledbat_window_andrea_logc); fp_ledbat_window_andrea_logc=NULL; }
-#endif
 
 
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
@@ -3702,9 +3699,6 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
 	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay)
 {
-
-
-
 	FILE* fp_qd;
 	switch (an_type){
 		case TCP:	fp_qd = fp_tcp_qd_sample_logc; break;
@@ -3776,4 +3770,198 @@ u_int32_t bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* a
 
       return estimated_qd;
 }
+
+void print_last_window_general(enum analysis_type an_type, tcp_pair_addrblock* addr_pair,
+	utp_stat* bufferbloat_stat_p)
+{
+	printf("\ntstat.c %d\n",__LINE__); exit(5485454);
+
+	FILE* fp_qd;
+	switch (an_type){
+		case TCP:	fp_qd = fp_tcp_windowed_qd_logc; break;
+
+		case LEDBAT:	fp_qd = fp_ledbat_windowed_qd_logc; break;
+
+		default:	printf("ERROR: invalid an_type\n"); exit(7);
+	}
+
+	wfprintf(fp_qd,"%u ",
+		bufferbloat_stat_p->last_window_edge	//1.last_window_edge(seconds)
+		
+	);
+
+	wfprintf (fp_qd, "%s %s ",
+      	           HostName (addr_pair->a_address),	//2.ip_addr_1
+       	           ServiceName (addr_pair->a_port));	//3.port_1
+  	wfprintf (fp_qd, "%s %s ",
+       	           HostName (addr_pair->b_address),	//4.ip_addr_2
+       	           ServiceName (addr_pair->b_port));	//5.port_2
+	wfprintf (fp_qd, "\n");
+}
+
+
+float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, u_int32_t time_ms, 
+	float qd )
+{
+
+	printf("Forse time_ms e' inutile?\n"); exit(565554);
+	utp_stat* thisdir_bufferbloat_stat, otherdir_bufferbloat_stat;
+
+	switch(an_type){
+		case TCP:
+			thisdir_bufferbloat_stat = &(((tcb*)pdir)->bufferbloat_stat);
+			break;
+
+		case LEDBAT:
+			thisdir_bufferbloat_stat = &(((ucb*)pdir)->utp);
+			break;
+
+		default:
+			printf("\nERROR in windowed_queueing_delay: \n"); exit(214);
+	}
+
+	//time_ms is in microsecond (10^-6)
+	//qd/1000 is in ms
+	//window in ms 
+
+	float qd_window;
+	float return_val=-1;
+	
+	ucb *thisdir;
+	thisdir = ( ucb *) pdir;
+	ucb* otherdir = (dir == C2S) ? &(thisdir->pup->s2c) : &(thisdir->pup->c2s);
+
+	#ifdef SEVERE_DEBUG
+	check_direction_consistency(pdir, __LINE__);
+	thisdir_bufferbloat_stat->last_time_ms = time_ms;
+	#endif
+
+	//initialize last_window_edge
+	//<aa>TODO: better if we have a single time_zero_w1
+	if (thisdir_bufferbloat_stat->last_window_edge ==0){
+		//Remember: check_direction_consistency(...) guarantees that if in this
+		//direction last_window_edge==0, then also in the opposite direction 
+		//utp.last_window_edge==0
+		thisdir_bufferbloat_stat->last_window_edge = current_time.tv_sec;
+		otherdir_bufferbloat_stat->last_window_edge = current_time.tv_sec;
+	}
+	//<aa>TODO: we are computing (last_window_edge - current_time) 2 times: here and inside
+	// close_window(...). It's not efficient</aa>
+	else if ( thisdir_bufferbloat_stat->last_window_edge - current_time.tv_sec >= 1)
+	{
+		printf("\ntstat.c %d\n",__LINE__); exit(5485454);
+		#ifdef BUFFERBLOAT_ANALYSIS
+		printf("\ntstat.c %d\n",__LINE__); exit(5485454);
+		print_last_window_general(LEDBAT,&(thisdir->pup->addr_pair), &(thisdir->utp));
+		#endif
+		float other_qd_window;
+		//Print C2S first and then S2C
+		if (dir==C2S){
+			qd_window = close_window(thisdir);
+			other_qd_window = close_window(otherdir);
+		}else{
+			other_qd_window = close_window(otherdir);
+			qd_window = close_window(thisdir);
+		}
+		wfprintf(fp_ledbat_window_logc,"\n");
+
+		#ifdef SEVERE_DEBUG
+		if (dir!=C2S && dir!=S2C){
+			printf("ERROR: dir not valid in windowed_queueing_delay\n");
+			exit(442);
+		}
+		if (qd_window == -1 && other_qd_window ==-1){
+			printf("\nledbat.c %d:ERROR: No pkts in both direction\n",__LINE__);
+			exit(987324);
+		}
+		#endif
+		return_val = qd_window;
+	}
+
+	#ifdef SEVERE_DEBUG
+	check_direction_consistency(thisdir, __LINE__);
+	#endif
+
+	//<aa>Update the max
+	//TODO: why expressing qd in microseconds and qd_max_w1 in milliseconds?</aa>
+	if (qd/1000 >= thisdir->utp.qd_max_w1)
+		thisdir->utp.qd_max_w1=qd/1000;
+
+   return return_val;
+}//windowed
+
+
+void check_direction_consistency(enum analysis_type an_type,
+	void* thisdir_, int call_line_number)
+{
+	timeval last_window_edge, other_last_window_edge;
+	void* thisdir_parent, otherdir_parent;
+	timeval thisdir_last_packet_time, otherdir_last_packet_time;
+
+	switch (an_type){
+		case TCP:
+			tcb* thisdir = (tcb*) thisdir_;
+			last_window_edge.tv_sec = thisdir->bufferbloat_stat.last_window_edge;
+			last_window_edge.tv_usec = 0;
+			tcb* otherdir;
+			if (thisdir == thisdir->ptp->s2c && thisdir != thisdir->ptp->c2s)
+				otherdir = thisdir->ptp->c2s;
+			else if (thisdir == thisdir->ptp->c2s && thisdir != thisdir->ptp->s2c)
+				otherdir = thisdir->ptp->s2c;
+			else{
+				printf("ERROR a"); exit(7);
+			}
+			other_last_window_edge.tv_sec = otherdir->bufferbloat_stat.last_window_edge;
+			other_last_window_edge.tv_usec = 0;
+			thisdir_parent = (void*) thisdir->ptp;
+			otherdir_parent = (void*) otherdir->ptp;
+			thisdir_last_packet_time = thisdir->last_time;
+			otherdir_last_packet_time = otherdir->last_time;
+			break;
+
+		case LEDBAT:
+			ucb* thisdir = (ucb*) thisdir_;
+			last_window_edge.tv_sec = thisdir->utp.last_window_edge;
+			last_window_edge.tv_usec = 0;
+			ucb* otherdir;
+			if (thisdir == thisdir->pup->s2c && thisdir != thisdir->pup->c2s)
+				otherdir = thisdir->pup->c2s;
+			else if (thisdir == thisdir->pup->c2s && thisdir != thisdir->pup->s2c)
+				otherdir = thisdir->pup->s2c;
+			else{
+				printf("ERROR a"); exit(7);
+			}
+			other_last_window_edge.tv_sec = otherdir->utp.last_window_edge;
+			other_last_window_edge.tv_usec = 0;
+			thisdir_parent = (void*) thisdir->pup;
+			otherdir_parent = (void*) otherdir->pup;
+			thisdir_last_packet_time = thisdir->last_pkt_time;
+			otherdir_last_packet_time = otherdir->last_pkt_time;
+			break;
+
+		default: 
+			printf("check_direction_consistency: an_type not recognized");
+			exit(544452);
+	}
+
+	
+
+	if ( elapsed(last_window_edge, other_last_window_edge) != 0){
+		printf("\ncheck_direction_consistency called in line %d\n", call_line_number);
+		printf("\nERROR b\n");exit(1000);
+	}
+	
+	if (thisdir_parent != otherdir_parent){
+		printf("\ncheck_direction_consistency called in line %d\n", call_line_number);
+		printf("\nERROR: Different pups\n");exit(21212);
+	}
+
+	if (	elapsed(otherdir_last_pkt_time, current_time) < 0 ||
+		elapsed(thisdir_last_pkt_time, current_time) < 0   ){
+		printf("\nledbat.c %d: ERROR\n",__LINE__); exit(473);	
+	}
+}
+#endif
+
+
 //</aa>
