@@ -552,7 +552,7 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
   etime_rtt = elapsed (pseg->time, current_time); //<aa>microseconds</aa>
 //fprintf (fp_stdout, "%f\n",etime_rtt);
   if (rexmit_prev) //<aa>The segment being acked is not the last transmitted one</aa>
-    {
+  {
       /* first, check for the situation in which the segment being ACKed */
       /* was sent a while ago, and we've been piddling around */
       /* retransmitting lost segments that came before it */
@@ -561,9 +561,9 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
 
       ++ptcb->rtt_nosample;     /* no sample, even though not ambig */
       ret = NOSAMP;
-    }
-  else if (pseg->retrans == 0)
-    { //<aa>The segment being acked was transmitted only once, without
+  }
+  else if (pseg->retrans == 0){
+      //<aa>The segment being acked was transmitted only once, without
       // any retransmission and it is the last transmitted one. We can use it to do
       // measures</aa>
       
@@ -588,20 +588,11 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       ptcb->rtt_sum += etime_rtt;
       ptcb->rtt_sum2 += etime_rtt * etime_rtt;
       ++ptcb->rtt_count;
-
-      printf("\nciaociaobambina\n");
-
-      #ifdef BUFFERBLOAT_ANALYSIS
-      ptcb->last_ack_is_valid_for_bufferbloat_analysis = TRUE;
-      #endif      
-
       ret = NORMAL;
-    }
-  else
-    {
+  }else{
       /* retrans, can't use it */
       ret = AMBIG;
-    }
+  }
 
   return (ret);
 }
@@ -645,16 +636,6 @@ ack_in (tcb * ptcb, seqnum ack, unsigned tcp_data_length)
   Bool intervening_xmits = FALSE;
   timeval last_xmit = { 0, 0 };
   enum t_ack ret = 0;
-
-  //<aa>
-  #ifdef BUFFERBLOAT_ANALYSIS
-  ptcb->last_ack_time = current_time;
-
-  //At first, we conservately suppose that the current ack is not valid
-  //If this is not the case, that variable will be put to TRUE in what follows
-  ptcb->last_ack_is_valid_for_bufferbloat_analysis = FALSE;
-  #endif
-  //</aa>
 
 
   /* check each segment in the segment list for the PREVIOUS quadrant */
@@ -721,8 +702,8 @@ ack_in (tcb * ptcb, seqnum ack, unsigned tcp_data_length)
           intervening_xmits = (tv_gt (last_xmit, pseg->time));
 	  //<aa> The RTT is valid only if the segment being acked with the present ack is 
 	  // the last transmitted one;
-	  // In order to be sure of this, we check id last_xmit > pseg_time. If this is the
-	  // case, intervening_xmits is true and the RTT is not invalid.
+	  // In order to be sure of this, we check if last_xmit > pseg_time. If this is the
+	  // case, intervening_xmits is true and the RTT is not valid.
 	  // If, instead, intervening_xmits is false, the RTT is valid </aa>
 	  // to be sure that the present
 

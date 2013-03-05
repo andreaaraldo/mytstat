@@ -52,6 +52,13 @@ extern pthread_cond_t stat_dump_cond;
 extern Bool threaded;
 extern long int tcp_packet_count;
 
+
+//<aa>
+#ifdef SEVERE_DEBUG
+extern unsigned int ack_type_counter[];
+#endif
+//</aa>
+
 Bool thread_stats_flag = FALSE;	/* parameter used to make not possible that two
 				   istances of the same thread can run at the same time */
 
@@ -1183,7 +1190,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 	      #endif
 
 	      #ifdef BUFFERBLOAT_ANALYSIS
-	      if (	retrans == FALSE
+	      if (	retrans == 0
 				//the segment does not contain any retransmitted byte
 			&& out_order == FALSE 
 
@@ -1191,7 +1198,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 						//this is the segment sent as a response to
 						//the last ack
 
-			&& otherdir->last_ack_is_valid_for_bufferbloat_analysis
+			&& otherdir->last_ack_type == NORMAL
 		)
 	      {
 		    char type[16];
@@ -1236,6 +1243,14 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 				gross_delay);
 	
 	      }
+	      #ifdef SEVERE_DEBUG
+	      else{
+		   printf("\ncause=%d%d%d%d\n",
+			retrans!=0, out_order, 
+			start != otherdir->ack, otherdir->last_ack_type != NORMAL);
+	      }
+	      #endif
+
 	      #endif
 	      //</aa>
 
@@ -1287,10 +1302,20 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 
 
   /* do rtt stats */
-  if (ACK_SET (ptcp))
-    {
+  if (ACK_SET (ptcp)){
       ack_type = ack_in (otherdir, th_ack, tcp_data_length);
-    }
+      #ifdef SEVERE_DEBUG
+      if((int)ack_type == 0 || (int)ack_type>T_ACK_NUMBER){
+		printf("tcp.c %d: ERROR\n",__LINE__); exit(111238);
+      }else
+		++ (ack_type_counter[(int)ack_type]);
+      #endif
+
+      #ifdef BUFFERBLOAT_ANALYSIS
+      thisdir->last_ack_type = ack_type;
+      thisdir->last_ack_time = current_time;
+      #endif
+  }
 
   /* stats for rexmitted data */
   if (retrans_num_bytes > 0)
