@@ -220,8 +220,10 @@ int rexmit (tcb * ptcb, seqnum seq, seglen len, Bool * pout_order,
 	    u_short this_ip_id);
 
 /**  <aa>
- * - ack_num: the acknowledgment number taken from the tcp segment, i.e. 
- * 		the next sequence number that the receiver is expecting
+ * - tcb:	the direction opposite to the one in which the present ack was seen
+ *
+ * - ack_num: 	the acknowledgment number taken from the tcp segment, i.e. 
+ * 	the next sequence number that the receiver is expecting
  */ //</aa>
 enum t_ack ack_in (tcb *, seqnum ack_num, unsigned tcp_data_length);
 

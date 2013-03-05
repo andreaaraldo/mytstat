@@ -93,10 +93,14 @@ enum t_ack
 { NORMAL = 1,			/* no retransmits, just advance */
   AMBIG = 2,			/* segment ACKed was rexmitted */
   CUMUL = 3,			/* doesn't advance */
-  TRIPLE = 4,
-	/* triple dupack */
-  NOSAMP = 5
-};				/* covers retransmitted segs, no rtt sample */
+  TRIPLE = 4,			/* triple dupack */
+  NOSAMP = 5			/* covers retransmitted segs, no rtt sample */
+};
+//<aa>
+#ifdef SEVERE_DEBUG
+#define T_ACK_NUMBER 5
+#endif
+//</aa>
 
 /* type for an internal file pointer */
 typedef struct mfile MFILE;
@@ -645,8 +649,8 @@ typedef struct tcb
   upper_protocols u_protocols;
 
 #ifdef BUFFERBLOAT_ANALYSIS
-  timeval last_ack_time; //<aa>the time when the last ack was received</aa>
-  Bool last_ack_is_valid_for_bufferbloat_analysis;
+  timeval last_ack_time; 	//<aa>when the last valid ack was seen in this direction</aa>
+  enum t_ack last_ack_type;
 #endif
 
   skype_stat *skype;
@@ -698,13 +702,13 @@ typedef struct tcb
  u_int  rate_begin_bytes[10];
 #endif
 
-
+//<aa>
 #ifdef BUFFERBLOAT_ANALYSIS
  utp_stat utp;
 #endif
+//</aa>
 }
 tcb;
-
 
 typedef u_long hash;
 

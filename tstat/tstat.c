@@ -282,6 +282,9 @@ FILE *fp_ledbat_logc = NULL;
 	FILE *fp_ledbat_qd_sample_logc= NULL;
 	FILE *fp_tcp_qd_sample_logc= NULL;
 #endif
+#ifdef SEVERE_DEBUG
+	unsigned int ack_type_counter[T_ACK_NUMBER+1];
+#endif
 //</aa>
 
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
@@ -772,6 +775,16 @@ main (int argc, char *argv[]) {
       fprintf(fp_stdout, "\tfirst packet:  %s\n", ts2ascii (&first_packet));
       fprintf(fp_stdout, "\tlast packet:   %s\n", ts2ascii (&last_packet));
     }
+
+  //<aa>
+  #ifdef SEVERE_DEBUG
+  printf("ack types: ");
+  int y=0;
+  for (;y<=T_ACK_NUMBER;y++)
+	printf("%u,",ack_type_counter[y]);
+  printf("\n");
+  #endif
+  //</aa>
   exit(EXIT_SUCCESS);
 #else
   return EXIT_SUCCESS;
