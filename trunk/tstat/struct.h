@@ -648,11 +648,16 @@ typedef struct tcb
 
   upper_protocols u_protocols;
 
-#ifdef BUFFERBLOAT_ANALYSIS
+
+
+  //<aa>
+  #ifdef BUFFERBLOAT_ANALYSIS
+  utp_stat bufferbloat_stat;
   timeval last_ack_time; 	//<aa>when the last valid ack was seen in this direction</aa>
   enum t_ack last_ack_type;
-#endif
-
+  #endif
+  //</aa>
+  
   skype_stat *skype;
 #ifdef MSN_CLASSIFIER
     msn_stat msn;
@@ -702,11 +707,6 @@ typedef struct tcb
  u_int  rate_begin_bytes[10];
 #endif
 
-//<aa>
-#ifdef BUFFERBLOAT_ANALYSIS
- utp_stat utp;
-#endif
-//</aa>
 }
 tcb;
 
@@ -1158,10 +1158,6 @@ typedef struct ucb
   u_short VOD_count;
   Bool first_VOD;
   Bool is_VOD;
-
-  //<aa>
-  int dir;
-  //</aa>
 
   union
   {

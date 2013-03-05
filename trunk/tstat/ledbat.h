@@ -116,16 +116,6 @@ void BitTorrent_flow_stat (struct ip *pip, void *pproto, int tproto, void *pdir,
 void make_BitTorrent_conn_stats (void *thisdir, int tproto); //statistiche finali solo per il caso utp
 void make_BitTorrentTCP_conn_stats (void *thisdir, int tproto); //statistiche finali per il caso tcp chiamata dal conn_stat di tcp 
 
-//compute statistics
-/** <aa>
- * If the previous window can be closed (i.e. more than 1s has passed), it closes it and 
- * returns the estimated queueing delay for that window. It returns -1 otherwise.
- * 	time_ms: the timestamp of the packet
- * 	qd: an estimate of the queueing delay of the packet
- * </aa>
- */
-float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd);
-
 
 float PSquare(void *pdir, float q, int P);
 
