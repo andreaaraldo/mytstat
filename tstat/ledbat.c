@@ -43,7 +43,6 @@ extern Bool log_engine;
 extern int ledbat_window;
 
 
-float alpha=0.5;
 
 
 static int is_utp_pkt(struct ip *pip, void *pproto, void *pdir, void *plast);
@@ -255,23 +254,19 @@ u_int32_t get_queueing_delay_vecchio(ucb *thisdir) {
 	return min;
 }
 
-
-
+// <aa>: trick to print the enum inspired by:
+// http://www.cs.utah.edu/~germain/PPS/Topics/C_Language/enumerated_types.html
+char* udp_type_string[] = {"UDP_UNKNOWN","FIRST_RTP","FIRST_RTCP","RTP","RTCP","SKYPE_E2E",
+	"SKYPE_OUT","SKYPE_SIG","P2P_EDK","P2P_KAD","P2P_KADU","P2P_GNU","P2P_BT","P2P_DC",
+	"P2P_KAZAA","P2P_PPLIVE","P2P_SOPCAST","P2P_TVANTS","P2P_OKAD","DNS","P2P_UTP",
+	"P2P_UTPBT","UDP_VOD","P2P_PPSTREAM","TEREDO","UDP_SIP","LAST_UDP_PROTOCOL"};
+//</aa>
 
 
 void
 parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdir, 
 	int dir, void *hdr, void *plast, int type_utp)
 {
-
-    	void *theheader;
-	utp_hdr *putp = (struct utp_hdr *) hdr;
-
-	theheader=((char *) pproto + 8);
-	struct udphdr *pudp =  pproto;
-	
-	u_int16_t putplen=(ntohs(pudp->uh_ulen) -8); //payload udp len -> utp packet lenght
-
 	// <aa>ucb is a struct which collects information about an udp 
 	// connection (defined in struct.h) </aa>
 	ucb *thisdir, *otherdir;
@@ -285,37 +280,30 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	otherdir = (dir == C2S) ? &(thisdir->pup->s2c) : &(thisdir->pup->c2s);
 	//<aa>Now, otherdir conveys info about the opposite direction</aa>
 
+    	void *theheader;
+	utp_hdr *putp = (struct utp_hdr *) hdr;
+	Bool it_is_a_data_pkt = FALSE;
+
+	theheader=((char *) pproto + 8);
+	struct udphdr *pudp =  pproto;
+	udp_pair *pup, *pup1;
+ 	pup = thisdir->pup;
+	pup1= otherdir->pup;
+	const char* type = udp_type_string[thisdir->type];
+	int conn_id = thisdir->uTP_conn_id;
+	Bool overfitting_avoided = FALSE;
+	
+
+	u_int16_t putplen=(ntohs(pudp->uh_ulen) -8); //payload udp len -> utp packet lenght
+
 	//<aa>
+	utp_stat* bufferbloat_stat = &(thisdir->utp);
+	u_int32_t grossdelay = ntohl(putp->time_diff);
 	#ifdef SEVERE_DEBUG
 	if (dir!=C2S && dir!=S2C){
 		printf("\ndir=%d\n", dir); exit(5454512);
 	}
-	#endif
-	//</aa>
 
-
-	//some statistics
-	((ucb *) pdir)->utp.pkt_type_num[type_utp-1]++; //count the number of packets of a given type 
-	//note: we consider type_utp for type of the packet, not type field in the packet
-	thisdir->utp.total_pkt++;
-	thisdir->utp.bytes+=putplen;
-
-	if (type_utp==UTP_DATA)	{
-		thisdir->utp.data_pktsize_sum+=putplen;
-		
-		if ((thisdir->utp.data_pktsize_max==0) || (thisdir->utp.data_pktsize_max<putplen))
-			thisdir->utp.data_pktsize_max=putplen;
-
-		if ((thisdir->utp.data_pktsize_min==0) || (thisdir->utp.data_pktsize_min>putplen))
-			thisdir->utp.data_pktsize_min=putplen;
-	}
-
-	udp_pair *pup, *pup1;
- 	pup = thisdir->pup;
-	pup1= otherdir->pup;
-
-	//<aa>
-	#ifdef SEVERE_DEBUG
 	check_direction_consistency(LEDBAT, (void*)thisdir, __LINE__);
 	if( elapsed(current_time,thisdir->last_pkt_time) != 0 )
 	{
@@ -324,55 +312,10 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 			thisdir->last_pkt_time.tv_sec, thisdir->last_pkt_time.tv_usec);
 		exit(5646);
 	}
-	
-	#endif	//</aa>
 
-#ifdef LEDBAT_DEBUG	
-		//1 IP Source
-		//2 Port Source
-		//3 IP Dest
-		//4 Port Dest
-		//5 Length UTP Packet (header UTP + payload)
-		fprintf(fp_stdout," %s ",HostName(*IPV4ADDR2ADDR (&pip->ip_src)));
-		fprintf(fp_stdout," %d ", ntohs(pudp->uh_sport));
-	
-		fprintf(fp_stdout," %s", HostName(*IPV4ADDR2ADDR (&pip->ip_dst)));
-		fprintf(fp_stdout," %d %d", ntohs(pudp->uh_dport),putplen);
-	  
-    	
-		//6 Version UTP
-		//7 Type UTP
-		//8 Extension UTP
-		fprintf(fp_stdout," %d %d %d",(putp->ver), 			                    
-			(putp->type),(putp->ext));
-
-		  wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.a_address), 
-			ServiceName(pup->addr_pair.a_port));
-
-		  wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.a_address), 
-			ServiceName(pup->addr_pair.a_port));
-	
-		//9 Connection ID
-		//10 Sequence Number
-		//11 Ack Number
-		fprintf(fp_stdout," %d %d %d",ntohs(putp->conn_id), 			                    
-			ntohs(putp->seq_nr),ntohs(putp->ack_nr));	
-	
-		//<aa>putp is the pointer to the utp header of the packet in question</aa>
-
-		//12 Timestamp Microsecond
-		//13 Timestamp Diff
-		//14 Wnd_size
-		fprintf(fp_stdout," %u %u %u",ntohl(putp->time_ms), 	           
-		ntohl(putp->time_diff),ntohl(putp->wnd_size));
-#endif
-
-	#ifdef SEVERE_DEBUG
-	if (ntohl(putp->time_diff) > 1000*1000000){
+	if (grossdelay > 1000*1000000){
 		printf("\nledbat.c %d: ATTTTTTTEEEEENNNNNNZZZZZIONNNNNEEEEEEE: ERROR: time_diff is %u, more than a quarter of hour\n",
-			__LINE__, ntohl(putp->time_diff));
+			__LINE__, grossdelay);
 		printf("putp->time_diff=%X\n",putp->time_diff);
 //		exit(213254);
 		//<aa>TODO: reactivate exit</aa>
@@ -380,126 +323,54 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	if (elapsed(thisdir->utp.last_rollover, current_time)<=0 ){
 		printf("\nledbat.c %d: \n", __LINE__); exit(849);
 	}
+
+
+	if (dir!=S2C && dir!=C2S) {
+		printf("ledbat.c %d: ERROR: dir (%d) not valid\n",__LINE__,dir); 
+		exit(7777);
+	}
+	#endif	
+	//</aa>
+
+	//to avoid overfitting, we neglect multiple consecutive equal queueing delay samples 
+	if (	( 	(type_utp==UTP_STATE_ACK) || (type_utp==UTP_STATE_SACK) )
+	      ||( 
+			(type_utp==UTP_DATA) && 
+			(grossdelay != bufferbloat_stat->last_measured_time_diff) 
+		)
+	)
+		overfitting_avoided = TRUE;
+
+	if (type_utp==UTP_DATA)
+		it_is_a_data_pkt = TRUE;
+
+	bufferbloat_stat->pkt_type_num[type_utp-1]++; //count the number of packets of a given type 
+
+	#ifdef SEVERE_DEBUG
+	check_direction_consistency(LEDBAT,pdir, __LINE__);
 	#endif
 
-	const char* type = "-";
+	float windowed_qd = bufferbloat_analysis(
+		LEDBAT, &(pup->addr_pair), dir, bufferbloat_stat, 
+		&(otherdir->utp), conn_id, type, putplen, grossdelay,overfitting_avoided,
+		it_is_a_data_pkt);
 
-	u_int32_t estimated_qd = bufferbloat_analysis(LEDBAT, &(pup->addr_pair), dir, 
-		&(thisdir->utp), thisdir->uTP_conn_id,
-		type, putplen, ntohl(putp->time_diff) );
+	float estimated_99P;
+	float estimated_95P;
+	float estimated_90P;
+	float estimated_75P;
 
-	
-	//<aa>TODO: not used anymore</aa>
-	float estimated_qdF_vecchio=(float)get_queueing_delay_vecchio(thisdir);
-
-	//<aa>TODO:Why calling two times the same function?</aa>
-	u_int32_t estimated_qdI_vecchio=get_queueing_delay_vecchio(thisdir);
-
-	
-	//to avoid overfitting, we neglect multiple consecutive equal queueing delay samples 
-	if (( 	(type_utp==UTP_STATE_ACK) || (type_utp==UTP_STATE_SACK) ) || 
-		( 
-			(type_utp==UTP_DATA) && 
-			(putp->time_diff!=thisdir->utp.last_measured_time_diff) 
-		) || (estimated_qd<120000) 
-	){
-		//<aa>At first, see if a window can be closed (not including the present pkt)
-                float qd_w1 = windowed_queueing_delay(LEDBAT,
-			(void*)thisdir, dir, ntohl(putp->time_ms) , estimated_qd);
-		//</aa>
-
-		//<aa>Then, update all quantities related to the open window</aa>
-		//<aa>TODO: check what 
-		if (type_utp==UTP_DATA)
-			thisdir->utp.last_measured_time_diff=putp->time_diff;
-	
-		float ewma; //Exponentially-Weighted Moving Average
-		//update statistics on queueing delay in ms 
-		thisdir->utp.qd_measured_count++;
-		thisdir->utp.qd_measured_sum+= (estimated_qd/1000);
-		thisdir->utp.qd_measured_sum2+= ((estimated_qd/1000)*(estimated_qd/1000));
-
-       	  	wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.a_address), 
-			ServiceName(pup->addr_pair.a_port));
-       		if (thisdir->utp.ewma>0) {
-                   ewma=thisdir->utp.ewma;
-                   thisdir->utp.ewma = alpha*(estimated_qd/1000) + (1-alpha)*ewma;
-		}else
-		   thisdir->utp.ewma = estimated_qd/1000;
-  		       
-#ifdef LEDBAT_DEBUG	
-			//15 Base_delay
-       		 	//16 Queuing_delay float in ms
-        		//17 Queuing_delay integer in ms - millisecond
-        		//18 lastupdate
-			//19 ewma
-        		fprintf(fp_stdout," %u %u %u ",thisdir->utp.delay_base, estimated_qd/1000, estimated_qdI_vecchio/1000 );
-       		 	fprintf(fp_stdout," %lus-%luus ",thisdir->utp.last_rollover.tv_sec, 
-				thisdir->utp.last_rollover.tv_usec);
-			fprintf(fp_stdout," %f ",thisdir->utp.ewma);
-
- #endif
-		  wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.a_address), 
-			ServiceName(pup->addr_pair.a_port));
-	
-		//utp-tma13 
-		/** <aa>The following instruction has been moved up</aa>
-                float qd_w1 =
-			windowed_queueing_delay(thisdir, ntohl(putp->time_ms) , estimated_qdF);
-		*/
-		
-		// <aa>???: Why do we calculate estimated_qdF in microseconds and 
-		// queueing_delay_max in milliseconds? </aa>
-		if ((thisdir->utp.queueing_delay_max < (estimated_qd/1000)))
-			thisdir->utp.queueing_delay_max= (estimated_qd/1000);
-
-		// <aa>???: Why do we calculate estimated_qdF in microseconds and 
-		// queueing_delay_min in milliseconds? </aa>
-		if ((thisdir->utp.queueing_delay_min > (estimated_qd/1000)))
-			thisdir->utp.queueing_delay_min= (estimated_qd/1000);
-		
-		float estimated_99P;
-		float estimated_95P;
-		float estimated_90P;
-		float estimated_75P;
-
-		if (qd_w1!=-1){
-		  	wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.a_address), 
-			ServiceName(pup->addr_pair.a_port));
-			estimated_99P=PSquare(thisdir, (int)qd_w1, PERC_99);
-			estimated_95P=PSquare(thisdir, (int)qd_w1, PERC_95);
-			estimated_90P=PSquare(thisdir, (int)qd_w1, PERC_90);
-			estimated_75P=PSquare(thisdir, (int)qd_w1, PERC_75);
-		}
-
-	
-
-		#ifdef LEDBAT_DEBUG
-		//35 estimated_99percentile(w1) 36 estimated_95percentile(w1) 37 estimated_90percentile(w1) 38 estimated_75percentile(w1) 
-		  wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.a_address), 
-			ServiceName(pup->addr_pair.a_port));
-		fprintf(fp_stdout," %f %f %f %f ", estimated_99P, estimated_95P,  estimated_90P, estimated_75P );
-		#endif
-
-		#ifdef SEVERE_DEBUG
-		if (dir!=S2C && dir!=C2S) {
-			printf("ledbat.c %d: ERROR: dir (%d) not valid\n",__LINE__,dir); 
-			exit(7777);
-		}
-		#endif
+	if (windowed_qd != -1){
+		estimated_99P=PSquare(thisdir, (int)windowed_qd, PERC_99);
+		estimated_95P=PSquare(thisdir, (int)windowed_qd, PERC_95);
+		estimated_90P=PSquare(thisdir, (int)windowed_qd, PERC_90);
+		estimated_75P=PSquare(thisdir, (int)windowed_qd, PERC_75);
 	}
-	else
-	{
-		//15 -16 -17 -18 -19  ....29....34 35 36 37 38
-		
-		#ifdef LEDBAT_DEBUG
-			fprintf(fp_stdout, " - - - - - - - - - - - - - - - - - - - - - - - - " );
-		#endif
-	}
+
+
+	#ifdef SEVERE_DEBUG
+	check_direction_consistency(LEDBAT,thisdir, __LINE__);
+	#endif
 	
 	/*start of bittorrent message*/
 	u_int8_t *pputp=NULL;
@@ -511,68 +382,23 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 			HostName(pup->addr_pair.a_address), 
 			ServiceName(pup->addr_pair.a_port));
   
-	   #ifdef LEDBAT_DEBUG
-	   	//37 No exentsion 
-	   	//38 No length extension 
-	   	fprintf(fp_stdout, " - -");
-	   #endif
-
-	   }
-	else{
-	   extchain=((u_int8_t *) theheader) + 20;
-	   
-	   len=0; 
-           do {
-	   
-	   	extchain=extchain + len;
-		len=*(extchain+1) + 2 ;
-		//printf("\n len %d", len);
-		#ifdef LEDBAT_DEBUG
-			//37 extension
-			//38 extension length
-			fprintf(fp_stdout, " %d %d",*extchain, (len-2));
-		#endif			
-	   
-	   } while ( *extchain != 0 );
-	   
-		  	wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.a_address), 
-			ServiceName(pup->addr_pair.a_port));
-   extchain=extchain + len;
-	   pputp=extchain;
+	}else{
+		extchain=((u_int8_t *) theheader) + 20;
+		len=0; 
+        	do {
+		   	extchain=extchain + len;
+			len=*(extchain+1) + 2 ;
+		} while ( *extchain != 0 );
+		extchain=extchain + len;
+	   	pputp=extchain;
 	}
 	
 	
 	if (((u_long) pputp - (u_long) putp) < (u_long)putplen   ) {
-		#ifdef LEDBAT_DEBUG
-			//39 1st bittorrent message word  
-			fprintf(fp_stdout, " %u",ntohl(*((u_int32_t *) pputp) ));
-		#endif
-
 		/*finished uTP header: handover to BitTorrent message parser... */
 		parser_BitTorrentMessages(pputp, tproto, pdir, dir, hdr, plast);
-
-
-		
 	}
-	else {
-		#ifdef LEDBAT_DEBUG
-			//39 1st bittorrent message word
-			fprintf(fp_stdout, " -");
-		#endif
-	}
-
-	#ifdef LEDBAT_DEBUG
-	//<aa>TODO: remove this
-	//40:last_pkt_time(s) 41:last_pkt_time(us) 42:current_time(s) 43:current_time(us) 44:qd_andrea
-	fprintf(fp_stdout, " %ld %ld %ld %ld %u\n", 
-		thisdir->last_pkt_time.tv_sec,thisdir->last_pkt_time.tv_usec,
-		current_time.tv_sec,current_time.tv_usec, estimated_qd/1000);
-	#endif
 }
-
-
-
 
 
 void BitTorrent_flow_stat (struct ip *pip, void *pproto, int tproto, void *pdir,
@@ -817,110 +643,6 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 
 
 }
-
-
-/*
-float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd )
-{
-	//time_ms is in microsecond (10^-6)
-	//qd/1000 is in ms
-	//window in ms 
-
-	float qd_window;
-	float window_error;
-	float res=-1;
-	int window_size = 1;
-
-	ucb *thisdir;
-	thisdir = ( ucb *) pdir;
-
-	#ifdef SEVERE_DEBUG
-	check_direction_consistency(thisdir);
-	#endif
-
-	//initialize time_zero
-	if (thisdir->utp.time_zero_w1==0)
-		thisdir->utp.time_zero_w1=time_ms;
-
-	//<aa>TODO: why expressing qd in microseconds and qd_max_w1 in milliseconds?</aa>
-	if (qd/1000 >= thisdir->utp.qd_max_w1)
-		thisdir->utp.qd_max_w1=qd/1000;
-	
-	u_int32_t actual_win_size = time_ms - thisdir->utp.time_zero_w1;
-
-	if ( (time_ms - thisdir->utp.time_zero_w1) >= 1000000)
-	{
-	 	// <aa>Now we can "close" the window and compute its statistics </aa>
-		// <aa>Suppose that the last packet (not the current one) arrived
-		// less then 1s after the window opened. Suppose that the current packet arrives		// 90s after the last one. We cannot close the window with the last packet, we 
-		// can close the window only after the current packet arrives. The problem is that
-		// this leads to a distorted window (larger than 1 s)
-		//
-		// SOLUTION:
-		// If the current packet arrives after a second, we can close the window, including
-		// in it the last packet but not the current one. The current packet will be the
-		// first of the new window
-		//</aa>
-
-
-		qd_window=(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1)/
-			(thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1);
-
-		window_error=Stdev(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1, 
-		      thisdir->utp.qd_measured_sum2 - thisdir->utp.qd_sum2_w1,
-		      thisdir->utp.qd_measured_count - thisdir->utp.qd_count_w1 );
-		
-		//<aa>
-		#ifdef LEDBAT_DEBUG
-		if (thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1 < 0){
-			printf("\n\n\n\nledbat.c %d: ERROR: qd_measured_sum(%f) < qd_sum_w1(%f)\n\n\n",
-				__LINE__,thisdir->utp.qd_measured_sum, thisdir->utp.qd_sum_w1);
-			exit(-9987);
-		}
-		
-		if (thisdir->utp.qd_sum_w1 < 0){
-			printf("\n\n\nledbat.c %d: ERROR: qd_sum_w1(%f) < 0\n\n\n\n",
-				__LINE__,thisdir->utp.qd_sum_w1);
-			exit(-9911);
-		}
-
-		#endif
-		//</aa>
-
-		#ifdef LEDBAT_WINDOW_CHECK
-		//araldo!!
-		//  - windowed_log_engine
-		//  - at most once per second
-		//  - dumps IPs IPd Ps Pd E[qd] #pkts flow_classification_label
-		//
-		
-		#ifdef SEVERE_DEBUG
-		check_direction_consistency(thisdir);
-		#endif
-
-		print_last_window(thisdir, time_ms, actual_win_size, qd_window, window_error, window_size);
-		#endif
-
-		thisdir->utp.qd_sum_w1 += 
-			(thisdir->utp.qd_measured_sum - thisdir->utp.qd_sum_w1);		
-		thisdir->utp.qd_count_w1 += (thisdir->utp.qd_measured_count-thisdir->utp.qd_count_w1);
-		thisdir->utp.qd_sum2_w1+=(thisdir->utp.qd_measured_sum2-thisdir->utp.qd_sum2_w1);
-
-		//<aa>??? I think it is needed to correctly close the window
-		thisdir->utp.time_zero_w1=time_ms;
-		//</aa>
-
-		//stqd_max_w1atistics
-		thisdir->utp.qd_measured_count_w1++;
-		thisdir->utp.qd_measured_sum_w1+=qd_window;
-		thisdir->utp.qd_measured_sum2_w1+=((qd_window)*(qd_window));
-
-		return qd_window;
-	}
-   return res;
-}//windowed
-*/
-
 
 
 float PSquare (void* pdir, float q, int p ){

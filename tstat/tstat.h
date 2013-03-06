@@ -817,7 +817,7 @@ extern double prof_cps;              // clock per seconds give by sysconf()
 /**
  * returns an estimation of the queueing delay in microseconds
  */
-u_int32_t get_queueing_delay(utp_stat* bufferbloat_stat_p);
+u_int32_t get_queueing_delay(const utp_stat* bufferbloat_stat_p);
 
 /**
  * <aa> It returns 1 if lhs<rhs, 0 otherwise</aa>
@@ -834,7 +834,7 @@ u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p);
  * bufferbloat_stat_p->delay_base_hist.
  * - time_us, time_diff: in microseconds
  */
-void update_delay_base(u_int32_t gross_delay, utp_stat* bufferbloat_stat_p);
+void update_gross_delay_related_stuff(u_int32_t gross_delay, utp_stat* bufferbloat_stat_p);
 
 
 #ifdef BUFFERBLOAT_ANALYSIS
@@ -859,17 +859,16 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
 	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay);
 
-
 /**
  * Estimates queueing delay, updates the data structure needed to calculate the queueing delay
- * and print queueing delay logs
+ * and print queueing delay logs. Performs windowing operations too
  * - last_gross_delay (microseconds)
- * - return queueing delay estimation (microseconds)
+ * - return windowed queueing delay (microseconds)
  */
-u_int32_t bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
-	int dir,
-	utp_stat* bufferbloat_stat_p, int utp_conn_id,
-	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay);
+float bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
+	int dir, utp_stat* bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat,
+	int utp_conn_id, const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay,
+	Bool overfitting_avoided, Bool it_is_a_data_pkt);
 
 
 void print_last_window_general(enum analysis_type an_type, tcp_pair_addrblock* addr_pair,
@@ -888,15 +887,17 @@ void print_last_window_directional(enum analysis_type an_type,
 	float qd_window, float window_error, int window_size);
 
 //compute statistics
-/** <aa>
+//<aa>
+/**
  * If the previous window can be closed (i.e. more than 1s has passed), it closes it and 
  * returns the estimated queueing delay for that window. It returns -1 otherwise.
- * 	time_ms: the timestamp of the packet
- * 	qd: an estimate of the queueing delay of the packet
- * </aa>
+ * - qd: an estimate of the queueing delay of the packet
  */
-float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, 
-	u_int32_t time_ms, float qd );
+float windowed_queueing_delay(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
+	utp_stat* thisdir_bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat, int dir, 
+	float qd, const char* type, int conn_id);
+//</aa>
+
 
 /**
  * It updates the left edge of the following not void window
@@ -908,10 +909,9 @@ void update_following_left_edge(utp_stat* bufferbloat_stat);
  * It closes the previous window and updates the value of the following one. 
  * It returns the queueing delay of the closed window or -1 if no pkts have been seen in the 
  * previous window.
- * - dir: the descriptor of the direction of the window that you want to close (dir will be 
- *	casted to ucb* or tcb*)
  */
-float close_window(enum analysis_type an_type, void* dir_);
+float close_window(enum analysis_type an_type, utp_stat* bufferbloat_stat, const char* type,
+	int conn_id);
 
 
 #ifdef SEVERE_DEBUG

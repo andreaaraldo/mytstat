@@ -303,7 +303,8 @@ typedef struct utp_stat
 	int total_pkt;
         int bytes;
         int pkt_type_num[6]; /*DATA FIN STATE_ACK STATE_SACK RESET SYN*/
-        int last_measured_time_diff; //avoid measuring multiple samples
+        u_int32_t last_measured_time_diff; //avoid measuring multiple samples
+					   //<aa>(microseconds)</aa>
 
 	// <aa>According to section 3.4.2 of [ledbat_draft]:
 	// "LEDBAT sender stores BASE_HISTORY separate minima---one each for the
@@ -986,6 +987,7 @@ enum udp_type
   UDP_SIP,
   LAST_UDP_PROTOCOL
 };
+
 
 #define print_udp_type \
 { \
