@@ -3758,6 +3758,13 @@ float bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_
 	Bool overfitting_avoided, Bool it_is_a_data_pkt)
 {
 	float windowed_qd = -1;
+
+	#ifdef SEVERE_DEBUG
+	if (last_grossdelay==0){
+		printf("line %d: Error: gross delay = 0\n",__LINE__); exit(541);
+	}
+	#endif
+
 	update_gross_delay_related_stuff(last_grossdelay, bufferbloat_stat );//ptcp is thisdir
       
 	u_int32_t estimated_qd = get_queueing_delay((const utp_stat*)bufferbloat_stat ); 
@@ -3825,8 +3832,6 @@ float bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_
 void print_last_window_general(enum analysis_type an_type, tcp_pair_addrblock* addr_pair,
 	utp_stat* bufferbloat_stat_p)
 {
-	printf("\ntstat.c %d\n",__LINE__); exit(5485454);
-
 	FILE* fp_qd;
 	switch (an_type){
 		case TCP:	fp_qd = fp_tcp_windowed_qd_logc; break;
@@ -3847,7 +3852,6 @@ void print_last_window_general(enum analysis_type an_type, tcp_pair_addrblock* a
   	wfprintf (fp_qd, "%s %s ",
        	           HostName (addr_pair->b_address),	//4.ip_addr_2
        	           ServiceName (addr_pair->b_port));	//5.port_2
-	wfprintf (fp_qd, "\n");
 }
 
 
@@ -3927,7 +3931,9 @@ float windowed_queueing_delay(enum analysis_type an_type, tcp_pair_addrblock* ad
 
 	float qd_window;
 	float return_val=-1;
-
+	
+	printf("guarda qua: dir=%d, thisdir_bufferbloat_stat->last_window_edge=%u, current_time.tv_sec=%u\n",
+		dir, thisdir_bufferbloat_stat->last_window_edge,current_time.tv_sec);
 	//initialize last_window_edge
 	//<aa>TODO: better if we have a single time_zero_w1
 	if (thisdir_bufferbloat_stat->last_window_edge ==0){
@@ -3942,7 +3948,7 @@ float windowed_queueing_delay(enum analysis_type an_type, tcp_pair_addrblock* ad
 	}
 	//<aa>TODO: we are computing (last_window_edge - current_time) 2 times: 
 	//here and inside close_window(...). It's not efficient</aa>
-	else if ( thisdir_bufferbloat_stat->last_window_edge - current_time.tv_sec >= 1)
+	else if ( current_time.tv_sec - thisdir_bufferbloat_stat->last_window_edge >= 1)
 	{
 		//More than 1 second has passed from the last window edge. We can close the 
 		//window; but, at first, we have to print its values.
@@ -3952,12 +3958,12 @@ float windowed_queueing_delay(enum analysis_type an_type, tcp_pair_addrblock* ad
 		if (dir==C2S){
 			qd_window = close_window(an_type, thisdir_bufferbloat_stat, 
 				type, conn_id);
-			other_qd_window = close_window(an_type, thisdir_bufferbloat_stat, 
+			other_qd_window = close_window(an_type, otherdir_bufferbloat_stat, 
 				type, conn_id);
 		}else{
 			other_qd_window = close_window(an_type, thisdir_bufferbloat_stat, 
 				type, conn_id);
-			qd_window = close_window(an_type, thisdir_bufferbloat_stat, 
+			qd_window = close_window(an_type, otherdir_bufferbloat_stat, 
 				type, conn_id);
 		}
 		wfprintf(fp_logc,"\n");
@@ -4074,7 +4080,6 @@ void check_direction_consistency(enum analysis_type an_type,
 }
 
 void update_following_left_edge(utp_stat* bufferbloat_stat){
-	printf("ATTENZIONE: serve per davvero?\n"); exit(774153);
 	//Compute the left edge of the following not void window
 
 	#ifdef SEVERE_DEBUG
@@ -4100,6 +4105,7 @@ void update_following_left_edge(utp_stat* bufferbloat_stat){
 
 	bufferbloat_stat->last_window_edge = current_time.tv_sec;
 }
+
 
 float close_window(enum analysis_type an_type, utp_stat* bufferbloat_stat, const char* type,
 	int conn_id)
@@ -4166,7 +4172,6 @@ float close_window(enum analysis_type an_type, utp_stat* bufferbloat_stat, const
 	bufferbloat_stat->qd_sum2_w1 += 
 		(bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1);
 
-	printf("forse si chiama last?\n"); exit(451);
 	update_following_left_edge( bufferbloat_stat );
 
 	//stqd_max_w1atistics

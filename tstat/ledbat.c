@@ -329,6 +329,9 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		printf("ledbat.c %d: ERROR: dir (%d) not valid\n",__LINE__,dir); 
 		exit(7777);
 	}
+	if (grossdelay==0){
+		printf("ledbat.c %d: ATTTTTENZZIONNNEEE: gross delay = 0\n", __LINE__); 
+	}
 	#endif	
 	//</aa>
 
@@ -349,24 +352,24 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	#ifdef SEVERE_DEBUG
 	check_direction_consistency(LEDBAT,pdir, __LINE__);
 	#endif
+	if (grossdelay > 0){
+		float windowed_qd = bufferbloat_analysis(
+			LEDBAT, &(pup->addr_pair), dir, bufferbloat_stat, 
+			&(otherdir->utp), conn_id, type, putplen, grossdelay,overfitting_avoided,
+			it_is_a_data_pkt);
 
-	float windowed_qd = bufferbloat_analysis(
-		LEDBAT, &(pup->addr_pair), dir, bufferbloat_stat, 
-		&(otherdir->utp), conn_id, type, putplen, grossdelay,overfitting_avoided,
-		it_is_a_data_pkt);
+		float estimated_99P;
+		float estimated_95P;
+		float estimated_90P;
+		float estimated_75P;
 
-	float estimated_99P;
-	float estimated_95P;
-	float estimated_90P;
-	float estimated_75P;
-
-	if (windowed_qd != -1){
-		estimated_99P=PSquare(thisdir, (int)windowed_qd, PERC_99);
-		estimated_95P=PSquare(thisdir, (int)windowed_qd, PERC_95);
-		estimated_90P=PSquare(thisdir, (int)windowed_qd, PERC_90);
-		estimated_75P=PSquare(thisdir, (int)windowed_qd, PERC_75);
+		if (windowed_qd != -1){
+			estimated_99P=PSquare(thisdir, (int)windowed_qd, PERC_99);
+			estimated_95P=PSquare(thisdir, (int)windowed_qd, PERC_95);
+			estimated_90P=PSquare(thisdir, (int)windowed_qd, PERC_90);
+			estimated_75P=PSquare(thisdir, (int)windowed_qd, PERC_75);
+		}
 	}
-
 
 	#ifdef SEVERE_DEBUG
 	check_direction_consistency(LEDBAT,thisdir, __LINE__);
