@@ -231,8 +231,6 @@ typedef struct jabber_stat
 #define PERC_90 2
 #define PERC_75 3
 
-#define LEDBAT_WINDOW_CHECK
-
 
 /*
 //<aa>
@@ -1184,6 +1182,7 @@ typedef struct ucb
 
   /* utp bittorrent */
   //<aa>TODO: I should include this in ifdef-endif</aa>
+  //<aa>TODO: Replace this name with bufferbloat_stat</aa>
   utp_stat utp;
   //<aa>TODO: use a more general name that is meaningful also in the TCP case
 

@@ -30,9 +30,6 @@
 /* define  if you want to see all identified pkts */
 #define LEDBAT_DEBUG
 
-//Use it as a signal when there are no samples in a window
-#define NOSAMPLES -1
-
 extern FILE *fp_ledbat_logc;
 
 //<aa>
@@ -319,7 +316,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 
 	//<aa>
 	#ifdef SEVERE_DEBUG
-	check_direction_consistency(thisdir, __LINE__);
+	check_direction_consistency(LEDBAT, (void*)thisdir, __LINE__);
 	if( elapsed(current_time,thisdir->last_pkt_time) != 0 )
 	{
 		printf("\nledbat.c %d: current_time=%ldsec %ldusec last_pkt_seen=%ldsec %ldusec\n",
@@ -593,60 +590,6 @@ void BitTorrent_flow_stat (struct ip *pip, void *pproto, int tproto, void *pdir,
 	}
 
 }//flowstat
-
-// <aa>
-#ifdef LEDBAT_WINDOW_CHECK
-
-// <aa>: trick to print the enum inspired by:
-// http://www.cs.utah.edu/~germain/PPS/Topics/C_Language/enumerated_types.html
-char* udp_type_string[] = {"UDP_UNKNOWN","FIRST_RTP","FIRST_RTCP","RTP","RTCP","SKYPE_E2E",
-	"SKYPE_OUT","SKYPE_SIG","P2P_EDK","P2P_KAD","P2P_KADU","P2P_GNU","P2P_BT","P2P_DC",
-	"P2P_KAZAA","P2P_PPLIVE","P2P_SOPCAST","P2P_TVANTS","P2P_OKAD","DNS","P2P_UTP",
-	"P2P_UTPBT","UDP_VOD","P2P_PPSTREAM","TEREDO","UDP_SIP","LAST_UDP_PROTOCOL"};
-/*
-udp_type udp_types[] = {UDP_UNKNOWN,FIRST_RTP,FIRST_RTCP,RTP,RTCP,SKYPE_E2E,SKYPE_OUT, SKYPE_SIG,
-	P2P_EDK, P2P_KAD,P2P_KADU,P2P_GNU, P2P_BT,P2P_DC, P2P_KAZAA,P2P_PPLIVE,P2P_SOPCAST,
-	P2P_TVANTS,P2P_OKAD,DNS,P2P_UTP,P2P_UTPBT,UDP_VOD,P2P_PPSTREAM,TEREDO,UDP_SIP,
-	LAST_UDP_PROTOCOL};
-*/
-// </aa>
-
-
-
-/**
- * Print info for a specific direction
- * 	thisdir: the descriptor of the udp connection
- * 	qd_window: queueing delay of the window (-1 if this window has non samples)
- */
-void print_last_window_directional(ucb * thisdir,
-	float qd_window, float window_error, int window_size)
-{
-	wfprintf(fp_ledbat_window_logc, " %s",udp_type_string[thisdir->type]);//11-25
-
-	if (qd_window == NOSAMPLES)
-		wfprintf(fp_ledbat_window_logc, " - -");
-	else
-		wfprintf(fp_ledbat_window_logc, " %f %f", 
-			qd_window,			//13-27
-			window_error			//14-28
-		);
-
-	wfprintf(fp_ledbat_window_logc," %f %d %d %d %d %d %f %f %f %u",
-		thisdir->utp.qd_max_w1,			//15-29
-		(int)((int)qd_window/(window_size*1000)),//16-30
-		thisdir->utp.qd_count_w1, //window_no.	//17-31
-		thisdir->uTP_conn_id,			//18-32
-		thisdir->utp.qd_measured_count- thisdir->utp.qd_count_w1,//no_of_pkts_in_windows
-		thisdir->utp.qd_measured_count_w1,	//20-34: no of not void windows
-		thisdir->utp.qd_measured_sum,		//21-35
-		thisdir->utp.qd_measured_sum_w1,	//22-36
-		thisdir->utp.qd_sum_w1,			//23-37
-		thisdir->utp.delay_base			//24-38
-	);
-}
-
-// </aa>
-#endif
 
 void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 	
@@ -1174,113 +1117,3 @@ make_BitTorrent_conn_stats (void *thisflow, int tproto)
 {
 	print_BitTorrentUDP_conn_stats(thisflow, tproto);   
 }
-
-
-//<aa>
-float close_window(void* dir_)
-{
-	ucb* dir = (ucb*) dir_;
-	float qd_window;
-	float window_error;
-	int window_size = 1;
-	utp_stat* bufferbloat_stat;
-
-	//number of packets in the window we are going to close (not including the last packet)
-	int pkts_in_win = bufferbloat_stat->qd_measured_count- dir->utp.qd_count_w1;
-	if (pkts_in_win == 0){
-		//No pkts have been seen in this direction in the previous window ==> 
-		// the only value to be updated is the time_zero (left_edge)
-
-		#ifdef SEVERE_DEBUG
-		if (	bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1 != 0 ||
-			bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1 != 0
-		){
-			printf("\nledbat.c %d: ERROR: if there are non pkts, values can not change\n",
-				__LINE__);
-			exit(46);
-		}
-		#endif
-
-		print_last_window_directional(dir, NOSAMPLES, NOSAMPLES, window_size);
-		update_following_left_edge( &(dir->utp) );
-		return -1;
-	}
-
-
-
-		qd_window= (bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1)
-				/pkts_in_win;
-
-		window_error=Stdev(bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1, 
-		      bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1,
-		      bufferbloat_stat->qd_measured_count - bufferbloat_stat->qd_count_w1 );
-		
-		//<aa>
-		#ifdef SEVERE_DEBUG
-		if (bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1 < 0){
-			printf("\n\n\n\nledbat.c %d: ERROR: qd_measured_sum(%f) < qd_sum_w1(%f)\n\n\n",
-				__LINE__,bufferbloat_stat->qd_measured_sum, 
-				bufferbloat_stat->qd_sum_w1);
-			exit(-9987);
-		}
-		
-		if (bufferbloat_stat->qd_sum_w1 < 0){
-			printf("\n\n\nledbat.c %d: ERROR: qd_sum_w1(%f) < 0\n\n\n\n",
-				__LINE__,bufferbloat_stat->qd_sum_w1);
-			exit(-9911);
-		}
-		#endif
-		//</aa>
-
-		#ifdef LEDBAT_WINDOW_CHECK
-		print_last_window_directional(dir, qd_window, window_error, window_size);
-		#endif
-
-		bufferbloat_stat->qd_sum_w1 += 
-			(bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1);		
-		bufferbloat_stat->qd_count_w1 += 
-			(bufferbloat_stat->qd_measured_count- bufferbloat_stat->qd_count_w1);
-		bufferbloat_stat->qd_sum2_w1 += 
-			(bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1);
-
-		printf("forse si chiama last?\n"); exit(451);
-		update_following_left_edge( &(dir->utp) );
-
-		//stqd_max_w1atistics
-		bufferbloat_stat->qd_measured_count_w1++;
-		bufferbloat_stat->qd_measured_sum_w1 += qd_window;
-		bufferbloat_stat->qd_measured_sum2_w1 += ((qd_window)*(qd_window));
-
-		return qd_window;
-}
-//</aa>
-
-//<aa>
-void update_following_left_edge(utp_stat* bufferbloat_stat){
-	printf("ATTENZIONE: serve per davvero?\n"); exit(774153);
-	//Compute the left edge of the following not void window
-
-	#ifdef SEVERE_DEBUG
-	//offset is the time(seconds) from the future window left edge and current_time
-	time_t offset = current_time.tv_sec - bufferbloat_stat->last_window_edge;
-	//offset corresponds to the number of void windows between the last_window_edge and 
-	//current_time
-
-	timeval last_window_edge;
-	last_window_edge.tv_sec = bufferbloat_stat->utp.last_window_edge;
-	last_window_edge.tv_usec = 0;
-
-	if (	!
-		(	elapsed(last_window_edge, current_time) >= 1e6*offset &&
-			elapsed(last_window_edge, current_time) <= 1e6*(offset+1)    )
-	){
-		printf("\nledbat.c %d: ERROR:\n dir->utp.last_window_edge=%lu;\n current_time=%lus%luus;\n offset=%lu\n elapsed(last_window_edge, current_time)=%f\n", 
-			__LINE__, bufferbloat_stat->last_window_edge, current_time.tv_sec,
-			current_time.tv_usec, offset, elapsed(last_window_edge, current_time));
-		exit(978);
-	}
-	#endif
-
-	bufferbloat_stat->last_window_edge = current_time.tv_sec;
-}
-//</aa>

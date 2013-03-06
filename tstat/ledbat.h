@@ -120,22 +120,4 @@ void make_BitTorrentTCP_conn_stats (void *thisdir, int tproto); //statistiche fi
 float PSquare(void *pdir, float q, int P);
 
 
-
-//<aa>
-/**
- * It closes the previous window and updates the value of the following one. 
- * It returns the queueing delay of the closed window or -1 if no pkts have been seen in the 
- * previous window.
- * dir: the descriptor of the direction of the window that you want to close (dir will be casyed to
- * ucb*)
- */
-float close_window(void* dir);
-
-/**
- * It updates the left edge of the following not void window
- */
-void update_following_left_edge(void* dir);
-//</aa>
-
-
 #endif
