@@ -34,6 +34,7 @@
  */
 
 
+
 struct utp_hdr
 {
 #if UTP_BIG_ENDIAN
@@ -45,16 +46,7 @@ struct utp_hdr
 #elif UTP_LITTLE_ENDIAN
   unsigned int type:4;		/* type */
   unsigned int ver:4;		/* protocol version */
-  unsigned int ext:8;		/**
-
- * For every packet, this function must be called to update the statistics of the last window
- * 	time_ms: the timestamp of the packet (in microseconds - see [utp_draft])
- * 	qd: an estimate of the queueing delay
- */
-//<aa>TODO: maybe time_ms is no more used
-float windowed_queueing_delay( void *pdir, u_int32_t time_ms, float qd);/* header extension */
-  
-
+  unsigned int ext:8;		/* header extension */
 
 #else
 #error Define one of UTP_LITTLE_ENDIAN or UTP_BIG_ENDIAN

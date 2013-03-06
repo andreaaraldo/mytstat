@@ -3571,19 +3571,8 @@ void flush_histo_engine(void) {
 //<aa>TODO: All that follows must be placed in a file named bufferbloat.c . How to insert this in
 //makefile?
 
-// <aa>: trick to print the enum inspired by:
-// http://www.cs.utah.edu/~germain/PPS/Topics/C_Language/enumerated_types.html
-char* udp_type_string[] = {"UDP_UNKNOWN","FIRST_RTP","FIRST_RTCP","RTP","RTCP","SKYPE_E2E",
-	"SKYPE_OUT","SKYPE_SIG","P2P_EDK","P2P_KAD","P2P_KADU","P2P_GNU","P2P_BT","P2P_DC",
-	"P2P_KAZAA","P2P_PPLIVE","P2P_SOPCAST","P2P_TVANTS","P2P_OKAD","DNS","P2P_UTP",
-	"P2P_UTPBT","UDP_VOD","P2P_PPSTREAM","TEREDO","UDP_SIP","LAST_UDP_PROTOCOL"};
-//</aa>
-
-
-
-u_int32_t get_queueing_delay(utp_stat* bufferbloat_stat_p){
-	u_int32_t filtered_gross_delay;
-	filtered_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[0];	
+u_int32_t get_queueing_delay(const utp_stat* bufferbloat_stat_p){
+	u_int32_t filtered_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[0];	
 	int i=1;
 	while ( i<CUR_DELAY_SIZE ){
 		if (	( (bufferbloat_stat_p->cur_gross_delay_hist[i]< filtered_gross_delay ) 
@@ -3642,7 +3631,7 @@ u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p){
 }
 
 //<aa>
-void update_delay_base(u_int32_t gross_delay,utp_stat* bufferbloat_stat_p){
+void update_gross_delay_related_stuff(u_int32_t gross_delay,utp_stat* bufferbloat_stat_p){
 	#ifdef SEVERE_DEBUG
 	if (gross_delay==0){
 		printf("Error: gross delay = 0\n"); exit(541);
@@ -3704,7 +3693,7 @@ void update_delay_base(u_int32_t gross_delay,utp_stat* bufferbloat_stat_p){
 void print_queueing_dly_sample(enum analysis_type an_type, 
 	tcp_pair_addrblock* addr_pair, 	int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
-	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay)
+	const char* type, u_int32_t pkt_size, u_int32_t last_grossdelay)
 {
 	FILE* fp_qd;
 	switch (an_type){
@@ -3755,27 +3744,82 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 
 	wfprintf (fp_qd, "- "); 			//10.flowtype
 	wfprintf (fp_qd, "%u ", pkt_size); 		//11.pkt_size
-	wfprintf (fp_qd, "%u ", last_gross_delay/1000);	//12.last_gross_delay(milliseconds)
+	wfprintf (fp_qd, "%u ", last_grossdelay/1000);	//12.last_grossdelay(milliseconds)
 	wfprintf (fp_qd, "%s\n", type);	 		//13.type
 
 }
 
+const float EWMA_ALPHA = 0.5;
 
 //<aa>TODO: verify if the compiler do the call inlining</aa>
-u_int32_t bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
-	int dir,
-	utp_stat* bufferbloat_stat_p, int utp_conn_id,
-	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay)
+float bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
+	int dir, utp_stat* bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat, 
+	int utp_conn_id, const char* type, u_int32_t pkt_size, u_int32_t last_grossdelay,
+	Bool overfitting_avoided, Bool it_is_a_data_pkt)
 {
-      update_delay_base(last_gross_delay, bufferbloat_stat_p );//ptcp is thisdir
+	float windowed_qd = -1;
+	update_gross_delay_related_stuff(last_grossdelay, bufferbloat_stat );//ptcp is thisdir
       
-      u_int32_t estimated_qd = get_queueing_delay(bufferbloat_stat_p ); //microseconds
+	u_int32_t estimated_qd = get_queueing_delay((const utp_stat*)bufferbloat_stat ); 
+								//microseconds
 
-      print_queueing_dly_sample(an_type, addr_pair, 
-		dir, bufferbloat_stat_p, 0, estimated_qd, type, pkt_size, 
-		last_gross_delay);
+	print_queueing_dly_sample(an_type, addr_pair, 
+		dir, bufferbloat_stat, 0, estimated_qd, type, pkt_size, 
+		last_grossdelay);
 
-      return estimated_qd;
+	/***** UPDATING PACKETS AND BYTES INFO: begin *****/
+	//some statistics
+	//note: we consider type_utp for type of the packet, not type field in the packet
+	bufferbloat_stat->total_pkt++;
+	bufferbloat_stat->bytes += pkt_size;
+
+	if ( it_is_a_data_pkt == TRUE)	{
+		bufferbloat_stat->data_pktsize_sum += pkt_size;
+		
+		if (	(bufferbloat_stat->data_pktsize_max == 0) 
+		      ||(bufferbloat_stat->data_pktsize_max < pkt_size)
+		)
+			bufferbloat_stat->data_pktsize_max = pkt_size;
+
+		if (	(bufferbloat_stat->data_pktsize_min == 0) 
+		      ||(bufferbloat_stat->data_pktsize_min > pkt_size)
+		)
+			bufferbloat_stat->data_pktsize_min = pkt_size;
+	}
+	/***** UPDATING PACKETS AND BYTES INFO: end *****/
+
+	if(	overfitting_avoided == TRUE 
+	      ||estimated_qd<120000 //<aa>??? why? </aa>
+	){
+		//<aa>At first, see if a window can be closed (not including the present pkt)
+                windowed_qd = windowed_queueing_delay(LEDBAT, addr_pair, 
+			bufferbloat_stat, otherdir_bufferbloat_stat, dir, estimated_qd, type,
+			utp_conn_id);
+		//</aa>
+
+		if ( it_is_a_data_pkt==TRUE )
+			bufferbloat_stat->last_measured_time_diff = last_grossdelay;
+	
+		float ewma; //Exponentially-Weighted Moving Average
+		//update statistics on queueing delay in ms 
+		bufferbloat_stat->qd_measured_count++;
+		bufferbloat_stat->qd_measured_sum+= (estimated_qd/1000);
+		bufferbloat_stat->qd_measured_sum2+= ((estimated_qd/1000)*(estimated_qd/1000));
+
+       		if (bufferbloat_stat->ewma > 0) {
+                   ewma = bufferbloat_stat->ewma;
+                   bufferbloat_stat->ewma = 
+			EWMA_ALPHA * (estimated_qd/1000) + (1-EWMA_ALPHA) * ewma;
+		}else
+		   bufferbloat_stat->ewma = estimated_qd/1000;
+  		       
+		if ((bufferbloat_stat->queueing_delay_max < (estimated_qd/1000)))
+			bufferbloat_stat->queueing_delay_max= (estimated_qd/1000);
+
+		if ((bufferbloat_stat->queueing_delay_min > (estimated_qd/1000)))
+			bufferbloat_stat->queueing_delay_min= (estimated_qd/1000);
+	}
+      	return windowed_qd;
 }
 
 void print_last_window_general(enum analysis_type an_type, tcp_pair_addrblock* addr_pair,
@@ -3858,36 +3902,19 @@ void print_last_window_directional(enum analysis_type an_type,
 	);
 }
 
-
-float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, u_int32_t time_ms, 
-	float qd )
+//<aa>TODO: float is not the most efficient data_type to return</aa>
+float windowed_queueing_delay(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
+	utp_stat* thisdir_bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat, int dir, 
+	float qd, const char* type, int conn_id )
 {
-
-	printf("Forse time_ms e' inutile?\n"); exit(565554);
-	utp_stat *thisdir_bufferbloat_stat, *otherdir_bufferbloat_stat;
-	tcb *thisdir, *otherdir;
-	ucb *thisdir2, *otherdir2;
-	tcp_pair_addrblock* addr_pair;
 	FILE* fp_logc;
 
 	switch(an_type){
 		case TCP:
-			thisdir = (tcb*)pdir;
-			thisdir_bufferbloat_stat = &(thisdir->bufferbloat_stat);
-			otherdir = (dir == C2S) ? 
-				&(thisdir->ptp->s2c) : &(thisdir->ptp->c2s);
-			otherdir_bufferbloat_stat = &(otherdir->bufferbloat_stat);
-			addr_pair = &(thisdir->ptp->addr_pair);
 			fp_logc = fp_tcp_windowed_qd_logc;
 			break;
 
 		case LEDBAT:
-			thisdir2 = (ucb*)pdir;
-			thisdir_bufferbloat_stat = &(thisdir2->utp);
-			otherdir2 = (dir == C2S) ? 
-				&(thisdir2->pup->s2c) : &(thisdir2->pup->c2s);
-			otherdir_bufferbloat_stat = &(otherdir2->utp);
-			addr_pair = &(thisdir2->pup->addr_pair);
 			fp_logc = fp_ledbat_windowed_qd_logc;
 			break;
 
@@ -3895,44 +3922,43 @@ float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, u
 			printf("\nERROR in windowed_queueing_delay: \n"); exit(214);
 	}
 
-	//time_ms is in microsecond (10^-6)
 	//qd/1000 is in ms
 	//window in ms 
 
 	float qd_window;
 	float return_val=-1;
 
-	#ifdef SEVERE_DEBUG
-	check_direction_consistency(an_type,pdir, __LINE__);
-	thisdir_bufferbloat_stat->last_time_ms = time_ms;
-	#endif
-
 	//initialize last_window_edge
 	//<aa>TODO: better if we have a single time_zero_w1
 	if (thisdir_bufferbloat_stat->last_window_edge ==0){
+		//This is the first queueing delay sample we are dealing with. Therefore we
+		//set up current_time.tv_sec as the first window edge
+	
 		//Remember: check_direction_consistency(...) guarantees that if in this
 		//direction last_window_edge==0, then also in the opposite direction 
 		//utp.last_window_edge==0
 		thisdir_bufferbloat_stat->last_window_edge = current_time.tv_sec;
 		otherdir_bufferbloat_stat->last_window_edge = current_time.tv_sec;
 	}
-	//<aa>TODO: we are computing (last_window_edge - current_time) 2 times: here and inside
-	// close_window(...). It's not efficient</aa>
+	//<aa>TODO: we are computing (last_window_edge - current_time) 2 times: 
+	//here and inside close_window(...). It's not efficient</aa>
 	else if ( thisdir_bufferbloat_stat->last_window_edge - current_time.tv_sec >= 1)
 	{
-		printf("\ntstat.c %d\n",__LINE__); exit(5485454);
-		#ifdef BUFFERBLOAT_ANALYSIS
-		printf("\ntstat.c %d\n",__LINE__); exit(5485454);
+		//More than 1 second has passed from the last window edge. We can close the 
+		//window; but, at first, we have to print its values.
 		print_last_window_general(an_type,addr_pair, thisdir_bufferbloat_stat );
-		#endif
 		float other_qd_window;
 		//Print C2S first and then S2C
 		if (dir==C2S){
-			qd_window = close_window(an_type, thisdir);
-			other_qd_window = close_window(an_type, otherdir);
+			qd_window = close_window(an_type, thisdir_bufferbloat_stat, 
+				type, conn_id);
+			other_qd_window = close_window(an_type, thisdir_bufferbloat_stat, 
+				type, conn_id);
 		}else{
-			other_qd_window = close_window(an_type, otherdir);
-			qd_window = close_window(an_type, thisdir);
+			other_qd_window = close_window(an_type, thisdir_bufferbloat_stat, 
+				type, conn_id);
+			qd_window = close_window(an_type, thisdir_bufferbloat_stat, 
+				type, conn_id);
 		}
 		wfprintf(fp_logc,"\n");
 
@@ -3949,9 +3975,6 @@ float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, u
 		return_val = qd_window;
 	}
 
-	#ifdef SEVERE_DEBUG
-	check_direction_consistency(an_type,thisdir, __LINE__);
-	#endif
 
 	//<aa>Update the max
 	//TODO: why expressing qd in microseconds and qd_max_w1 in milliseconds?</aa>
@@ -4078,34 +4101,12 @@ void update_following_left_edge(utp_stat* bufferbloat_stat){
 	bufferbloat_stat->last_window_edge = current_time.tv_sec;
 }
 
-float close_window(enum analysis_type an_type, void* dir_)
+float close_window(enum analysis_type an_type, utp_stat* bufferbloat_stat, const char* type,
+	int conn_id)
 {
-	utp_stat* bufferbloat_stat;
-	int conn_id;
-	char* type;
 	float qd_window;
 	float window_error;
 	int window_size = 1;
-
-	switch(an_type){
-		case TCP:
-			conn_id = NO_MATTER;
-			type = "-";
-			bufferbloat_stat = &( ((tcb*)dir_)->bufferbloat_stat);
-			type="-";
-			break;
-
-		case LEDBAT:
-			conn_id = ((ucb*)dir_)->uTP_conn_id;
-			type = udp_type_string[(int) (((ucb*)dir_)->type ) ];
-			bufferbloat_stat = &( ((ucb*)dir_)->utp );
-			type = udp_type_string[(int) ( ((ucb*)dir_)->type )];
-			type="prboa";printf("Leva prova\n"); exit(77411);
-			break;
-
-		default:
-			printf("Error in closing window\n");exit(985);
-	}
 
 	//number of packets in the window we are going to close (not including the last packet)
 	int pkts_in_win = 
