@@ -875,6 +875,18 @@ u_int32_t bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* a
 void print_last_window_general(enum analysis_type an_type, tcp_pair_addrblock* addr_pair,
 	utp_stat* bufferbloat_stat_p);
 
+//Use it as a signal when there are no samples in a window
+#define BUFFEBLOAT_NOSAMPLES -1
+
+/**
+ * Print info for a specific direction
+ * - qd_window:	queueing delay of the window (-1 if this window has non samples)
+ * - conn_id:	it has no meaning for tcp analysis
+ */
+void print_last_window_directional(enum analysis_type an_type,
+	utp_stat* bufferbloat_stat, int conn_id, const char* type,
+	float qd_window, float window_error, int window_size);
+
 //compute statistics
 /** <aa>
  * If the previous window can be closed (i.e. more than 1s has passed), it closes it and 
@@ -885,6 +897,22 @@ void print_last_window_general(enum analysis_type an_type, tcp_pair_addrblock* a
  */
 float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, 
 	u_int32_t time_ms, float qd );
+
+/**
+ * It updates the left edge of the following not void window
+ */
+void update_following_left_edge(utp_stat* bufferbloat_stat);
+
+
+/**
+ * It closes the previous window and updates the value of the following one. 
+ * It returns the queueing delay of the closed window or -1 if no pkts have been seen in the 
+ * previous window.
+ * - dir: the descriptor of the direction of the window that you want to close (dir will be 
+ *	casted to ucb* or tcb*)
+ */
+float close_window(enum analysis_type an_type, void* dir_);
+
 
 #ifdef SEVERE_DEBUG
 //Check if the direction of the current packet and the opposite direction are handled

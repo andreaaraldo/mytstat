@@ -273,11 +273,6 @@ FILE *fp_udp_logc = NULL;
 FILE *fp_ledbat_logc = NULL;
 
 //<aa>
-#ifdef LEDBAT_WINDOW_CHECK
-	//<aa>TODO: remove it</aa>
-	FILE *fp_ledbat_window_logc = NULL;
-#endif
-
 #ifdef BUFFERBLOAT_ANALYSIS
 	//<aa>TODO: sample by sample log should be optional </aa>	
 	FILE *fp_ledbat_qd_sample_logc= NULL;
@@ -909,10 +904,6 @@ create_new_outfiles (char *filename)
          reopen_logfile(&fp_ledbat_logc,basename,"log_ledbat_complete");
 
 //<aa>
-#ifdef LEDBAT_WINDOW_CHECK
-         reopen_logfile(&fp_ledbat_window_logc,basename,"log_ledbat_window");
-#endif
-
 #ifdef BUFFERBLOAT_ANALYSIS
          reopen_logfile(&fp_ledbat_qd_sample_logc,basename,"log_ledbat_qd_sample");
          reopen_logfile(&fp_tcp_qd_sample_logc,basename,"log_tcp_qd_sample");
@@ -986,9 +977,16 @@ void close_all_logfiles()
 //<aa>TODO: why don' we wrap it in ifdef-endif</aa>?
       if (fp_ledbat_logc != NULL) { gzclose(fp_ledbat_logc); fp_ledbat_logc=NULL; }
 
-#ifdef LEDBAT_WINDOW_CHECK 
-      if (fp_ledbat_window_logc != NULL) 
-	{ gzclose(fp_ledbat_window_logc); fp_ledbat_window_logc=NULL; }
+#ifdef BUFFERBLOAT_ANALYSIS
+      if (fp_ledbat_windowed_qd_logc != NULL) 
+	{ gzclose(fp_ledbat_windowed_qd_logc); fp_ledbat_windowed_qd_logc=NULL; }
+      if (fp_ledbat_qd_sample_logc != NULL) 
+	{ gzclose(fp_ledbat_qd_sample_logc); fp_ledbat_qd_sample_logc=NULL; }
+
+      if (fp_tcp_windowed_qd_logc != NULL) 
+	{ gzclose(fp_tcp_windowed_qd_logc); fp_tcp_windowed_qd_logc=NULL; }
+      if (fp_tcp_qd_sample_logc != NULL) 
+	{ gzclose(fp_tcp_qd_sample_logc); fp_tcp_qd_sample_logc=NULL; }
 #endif
 
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
@@ -3573,6 +3571,15 @@ void flush_histo_engine(void) {
 //<aa>TODO: All that follows must be placed in a file named bufferbloat.c . How to insert this in
 //makefile?
 
+// <aa>: trick to print the enum inspired by:
+// http://www.cs.utah.edu/~germain/PPS/Topics/C_Language/enumerated_types.html
+char* udp_type_string[] = {"UDP_UNKNOWN","FIRST_RTP","FIRST_RTCP","RTP","RTCP","SKYPE_E2E",
+	"SKYPE_OUT","SKYPE_SIG","P2P_EDK","P2P_KAD","P2P_KADU","P2P_GNU","P2P_BT","P2P_DC",
+	"P2P_KAZAA","P2P_PPLIVE","P2P_SOPCAST","P2P_TVANTS","P2P_OKAD","DNS","P2P_UTP",
+	"P2P_UTPBT","UDP_VOD","P2P_PPSTREAM","TEREDO","UDP_SIP","LAST_UDP_PROTOCOL"};
+//</aa>
+
+
 
 u_int32_t get_queueing_delay(utp_stat* bufferbloat_stat_p){
 	u_int32_t filtered_gross_delay;
@@ -3800,20 +3807,88 @@ void print_last_window_general(enum analysis_type an_type, tcp_pair_addrblock* a
 }
 
 
+void print_last_window_directional(enum analysis_type an_type,
+	utp_stat* bufferbloat_stat, int conn_id, const char* type,
+	float qd_window, float window_error, int window_size)
+{
+	FILE* fp_logc;
+	switch(an_type){
+		case TCP:
+			fp_logc = fp_tcp_windowed_qd_logc;
+			break;
+
+		case LEDBAT:
+			fp_logc = fp_ledbat_windowed_qd_logc;
+			break;
+
+		default:printf("ERROR: in print_last_window_directional\n"); exit(33);
+	}
+
+	wfprintf(fp_logc, " %s",type);//11-25
+
+	#ifdef SEVERE_DEBUG
+	if (	(qd_window == BUFFEBLOAT_NOSAMPLES && qd_window != BUFFEBLOAT_NOSAMPLES)
+	      ||(qd_window != BUFFEBLOAT_NOSAMPLES && qd_window == BUFFEBLOAT_NOSAMPLES)
+	){
+		printf("ERROR: BUFFERBLOAT_NOSAMPLES inconsistencies\n");exit(447);
+	}	
+	#endif
+
+	if (qd_window == BUFFEBLOAT_NOSAMPLES){
+		wfprintf(fp_logc, " - -");
+	}
+	else
+		wfprintf(fp_logc, " %f %f", 
+			qd_window,			//13-27
+			window_error			//14-28
+		);
+
+	wfprintf(fp_logc," %f %d %d %d %d %d %f %f %f %u",
+		bufferbloat_stat->qd_max_w1,		//15-29
+		(int)((int)qd_window/(window_size*1000)),//16-30
+		bufferbloat_stat->qd_count_w1,//window_no.//17-31
+		conn_id,				//18-32
+		bufferbloat_stat->qd_measured_count- bufferbloat_stat->qd_count_w1,
+							//no_of_pkts_in_windows
+		bufferbloat_stat->qd_measured_count_w1,	//20-34: no of not void windows
+		bufferbloat_stat->qd_measured_sum,	//21-35
+		bufferbloat_stat->qd_measured_sum_w1,	//22-36
+		bufferbloat_stat->qd_sum_w1,		//23-37
+		bufferbloat_stat->delay_base		//24-38
+	);
+}
+
+
 float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, u_int32_t time_ms, 
 	float qd )
 {
 
 	printf("Forse time_ms e' inutile?\n"); exit(565554);
-	utp_stat* thisdir_bufferbloat_stat, otherdir_bufferbloat_stat;
+	utp_stat *thisdir_bufferbloat_stat, *otherdir_bufferbloat_stat;
+	tcb *thisdir, *otherdir;
+	ucb *thisdir2, *otherdir2;
+	tcp_pair_addrblock* addr_pair;
+	FILE* fp_logc;
 
 	switch(an_type){
 		case TCP:
-			thisdir_bufferbloat_stat = &(((tcb*)pdir)->bufferbloat_stat);
+			thisdir = (tcb*)pdir;
+			thisdir_bufferbloat_stat = &(thisdir->bufferbloat_stat);
+			otherdir = (dir == C2S) ? 
+				&(thisdir->ptp->s2c) : &(thisdir->ptp->c2s);
+			otherdir_bufferbloat_stat = &(otherdir->bufferbloat_stat);
+			addr_pair = &(thisdir->ptp->addr_pair);
+			fp_logc = fp_tcp_windowed_qd_logc;
 			break;
 
 		case LEDBAT:
-			thisdir_bufferbloat_stat = &(((ucb*)pdir)->utp);
+			thisdir2 = (ucb*)pdir;
+			thisdir_bufferbloat_stat = &(thisdir2->utp);
+			otherdir2 = (dir == C2S) ? 
+				&(thisdir2->pup->s2c) : &(thisdir2->pup->c2s);
+			otherdir_bufferbloat_stat = &(otherdir2->utp);
+			addr_pair = &(thisdir2->pup->addr_pair);
+			fp_logc = fp_ledbat_windowed_qd_logc;
 			break;
 
 		default:
@@ -3826,13 +3901,9 @@ float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, u
 
 	float qd_window;
 	float return_val=-1;
-	
-	ucb *thisdir;
-	thisdir = ( ucb *) pdir;
-	ucb* otherdir = (dir == C2S) ? &(thisdir->pup->s2c) : &(thisdir->pup->c2s);
 
 	#ifdef SEVERE_DEBUG
-	check_direction_consistency(pdir, __LINE__);
+	check_direction_consistency(an_type,pdir, __LINE__);
 	thisdir_bufferbloat_stat->last_time_ms = time_ms;
 	#endif
 
@@ -3852,18 +3923,18 @@ float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, u
 		printf("\ntstat.c %d\n",__LINE__); exit(5485454);
 		#ifdef BUFFERBLOAT_ANALYSIS
 		printf("\ntstat.c %d\n",__LINE__); exit(5485454);
-		print_last_window_general(LEDBAT,&(thisdir->pup->addr_pair), &(thisdir->utp));
+		print_last_window_general(an_type,addr_pair, thisdir_bufferbloat_stat );
 		#endif
 		float other_qd_window;
 		//Print C2S first and then S2C
 		if (dir==C2S){
-			qd_window = close_window(thisdir);
-			other_qd_window = close_window(otherdir);
+			qd_window = close_window(an_type, thisdir);
+			other_qd_window = close_window(an_type, otherdir);
 		}else{
-			other_qd_window = close_window(otherdir);
-			qd_window = close_window(thisdir);
+			other_qd_window = close_window(an_type, otherdir);
+			qd_window = close_window(an_type, thisdir);
 		}
-		wfprintf(fp_ledbat_window_logc,"\n");
+		wfprintf(fp_logc,"\n");
 
 		#ifdef SEVERE_DEBUG
 		if (dir!=C2S && dir!=S2C){
@@ -3871,7 +3942,7 @@ float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, u
 			exit(442);
 		}
 		if (qd_window == -1 && other_qd_window ==-1){
-			printf("\nledbat.c %d:ERROR: No pkts in both direction\n",__LINE__);
+			printf("\nline %d:ERROR: No pkts in both direction\n",__LINE__);
 			exit(987324);
 		}
 		#endif
@@ -3879,13 +3950,13 @@ float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, u
 	}
 
 	#ifdef SEVERE_DEBUG
-	check_direction_consistency(thisdir, __LINE__);
+	check_direction_consistency(an_type,thisdir, __LINE__);
 	#endif
 
 	//<aa>Update the max
 	//TODO: why expressing qd in microseconds and qd_max_w1 in milliseconds?</aa>
-	if (qd/1000 >= thisdir->utp.qd_max_w1)
-		thisdir->utp.qd_max_w1=qd/1000;
+	if (qd/1000 >= thisdir_bufferbloat_stat->qd_max_w1)
+		thisdir_bufferbloat_stat->qd_max_w1=qd/1000;
 
    return return_val;
 }//windowed
@@ -3894,49 +3965,66 @@ float windowed_queueing_delay(enum analysis_type an_type, void *pdir, int dir, u
 void check_direction_consistency(enum analysis_type an_type,
 	void* thisdir_, int call_line_number)
 {
+	tcb *thisdir_tcp, *otherdir_tcp; 
+	ucb* thisdir_ledbat, *otherdir_ledbat;
 	timeval last_window_edge, other_last_window_edge;
-	void* thisdir_parent, otherdir_parent;
+	void* thisdir_parent, *otherdir_parent;
 	timeval thisdir_last_packet_time, otherdir_last_packet_time;
 
 	switch (an_type){
 		case TCP:
-			tcb* thisdir = (tcb*) thisdir_;
-			last_window_edge.tv_sec = thisdir->bufferbloat_stat.last_window_edge;
+			thisdir_tcp = (tcb*) thisdir_;
+			last_window_edge.tv_sec = thisdir_tcp->bufferbloat_stat.last_window_edge;
 			last_window_edge.tv_usec = 0;
-			tcb* otherdir;
-			if (thisdir == thisdir->ptp->s2c && thisdir != thisdir->ptp->c2s)
-				otherdir = thisdir->ptp->c2s;
-			else if (thisdir == thisdir->ptp->c2s && thisdir != thisdir->ptp->s2c)
-				otherdir = thisdir->ptp->s2c;
+			if (
+				thisdir_tcp == &(thisdir_tcp->ptp->s2c) 
+			     && thisdir_tcp != &(thisdir_tcp->ptp->c2s)
+			)
+				otherdir_tcp = &(thisdir_tcp->ptp->c2s);
+
+			else if (
+				thisdir_tcp == &(thisdir_tcp->ptp->c2s) 
+			     && thisdir_tcp != &(thisdir_tcp->ptp->s2c)
+			)
+				otherdir_tcp = &(thisdir_tcp->ptp->s2c);
+
 			else{
 				printf("ERROR a"); exit(7);
 			}
-			other_last_window_edge.tv_sec = otherdir->bufferbloat_stat.last_window_edge;
+			other_last_window_edge.tv_sec = 
+				otherdir_tcp->bufferbloat_stat.last_window_edge;
 			other_last_window_edge.tv_usec = 0;
-			thisdir_parent = (void*) thisdir->ptp;
-			otherdir_parent = (void*) otherdir->ptp;
-			thisdir_last_packet_time = thisdir->last_time;
-			otherdir_last_packet_time = otherdir->last_time;
+			thisdir_parent = (void*) thisdir_tcp->ptp;
+			otherdir_parent = (void*) otherdir_tcp->ptp;
+			thisdir_last_packet_time = thisdir_tcp->last_time;
+			otherdir_last_packet_time = otherdir_tcp->last_time;
 			break;
 
 		case LEDBAT:
-			ucb* thisdir = (ucb*) thisdir_;
-			last_window_edge.tv_sec = thisdir->utp.last_window_edge;
+			thisdir_ledbat = (ucb*) thisdir_;
+			last_window_edge.tv_sec = thisdir_ledbat->utp.last_window_edge;
 			last_window_edge.tv_usec = 0;
-			ucb* otherdir;
-			if (thisdir == thisdir->pup->s2c && thisdir != thisdir->pup->c2s)
-				otherdir = thisdir->pup->c2s;
-			else if (thisdir == thisdir->pup->c2s && thisdir != thisdir->pup->s2c)
-				otherdir = thisdir->pup->s2c;
+			if (
+				thisdir_ledbat == &(thisdir_ledbat->pup->s2c)
+			     && thisdir_ledbat != &(thisdir_ledbat->pup->c2s)
+			)
+				otherdir_ledbat = &(thisdir_ledbat->pup->c2s);
+
+			else if (
+				thisdir_ledbat == &(thisdir_ledbat->pup->c2s) 
+			     && thisdir_ledbat != &(thisdir_ledbat->pup->s2c)
+			)
+				otherdir_ledbat = &(thisdir_ledbat->pup->s2c);
+
 			else{
 				printf("ERROR a"); exit(7);
 			}
-			other_last_window_edge.tv_sec = otherdir->utp.last_window_edge;
+			other_last_window_edge.tv_sec = otherdir_ledbat->utp.last_window_edge;
 			other_last_window_edge.tv_usec = 0;
-			thisdir_parent = (void*) thisdir->pup;
-			otherdir_parent = (void*) otherdir->pup;
-			thisdir_last_packet_time = thisdir->last_pkt_time;
-			otherdir_last_packet_time = otherdir->last_pkt_time;
+			thisdir_parent = (void*) thisdir_ledbat->pup;
+			otherdir_parent = (void*) otherdir_ledbat->pup;
+			thisdir_last_packet_time = thisdir_ledbat->last_pkt_time;
+			otherdir_last_packet_time = otherdir_ledbat->last_pkt_time;
 			break;
 
 		default: 
@@ -3956,12 +4044,136 @@ void check_direction_consistency(enum analysis_type an_type,
 		printf("\nERROR: Different pups\n");exit(21212);
 	}
 
-	if (	elapsed(otherdir_last_pkt_time, current_time) < 0 ||
-		elapsed(thisdir_last_pkt_time, current_time) < 0   ){
-		printf("\nledbat.c %d: ERROR\n",__LINE__); exit(473);	
+	if (	elapsed(otherdir_last_packet_time, current_time) < 0 ||
+		elapsed(thisdir_last_packet_time, current_time) < 0   ){
+		printf("\nline %d: ERROR\n",__LINE__); exit(473);	
 	}
 }
-#endif
 
+void update_following_left_edge(utp_stat* bufferbloat_stat){
+	printf("ATTENZIONE: serve per davvero?\n"); exit(774153);
+	//Compute the left edge of the following not void window
+
+	#ifdef SEVERE_DEBUG
+	//offset is the time(seconds) from the future window left edge and current_time
+	time_t offset = current_time.tv_sec - bufferbloat_stat->last_window_edge;
+	//offset corresponds to the number of void windows between the last_window_edge and 
+	//current_time
+
+	timeval last_window_edge;
+	last_window_edge.tv_sec = bufferbloat_stat->last_window_edge;
+	last_window_edge.tv_usec = 0;
+
+	if (	!
+		(	elapsed(last_window_edge, current_time) >= 1e6*offset &&
+			elapsed(last_window_edge, current_time) <= 1e6*(offset+1)    )
+	){
+		printf("\nline.c %d: ERROR:\n dir->utp.last_window_edge=%lu;\n current_time=%lus%luus;\n offset=%lu\n elapsed(last_window_edge, current_time)=%f\n", 
+			__LINE__, bufferbloat_stat->last_window_edge, current_time.tv_sec,
+			current_time.tv_usec, offset, elapsed(last_window_edge, current_time));
+		exit(978);
+	}
+	#endif
+
+	bufferbloat_stat->last_window_edge = current_time.tv_sec;
+}
+
+float close_window(enum analysis_type an_type, void* dir_)
+{
+	utp_stat* bufferbloat_stat;
+	int conn_id;
+	char* type;
+	float qd_window;
+	float window_error;
+	int window_size = 1;
+
+	switch(an_type){
+		case TCP:
+			conn_id = NO_MATTER;
+			type = "-";
+			bufferbloat_stat = &( ((tcb*)dir_)->bufferbloat_stat);
+			type="-";
+			break;
+
+		case LEDBAT:
+			conn_id = ((ucb*)dir_)->uTP_conn_id;
+			type = udp_type_string[(int) (((ucb*)dir_)->type ) ];
+			bufferbloat_stat = &( ((ucb*)dir_)->utp );
+			type = udp_type_string[(int) ( ((ucb*)dir_)->type )];
+			type="prboa";printf("Leva prova\n"); exit(77411);
+			break;
+
+		default:
+			printf("Error in closing window\n");exit(985);
+	}
+
+	//number of packets in the window we are going to close (not including the last packet)
+	int pkts_in_win = 
+		bufferbloat_stat->qd_measured_count- bufferbloat_stat->qd_count_w1;
+	if (pkts_in_win == 0){
+		//No pkts have been seen in this direction in the previous window ==> 
+		// the only value to be updated is the time_zero (left_edge)
+
+		#ifdef SEVERE_DEBUG
+		if (	bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1 != 0 ||
+			bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1 != 0
+		){
+			printf("\nline %d: ERROR: if there are non pkts, values can not change\n",
+				__LINE__);
+			exit(46);
+		}
+		#endif
+		print_last_window_directional(an_type,
+			bufferbloat_stat, conn_id, type,
+			BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES, window_size);
+		update_following_left_edge( bufferbloat_stat );
+		return -1;
+	}
+
+
+
+	qd_window= (bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1)
+				/pkts_in_win;
+
+	window_error=Stdev(bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1, 
+		      bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1,
+		      bufferbloat_stat->qd_measured_count - bufferbloat_stat->qd_count_w1 );
+		
+	#ifdef SEVERE_DEBUG
+	if (bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1 < 0){
+		printf("\n\n\n\nline %d: ERROR: qd_measured_sum(%f) < qd_sum_w1(%f)\n\n\n",
+			__LINE__,bufferbloat_stat->qd_measured_sum, 
+			bufferbloat_stat->qd_sum_w1);
+		exit(-9987);
+	}
+		
+	if (bufferbloat_stat->qd_sum_w1 < 0){
+		printf("\n\n\nline %d: ERROR: qd_sum_w1(%f) < 0\n\n\n\n",
+			__LINE__,bufferbloat_stat->qd_sum_w1);
+		exit(-9911);
+	}
+	#endif
+
+	print_last_window_directional(an_type,
+		bufferbloat_stat, conn_id, type, 
+		qd_window, window_error, window_size);
+
+	bufferbloat_stat->qd_sum_w1 += 
+		(bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1);		
+	bufferbloat_stat->qd_count_w1 += 
+		(bufferbloat_stat->qd_measured_count- bufferbloat_stat->qd_count_w1);
+	bufferbloat_stat->qd_sum2_w1 += 
+		(bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1);
+
+	printf("forse si chiama last?\n"); exit(451);
+	update_following_left_edge( bufferbloat_stat );
+
+	//stqd_max_w1atistics
+	bufferbloat_stat->qd_measured_count_w1++;
+	bufferbloat_stat->qd_measured_sum_w1 += qd_window;
+	bufferbloat_stat->qd_measured_sum2_w1 += ((qd_window)*(qd_window));
+
+	return qd_window;
+}
 
 //</aa>
