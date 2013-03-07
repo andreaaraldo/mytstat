@@ -1241,7 +1241,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 		    Bool overfitting_avoided = TRUE;
 		    Bool it_is_a_data_packet = TRUE;
 		    bufferbloat_analysis(TCP, &(thisdir->ptp->addr_pair), *dir, 
-				&(thisdir->bufferbloat_stat), &(thisdir->bufferbloat_stat),
+				&(thisdir->bufferbloat_stat), &(otherdir->bufferbloat_stat),
 				utp_conn_id, type, tcp_data_length, 
 				gross_delay, overfitting_avoided, it_is_a_data_packet);
 	
