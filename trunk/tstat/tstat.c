@@ -3763,6 +3763,9 @@ float bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_
 	if (last_grossdelay==0){
 		printf("line %d: Error: gross delay = 0\n",__LINE__); exit(541);
 	}
+	if (bufferbloat_stat == otherdir_bufferbloat_stat){
+		printf("line %d: thisdir_bufferbloat_stat == otherdir_bufferbloat_stat\n",__LINE__); exit(11);
+	}	
 	#endif
 
 	update_gross_delay_related_stuff(last_grossdelay, bufferbloat_stat );//ptcp is thisdir
@@ -3799,7 +3802,7 @@ float bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_
 	      ||estimated_qd<120000 //<aa>??? why? </aa>
 	){
 		//<aa>At first, see if a window can be closed (not including the present pkt)
-                windowed_qd = windowed_queueing_delay(LEDBAT, addr_pair, 
+                windowed_qd = windowed_queueing_delay(an_type, addr_pair, 
 			bufferbloat_stat, otherdir_bufferbloat_stat, dir, estimated_qd, type,
 			utp_conn_id);
 		//</aa>
@@ -3842,8 +3845,7 @@ void print_last_window_general(enum analysis_type an_type, tcp_pair_addrblock* a
 	}
 
 	wfprintf(fp_qd,"%u ",
-		bufferbloat_stat_p->last_window_edge	//1.last_window_edge(seconds)
-		
+		bufferbloat_stat_p->last_window_edge	//1.last_window_edge(seconds)		
 	);
 
 	wfprintf (fp_qd, "%s %s ",
@@ -3872,7 +3874,7 @@ void print_last_window_directional(enum analysis_type an_type,
 		default:printf("ERROR: in print_last_window_directional\n"); exit(33);
 	}
 
-	wfprintf(fp_logc, " %s",type);//11-25
+	wfprintf(fp_logc, " %s",type);			//6-19:type
 
 	#ifdef SEVERE_DEBUG
 	if (	(qd_window == BUFFEBLOAT_NOSAMPLES && qd_window != BUFFEBLOAT_NOSAMPLES)
@@ -3883,26 +3885,26 @@ void print_last_window_directional(enum analysis_type an_type,
 	#endif
 
 	if (qd_window == BUFFEBLOAT_NOSAMPLES){
-		wfprintf(fp_logc, " - -");
+		wfprintf(fp_logc, " - -");		
 	}
 	else
 		wfprintf(fp_logc, " %f %f", 
-			qd_window,			//13-27
-			window_error			//14-28
+			qd_window/1000,			//7-20
+			window_error			//8-21
 		);
 
 	wfprintf(fp_logc," %f %d %d %d %d %d %f %f %f %u",
-		bufferbloat_stat->qd_max_w1,		//15-29
-		(int)((int)qd_window/(window_size*1000)),//16-30
-		bufferbloat_stat->qd_count_w1,//window_no.//17-31
-		conn_id,				//18-32
+		bufferbloat_stat->qd_max_w1,		//9-22
+		(int)((int)qd_window/(window_size*1000)),//10-23
+		bufferbloat_stat->qd_count_w1,//window_no.//11-24
+		conn_id,				//12-25
 		bufferbloat_stat->qd_measured_count- bufferbloat_stat->qd_count_w1,
-							//no_of_pkts_in_windows
-		bufferbloat_stat->qd_measured_count_w1,	//20-34: no of not void windows
-		bufferbloat_stat->qd_measured_sum,	//21-35
-		bufferbloat_stat->qd_measured_sum_w1,	//22-36
-		bufferbloat_stat->qd_sum_w1,		//23-37
-		bufferbloat_stat->delay_base		//24-38
+							//13-26:no_of_pkts_in_windows
+		bufferbloat_stat->qd_measured_count_w1,	//14-27: no of not void windows
+		bufferbloat_stat->qd_measured_sum,	//15-28
+		bufferbloat_stat->qd_measured_sum_w1,	//16-29
+		bufferbloat_stat->qd_sum_w1,		//17-30
+		bufferbloat_stat->delay_base/1000	//18-31 (ms)
 	);
 }
 
@@ -3912,6 +3914,12 @@ float windowed_queueing_delay(enum analysis_type an_type, tcp_pair_addrblock* ad
 	float qd, const char* type, int conn_id )
 {
 	FILE* fp_logc;
+
+	#ifdef SEVERE_DEBUG
+	if (thisdir_bufferbloat_stat == otherdir_bufferbloat_stat){
+		printf("line %d: thisdir_bufferbloat_stat == otherdir_bufferbloat_stat\n",__LINE__); exit(11);
+	}	
+	#endif
 
 	switch(an_type){
 		case TCP:

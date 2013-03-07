@@ -280,6 +280,22 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	otherdir = (dir == C2S) ? &(thisdir->pup->s2c) : &(thisdir->pup->c2s);
 	//<aa>Now, otherdir conveys info about the opposite direction</aa>
 
+	//<aa>
+	utp_stat* bufferbloat_stat = &(thisdir->utp);
+	utp_stat* other_bufferbloat_stat = &(otherdir->utp);
+	//</aa>
+
+
+	#ifdef SEVERE_DEBUG
+	check_direction_consistency(LEDBAT, thisdir, __LINE__);
+	if (thisdir == otherdir){
+		printf("ledbat.c %d: thisdir == otherdir\n", __LINE__); exit(11);
+	}	
+	if (bufferbloat_stat == other_bufferbloat_stat){
+		printf("ledbat.c %d: bufferbloat_stat == other_bufferbloat_stat\n", __LINE__); exit(11);
+	}
+	#endif
+
     	void *theheader;
 	utp_hdr *putp = (struct utp_hdr *) hdr;
 	Bool it_is_a_data_pkt = FALSE;
@@ -297,7 +313,6 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	u_int16_t putplen=(ntohs(pudp->uh_ulen) -8); //payload udp len -> utp packet lenght
 
 	//<aa>
-	utp_stat* bufferbloat_stat = &(thisdir->utp);
 	u_int32_t grossdelay = ntohl(putp->time_diff);
 	#ifdef SEVERE_DEBUG
 	if (dir!=C2S && dir!=S2C){
