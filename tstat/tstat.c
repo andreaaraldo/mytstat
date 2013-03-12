@@ -4101,6 +4101,24 @@ void check_direction_consistency(enum analysis_type an_type,
 	timeval thisdir_last_packet_time, otherdir_last_packet_time;
 	utp_stat *thisdir_bufferbloat_stat, *otherdir_bufferbloat_stat;
 
+	if(an_type != LEDBAT && an_type != TCP){
+		printf("ERROR in check_direction_consistency, line %d\n",__LINE__); 
+		exit(414);
+	}
+
+	if(an_type==TCP && trig!=ACK_TRIG && trig!=DATA_TRIG){
+		printf("ERROR in check_direction_consistency, line %d\n",
+			__LINE__); 
+		exit(414);
+	}
+
+	if(an_type == LEDBAT && trig != DONT_CARE_TRIG){
+		printf("ERROR in check_direction_consistency, line %d\n",
+			__LINE__); 
+		exit(414);
+	}
+	
+
 	switch (an_type){
 		case TCP:
 			thisdir_tcp = (tcb*) thisdir_;
