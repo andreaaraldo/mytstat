@@ -68,10 +68,10 @@ loss=${2:-0}
 aqm=${3:-fifo}
 
 # main procedure
-# - reset 
+echo "reset"
 tc qdisc del dev $dev root
 
-# - build tree
+echo "build tree"
 tc qdisc add dev $dev root handle 1: htb default 11
 
 #---------------------------------------------------
