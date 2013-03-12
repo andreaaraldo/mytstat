@@ -1239,21 +1239,22 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 		
 		    //<aa>TODO: take more care of this. Learn from ledbat example</aa>
 		    Bool overfitting_avoided = TRUE;
-		    Bool it_is_a_data_packet = TRUE;
-		    bufferbloat_analysis(TCP, &(thisdir->ptp->addr_pair), *dir, 
-				&(thisdir->bufferbloat_stat), &(otherdir->bufferbloat_stat),
+		    Bool update_data_info = TRUE;
+		    bufferbloat_analysis(TCP, DATA_TRIG,&(thisdir->ptp->addr_pair), 
+				*dir, &(thisdir->bufferbloat_stat_data_triggered), 
+				&(otherdir->bufferbloat_stat_data_triggered),
 				utp_conn_id, type, tcp_data_length, 
-				gross_delay, overfitting_avoided, it_is_a_data_packet);
+				gross_delay, overfitting_avoided, update_data_info);
 	
 	      }
-	      #ifdef SEVERE_DEBUG
+/*	      #ifdef SEVERE_DEBUG
 	      else{
 		   printf("\ncause=%d%d%d%d\n",
 			retrans!=0, out_order, 
 			start != otherdir->ack, otherdir->last_ack_type != NORMAL);
 	      }
 	      #endif
-
+*/
 	      #endif
 	      //</aa>
 
