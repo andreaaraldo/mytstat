@@ -589,6 +589,35 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       ptcb->rtt_sum2 += etime_rtt * etime_rtt;
       ++ptcb->rtt_count;
       ret = NORMAL;
+
+      #if defined(BUFFERBLOAT_ANALYSIS) && defined(SEVERE_DEBUG)
+      check_direction_consistency(TCP, ACK_TRIG, (void*)ptcb, __LINE__ );
+      if(etime_rtt > UINT32_MAX){
+		printf("rexmit.c %d: ERROR\n",__LINE__); exit(117);
+      }
+      #endif
+
+      #ifdef BUFFERBLOAT_ANALYSIS
+      int utp_conn_id = NO_MATTER; //not meaningful in tcp contest
+      int dir = (&(ptcb->ptp->c2s) == ptcb) ? C2S : S2C ;
+      char type[16];
+      sprintf(type,"%u:%u", (ptcb->ptp)->con_type, (ptcb->ptp)->p2p_type);
+      utp_stat* otherdir_bufferbloat_stat = (dir==C2S) ?
+		&(ptcb->ptp->s2c.bufferbloat_stat_ack_triggered) : 
+		&(ptcb->ptp->c2s.bufferbloat_stat_ack_triggered) ;
+
+      u_int32_t pkt_size = pseg->seq_lastbyte - pseg->seq_firstbyte + 1;
+
+      //<aa>TODO: take more care of this. Learn from ledbat example</aa>
+      Bool overfitting_avoided = TRUE;
+      Bool update_size_info = TRUE;
+      bufferbloat_analysis(TCP, ACK_TRIG, &(ptcb->ptp->addr_pair),
+		dir, &(ptcb->bufferbloat_stat_ack_triggered), 
+		otherdir_bufferbloat_stat, utp_conn_id, type, pkt_size, 
+		(u_int32_t)etime_rtt, overfitting_avoided,  update_size_info);
+      #endif
+      
+
   }else{
       /* retrans, can't use it */
       ret = AMBIG;
