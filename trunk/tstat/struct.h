@@ -506,6 +506,12 @@ typedef struct upper_protocols
 #define MAX_COUNT_SEGMENTS 10
 #endif
 
+#ifdef BUFFERBLOAT_ANALYSIS
+enum bufferbloat_analysis_trigger
+{	DATA_TRIG = 0, ACK_TRIG
+};
+#endif
+
 typedef struct tcb
 {
   struct bayes_classifier *bc_avgipg;
@@ -631,11 +637,11 @@ typedef struct tcb
   double retr_tm_sum2;		/* sum of squares, for stdev */
   u_long retr_tm_count;		/* for averages */
 
-//  /* Instantaneous throughput info */
-//  timeval thru_firsttime;	/* time of first packet this interval */
-//  u_long thru_bytes;		/* number of bytes this interval */
-//  u_long thru_pkts;		/* number of packets this interval */
-//  tPACKET_STATSPACKET_STATSimeval thru_lasttime;	/* time of previous segment */
+  //  /* Instantaneous throughput info */
+  //  timeval thru_firsttime;	/* time of first packet this interval */
+  //  u_long thru_bytes;		/* number of bytes this interval */
+  //  u_long thru_pkts;		/* number of packets this interval */
+  //  tPACKET_STATSPACKET_STATSimeval thru_lasttime;	/* time of previous segment */
 
   /* data transfer time stamps - mallman */
   timeval first_data_time;
@@ -651,7 +657,8 @@ typedef struct tcb
 
   //<aa>
   #ifdef BUFFERBLOAT_ANALYSIS
-  utp_stat bufferbloat_stat;
+  utp_stat bufferbloat_stat_data_triggered;
+  utp_stat bufferbloat_stat_ack_triggered;
   timeval last_ack_time; 	//<aa>when the last valid ack was seen in this direction</aa>
   enum t_ack last_ack_type;
   #endif
