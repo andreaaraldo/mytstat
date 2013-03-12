@@ -842,6 +842,9 @@ enum analysis_type {
 	TCP = 1,
 	LEDBAT = 2
 };
+
+enum bufferbloat_analysis_trigger
+{	DATA_TRIG, ACK_TRIG, DONT_CARE_TRIG };
 #endif
 
 #define NO_MATTER -1
@@ -855,6 +858,7 @@ enum analysis_type {
  * - last_gross_delay (microseconds) (it will be printed on the logfile in milliseconds)
  */
 void print_queueing_dly_sample(enum analysis_type an_type, 
+	enum bufferbloat_analysis_trigger trig,
 	tcp_pair_addrblock* addr_pair, int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
 	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay);
@@ -865,13 +869,15 @@ void print_queueing_dly_sample(enum analysis_type an_type,
  * - last_gross_delay (microseconds)
  * - return windowed queueing delay (microseconds)
  */
-float bufferbloat_analysis(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
+float bufferbloat_analysis(enum analysis_type an_type,
+	enum bufferbloat_analysis_trigger trig, tcp_pair_addrblock* addr_pair, 
 	int dir, utp_stat* bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat,
 	int utp_conn_id, const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay,
-	Bool overfitting_avoided, Bool it_is_a_data_pkt);
+	Bool overfitting_avoided, Bool update_size_info);
 
 
-void print_last_window_general(enum analysis_type an_type, tcp_pair_addrblock* addr_pair,
+void print_last_window_general(enum analysis_type an_type,  
+	enum bufferbloat_analysis_trigger trig, tcp_pair_addrblock* addr_pair,
 	utp_stat* bufferbloat_stat_p);
 
 //Use it as a signal when there are no samples in a window
@@ -883,6 +889,7 @@ void print_last_window_general(enum analysis_type an_type, tcp_pair_addrblock* a
  * - conn_id:	it has no meaning for tcp analysis
  */
 void print_last_window_directional(enum analysis_type an_type,
+	enum bufferbloat_analysis_trigger trig,
 	utp_stat* bufferbloat_stat, int conn_id, const char* type,
 	float qd_window, float window_error, int window_size);
 
@@ -893,7 +900,8 @@ void print_last_window_directional(enum analysis_type an_type,
  * returns the estimated queueing delay for that window. It returns -1 otherwise.
  * - qd: an estimate of the queueing delay of the packet
  */
-float windowed_queueing_delay(enum analysis_type an_type, tcp_pair_addrblock* addr_pair, 
+float windowed_queueing_delay(enum analysis_type an_type, 
+	enum bufferbloat_analysis_trigger trig, tcp_pair_addrblock* addr_pair, 
 	utp_stat* thisdir_bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat, int dir, 
 	float qd, const char* type, int conn_id);
 //</aa>
@@ -910,14 +918,14 @@ void update_following_left_edge(utp_stat* bufferbloat_stat);
  * It returns the queueing delay of the closed window or -1 if no pkts have been seen in the 
  * previous window.
  */
-float close_window(enum analysis_type an_type, utp_stat* bufferbloat_stat, const char* type,
-	int conn_id);
+float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger trig,
+	utp_stat* bufferbloat_stat, const char* type, int conn_id);
 
 
 #ifdef SEVERE_DEBUG
 //Check if the direction of the current packet and the opposite direction are handled
 //consistently. If it is not the case, the program will terminate
-void check_direction_consistency(enum analysis_type an_type,
-	void* thisdir_, int call_line_number);
+void check_direction_consistency(enum analysis_type an_type, 
+	enum bufferbloat_analysis_trigger trig, void* thisdir_, int call_line_number);
 #endif
 

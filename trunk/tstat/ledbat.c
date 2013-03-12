@@ -287,7 +287,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 
 
 	#ifdef SEVERE_DEBUG
-	check_direction_consistency(LEDBAT, thisdir, __LINE__);
+	check_direction_consistency(LEDBAT, DONT_CARE_TRIG, thisdir, __LINE__);
 	if (thisdir == otherdir){
 		printf("ledbat.c %d: thisdir == otherdir\n", __LINE__); exit(11);
 	}	
@@ -319,7 +319,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		printf("\ndir=%d\n", dir); exit(5454512);
 	}
 
-	check_direction_consistency(LEDBAT, (void*)thisdir, __LINE__);
+	check_direction_consistency(LEDBAT, DONT_CARE_TRIG, (void*)thisdir, __LINE__);
 	if( elapsed(current_time,thisdir->last_pkt_time) != 0 )
 	{
 		printf("\nledbat.c %d: current_time=%ldsec %ldusec last_pkt_seen=%ldsec %ldusec\n",
@@ -332,7 +332,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		printf("\nledbat.c %d: ATTTTTTTEEEEENNNNNNZZZZZIONNNNNEEEEEEE: ERROR: time_diff is %u, more than a quarter of hour\n",
 			__LINE__, grossdelay);
 		printf("putp->time_diff=%X\n",putp->time_diff);
-//		exit(213254);
+		exit(213254);
 		//<aa>TODO: reactivate exit</aa>
 	}
 	if (elapsed(thisdir->utp.last_rollover, current_time)<=0 ){
@@ -365,11 +365,11 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	bufferbloat_stat->pkt_type_num[type_utp-1]++; //count the number of packets of a given type 
 
 	#ifdef SEVERE_DEBUG
-	check_direction_consistency(LEDBAT,pdir, __LINE__);
+	check_direction_consistency(LEDBAT, DONT_CARE_TRIG, pdir, __LINE__);
 	#endif
 	if (grossdelay > 0){
-		float windowed_qd = bufferbloat_analysis(
-			LEDBAT, &(pup->addr_pair), dir, bufferbloat_stat, 
+		float windowed_qd = bufferbloat_analysis(LEDBAT, DONT_CARE_TRIG, 
+			&(pup->addr_pair), dir, bufferbloat_stat, 
 			&(otherdir->utp), conn_id, type, putplen, grossdelay,overfitting_avoided,
 			it_is_a_data_pkt);
 
@@ -387,7 +387,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	}
 
 	#ifdef SEVERE_DEBUG
-	check_direction_consistency(LEDBAT,thisdir, __LINE__);
+	check_direction_consistency(LEDBAT, DONT_CARE_TRIG, thisdir, __LINE__);
 	#endif
 	
 	/*start of bittorrent message*/

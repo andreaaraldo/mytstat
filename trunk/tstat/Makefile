@@ -37,8 +37,8 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-build_triplet = i686-pc-linux-gnu
-host_triplet = i686-pc-linux-gnu
+build_triplet = x86_64-unknown-linux-gnu
+host_triplet = x86_64-unknown-linux-gnu
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.conf \
 	$(srcdir)/Makefile.in $(srcdir)/Makefile.sources
 bin_PROGRAMS = tstat$(EXEEXT)
@@ -99,7 +99,7 @@ AR = ar
 AUTOCONF = ${SHELL} /home/araldo/tstat/config/missing --run autoconf
 AUTOHEADER = ${SHELL} /home/araldo/tstat/config/missing --run autoheader
 AUTOMAKE = ${SHELL} /home/araldo/tstat/config/missing --run automake-1.11
-AWK = gawk
+AWK = mawk
 
 ################################################################## 
 ################################################################## 
@@ -136,10 +136,10 @@ INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
-LD = /usr/bin/ld
+LD = /usr/bin/ld -m elf_x86_64
 LDFLAGS = 
 LIBOBJS = 
-LIBS = -lpcap -lpthread -lm  -lz
+LIBS = -lpcap -lpthread -lm 
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIBTSTAT_VERSION = 1.0.0
 LIPO = 
@@ -169,7 +169,7 @@ SHELL = /bin/bash
 STRIP = strip
 VERSION = 2.3
 V_CCOPT = 
-V_DEFINES =  -D_BSD_SOURCE -DHAVE_ZLIB
+V_DEFINES =  -D_BSD_SOURCE
 V_INCLS = 
 abs_builddir = /home/araldo/tstat/tstat
 abs_srcdir = /home/araldo/tstat/tstat
@@ -183,22 +183,22 @@ am__quote =
 am__tar = ${AMTAR} chof - "$$tardir"
 am__untar = ${AMTAR} xf -
 bindir = ${exec_prefix}/bin
-build = i686-pc-linux-gnu
+build = x86_64-unknown-linux-gnu
 build_alias = 
-build_cpu = i686
+build_cpu = x86_64
 build_os = linux-gnu
-build_vendor = pc
+build_vendor = unknown
 builddir = .
 datadir = ${datarootdir}
 datarootdir = ${prefix}/share
 docdir = ${datarootdir}/doc/${PACKAGE_TARNAME}
 dvidir = ${docdir}
 exec_prefix = ${prefix}
-host = i686-pc-linux-gnu
+host = x86_64-unknown-linux-gnu
 host_alias = 
-host_cpu = i686
+host_cpu = x86_64
 host_os = linux-gnu
-host_vendor = pc
+host_vendor = unknown
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
@@ -354,7 +354,7 @@ top_srcdir = ..
 # format of the DAG tool
 #DEFINES += -DGROK_DAG
 # define GROK_LIVE_TCPDUMP for live capturing with pcap library
-DEFINES =  -D_BSD_SOURCE -DHAVE_ZLIB -DBUILT_USER="\"`whoami`\"" \
+DEFINES =  -D_BSD_SOURCE -DBUILT_USER="\"`whoami`\"" \
 	-DBUILT_HOST="\"`hostname`\"" -DBUILT_DATE="\"`date`\"" \
 	-DMSN_CLASSIFIER -DYMSG_CLASSIFIER -DXMPP_CLASSIFIER \
 	-DRTSP_CLASSIFIER -DRTP_CLASSIFIER -DSKYPE_CLASSIFIER \
@@ -402,7 +402,7 @@ CCOPT = -Wall
 AM_CFLAGS = $(CCOPT) $(DEFINES) -g -ggdb
 
 # Standard LIBS
-LDLIBS = -lpcap -lpthread -lm  -lz ${PCAP_LDLIBS} ${DPMI_LDLIBS}
+LDLIBS = -lpcap -lpthread -lm  ${PCAP_LDLIBS} ${DPMI_LDLIBS}
 # for solaris, you probably want:
 #	LDLIBS = -lpcap -lnsl -lsocket -lm
 # for HP, I'm told that you need:

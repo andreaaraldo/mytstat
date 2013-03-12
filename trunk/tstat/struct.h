@@ -506,11 +506,6 @@ typedef struct upper_protocols
 #define MAX_COUNT_SEGMENTS 10
 #endif
 
-#ifdef BUFFERBLOAT_ANALYSIS
-enum bufferbloat_analysis_trigger
-{	DATA_TRIG = 0, ACK_TRIG
-};
-#endif
 
 typedef struct tcb
 {
