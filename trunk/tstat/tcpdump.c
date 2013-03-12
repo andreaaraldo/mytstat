@@ -604,18 +604,6 @@ pread_tcpdump (struct timeval *ptime,
       *pphystype = PHYS_ETHER;	/* everything assumed to be ethernet */
       *ppip = (struct ip *) ip_buf;
 
-	#ifdef SEVERE_DEBUG
-      	//<aa>TODO: remove this check
-	struct ip* pip = *ppip;
-	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) == 0 ){
-		printf("tcpdump.c %d: ERROR: ip_dst == ip_src\n",__LINE__);
-		printf("ip_src=%s; \n", HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
-		printf("ip_dst=%s; \n", HostName( *IPV4ADDR2ADDR(&pip->ip_dst)) );
-		exit(554);
-	}
-	//</aa>
-	#endif
-
 
       *pplast = callback_plast;	/* last byte in IP packet */
       /* (copying time structure in 2 steps to avoid RedHat brain damage) */

@@ -2072,12 +2072,14 @@ ProcessFile (char *filename, Bool last)
   do
     {
 	//<aa>TODO: remove this check
+	#ifdef SEVERE_DEBUG
 	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) == 0 ){
 		printf("tstat.c %d: ERROR processing file %s: ip_dst(%s) == ip_src((%s))\n",
 			__LINE__,filename, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
-			HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
-		exit(554);
+		HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
+//		exit(554);
 	}
+	#endif
 	//</aa>
 
         ProcessPacket(&current_time, pip, plast, tlen, phystype, &fpnum, &pcount, 

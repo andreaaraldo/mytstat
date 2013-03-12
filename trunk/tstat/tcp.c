@@ -255,11 +255,13 @@ void CopyAddr (tcp_pair_addrblock * ptpa,
     }
 #endif
 
+/*
 #ifdef SEVERE_DEBUG
   if (memcmp(&(ptpa->a_address), &(ptpa->b_address), sizeof(ipaddr) ) ==0 ){
 	printf("tcp.c %d: a and b have the same address\n",__LINE__);exit(878);
   }
 #endif
+*/
   //</aa>
 }
 
