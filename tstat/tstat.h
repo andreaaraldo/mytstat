@@ -867,7 +867,7 @@ void print_queueing_dly_sample(enum analysis_type an_type,
  * Estimates queueing delay, updates the data structure needed to calculate the queueing delay
  * and print queueing delay logs. Performs windowing operations too
  * - last_gross_delay (microseconds)
- * - return windowed queueing delay (microseconds)
+ * - return windowed queueing delay (microseconds) or -1 if the window was not closed
  */
 float bufferbloat_analysis(enum analysis_type an_type,
 	enum bufferbloat_analysis_trigger trig, tcp_pair_addrblock* addr_pair, 
@@ -920,6 +920,9 @@ void update_following_left_edge(utp_stat* bufferbloat_stat);
  */
 float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger trig,
 	utp_stat* bufferbloat_stat, const char* type, int conn_id);
+
+void check_direction_consistency_light(utp_stat* this_bufferbloat_stat, 
+	utp_stat* other_bufferbloat_stat, int caller_line);
 
 
 #ifdef SEVERE_DEBUG

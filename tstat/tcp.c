@@ -1322,6 +1322,13 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
       #endif
 
       ack_type = ack_in (otherdir, th_ack, tcp_data_length);
+
+      #ifdef SEVERE_DEBUG
+      if(ack_type == NORMAL) printf("OK ");
+      else printf("no ");
+      fflush(stdout);
+      #endif
+
   }
 
   /* stats for rexmitted data */
