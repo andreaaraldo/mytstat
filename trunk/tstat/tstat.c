@@ -115,6 +115,12 @@ struct in_addr cloud_net_mask2[MAX_CLOUD_HOSTS];
 int cloud_net_mask[MAX_CLOUD_HOSTS];
 int tot_cloud_nets;
 
+//<aa>
+#if defined(BUFFERBLOAT_ANALYSIS) && defined(SEVERE_DEBUG)
+static time_t latest_window_edge;
+#endif
+//</aa>
+
 
 #ifdef SUPPORT_IPV6
 struct in6_addr internal_net_listv6;
@@ -2069,12 +2075,22 @@ ProcessFile (char *filename, Bool last)
 #endif
 */
   /* read each packet */
+
+  //<aa>
+  #ifdef SEVERE_DEBUG
+  static Bool same_addresses_warned;
+  #endif
+  //</aa>
+
   do
     {
 	//<aa>TODO: remove this check
 	#ifdef SEVERE_DEBUG
-	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) == 0 ){
-		printf("tstat.c %d: ERROR processing file %s: ip_dst(%s) == ip_src((%s))\n",
+	if(	memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) == 0 &&
+		!same_addresses_warned
+	){
+		same_addresses_warned = TRUE;
+		printf("tstat.c %d: WARNING: processing file %s: found at least one pkt with ip_dst(%s) == ip_src((%s))\n",
 			__LINE__,filename, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
 		HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
 //		exit(554);
@@ -3891,7 +3907,18 @@ void print_last_window_general(enum analysis_type an_type,
 	if( (double)bufferbloat_stat_p->last_window_edge > UINT_MAX){
 		printf("ERROR in print_last_window_general, line %d\n",__LINE__); 
 		exit(414);
-	}	
+	}
+
+	if(current_time.tv_sec <= bufferbloat_stat_p->last_window_edge){
+		printf("line %d: Error in update_following_left_edge\n",__LINE__);
+		printf("current_time %u, last_window_edge=%u \n",
+			current_time.tv_sec, bufferbloat_stat_p->last_window_edge);
+		exit(784145);
+	}
+	if(bufferbloat_stat_p->last_window_edge <= latest_window_edge) {
+		printf("line %d: ERROR in print_last_window_general\n",__LINE__);
+		exit(1274);
+	}
 	#endif
 
 	FILE* fp_qd;
@@ -3915,6 +3942,10 @@ void print_last_window_general(enum analysis_type an_type,
   	wfprintf (fp_qd, "%s %s ",
        	           HostName (addr_pair->b_address),	//4.ip_addr_2
        	           ServiceName (addr_pair->b_port));	//5.port_2
+
+	#ifdef SEVERE_DEBUG
+	latest_window_edge = bufferbloat_stat_p->last_window_edge;
+	#endif
 }
 
 
@@ -4034,10 +4065,15 @@ float windowed_queueing_delay(enum analysis_type an_type,
 
 	float qd_window;
 	float return_val=-1;
+
+	#ifdef SEVERE_DEBUG
+	check_direction_consistency_light(thisdir_bufferbloat_stat,
+		otherdir_bufferbloat_stat, __LINE__);
+	#endif
 	
 	//initialize last_window_edge
 	//<aa>TODO: better if we have a single time_zero_w1
-	if (thisdir_bufferbloat_stat->last_window_edge ==0){
+	if (thisdir_bufferbloat_stat->last_window_edge == 0){
 		//This is the first queueing delay sample we are dealing with. Therefore we
 		//set up current_time.tv_sec as the first window edge
 	
@@ -4049,7 +4085,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 	}
 	//<aa>TODO: we are computing (last_window_edge - current_time) 2 times: 
 	//here and inside close_window(...). It's not efficient</aa>
-	else if ( current_time.tv_sec - thisdir_bufferbloat_stat->last_window_edge >= 1)
+	else if ( current_time.tv_sec - thisdir_bufferbloat_stat->last_window_edge > 1)
 	{
 		//More than 1 second has passed from the last window edge. We can close the 
 		//window; but, at first, we have to print its values.
@@ -4058,15 +4094,15 @@ float windowed_queueing_delay(enum analysis_type an_type,
 		float other_qd_window;
 		//Print C2S first and then S2C
 		if (dir==C2S){
-			qd_window = close_window(an_type, trig, thisdir_bufferbloat_stat, 
-				type, conn_id);
-			other_qd_window = close_window(an_type, trig, otherdir_bufferbloat_stat, 
-				type, conn_id);
+			qd_window = close_window(an_type, trig, 
+				thisdir_bufferbloat_stat, type, conn_id);
+			other_qd_window = close_window(an_type, trig, 
+				otherdir_bufferbloat_stat, type, conn_id);
 		}else{
 			other_qd_window = close_window(an_type, trig, 
-				thisdir_bufferbloat_stat, type, conn_id);
-			qd_window = close_window(an_type, trig, 
 				otherdir_bufferbloat_stat, type, conn_id);
+			qd_window = close_window(an_type, trig, 
+				thisdir_bufferbloat_stat, type, conn_id);
 		}
 		wfprintf(fp_logc,"\n");
 
@@ -4083,14 +4119,41 @@ float windowed_queueing_delay(enum analysis_type an_type,
 		return_val = qd_window;
 	}
 
-
 	//<aa>Update the max
 	//TODO: why expressing qd in microseconds and qd_max_w1 in milliseconds?</aa>
 	if (qd/1000 >= thisdir_bufferbloat_stat->qd_max_w1)
 		thisdir_bufferbloat_stat->qd_max_w1=qd/1000;
 
-   return return_val;
+	#ifdef SEVERE_DEBUG
+	check_direction_consistency_light(thisdir_bufferbloat_stat,
+			otherdir_bufferbloat_stat, __LINE__);
+	#endif
+	return return_val;
 }//windowed
+
+void check_direction_consistency_light(utp_stat* this_bufferbloat_stat, 
+	utp_stat* other_bufferbloat_stat, int caller_line)
+{
+	if(this_bufferbloat_stat==other_bufferbloat_stat){
+		printf("line %d: Error in check_direction_consistency_light\n",__LINE__);
+		exit(6698);
+	}
+
+	timeval last_window_edge, other_last_window_edge;
+	last_window_edge.tv_sec = this_bufferbloat_stat->last_window_edge;
+	last_window_edge.tv_usec = 0;
+
+	other_last_window_edge.tv_sec = other_bufferbloat_stat->last_window_edge;
+	other_last_window_edge.tv_usec = 0;
+
+	if ( elapsed(last_window_edge, other_last_window_edge) != 0){
+		printf("\ncheck_direction_consistency light called in line %d\n", 
+			caller_line);
+		printf("\nline %dERROR b. last_window_edge=%u; other_last_window_edge=%u\n",__LINE__,
+			last_window_edge.tv_sec, other_last_window_edge.tv_sec);
+		exit(1000);
+	}
+}
 
 
 void check_direction_consistency(enum analysis_type an_type, 
@@ -4098,7 +4161,6 @@ void check_direction_consistency(enum analysis_type an_type,
 {
 	tcb *thisdir_tcp, *otherdir_tcp; 
 	ucb* thisdir_ledbat, *otherdir_ledbat;
-	timeval last_window_edge, other_last_window_edge;
 	void* thisdir_parent, *otherdir_parent;
 	timeval thisdir_last_packet_time, otherdir_last_packet_time;
 	utp_stat *thisdir_bufferbloat_stat, *otherdir_bufferbloat_stat;
@@ -4120,7 +4182,6 @@ void check_direction_consistency(enum analysis_type an_type,
 		exit(414);
 	}
 	
-
 	switch (an_type){
 		case TCP:
 			thisdir_tcp = (tcb*) thisdir_;
@@ -4157,12 +4218,6 @@ void check_direction_consistency(enum analysis_type an_type,
 				exit(5258);
 			}
 
-			last_window_edge.tv_sec = thisdir_bufferbloat_stat->last_window_edge;
-			last_window_edge.tv_usec = 0;
-
-			other_last_window_edge.tv_sec = 
-				otherdir_bufferbloat_stat->last_window_edge;
-			other_last_window_edge.tv_usec = 0;
 			thisdir_parent = (void*) thisdir_tcp->ptp;
 			otherdir_parent = (void*) otherdir_tcp->ptp;
 			thisdir_last_packet_time = thisdir_tcp->last_time;
@@ -4192,11 +4247,9 @@ void check_direction_consistency(enum analysis_type an_type,
 				printf("ERROR a"); exit(7);
 			}
 
-			last_window_edge.tv_sec = thisdir_ledbat->utp.last_window_edge;
-			last_window_edge.tv_usec = 0;
+			thisdir_bufferbloat_stat = &(thisdir_ledbat->utp);
+			otherdir_bufferbloat_stat = &(otherdir_ledbat->utp);
 
-			other_last_window_edge.tv_sec = otherdir_ledbat->utp.last_window_edge;
-			other_last_window_edge.tv_usec = 0;
 			thisdir_parent = (void*) thisdir_ledbat->pup;
 			otherdir_parent = (void*) otherdir_ledbat->pup;
 			thisdir_last_packet_time = thisdir_ledbat->last_pkt_time;
@@ -4204,16 +4257,13 @@ void check_direction_consistency(enum analysis_type an_type,
 			break;
 
 		default: 
-			printf("check_direction_consistency: an_type not recognized");
+			printf("check_direction_consistency: line %d: an_type not recognized",
+				__LINE__);
 			exit(544452);
 	}
 
-	
-
-	if ( elapsed(last_window_edge, other_last_window_edge) != 0){
-		printf("\ncheck_direction_consistency called in line %d\n", call_line_number);
-		printf("\nERROR b\n");exit(1000);
-	}
+	check_direction_consistency_light(thisdir_bufferbloat_stat, 
+		otherdir_bufferbloat_stat,call_line_number);
 	
 	if (thisdir_parent != otherdir_parent){
 		printf("\ncheck_direction_consistency called in line %d\n", call_line_number);
@@ -4234,6 +4284,13 @@ void update_following_left_edge(utp_stat* bufferbloat_stat){
 	time_t offset = current_time.tv_sec - bufferbloat_stat->last_window_edge;
 	//offset corresponds to the number of void windows between the last_window_edge and 
 	//current_time
+
+	if(current_time.tv_sec <= bufferbloat_stat->last_window_edge){
+		printf("line %d: Error in update_following_left_edge\n",__LINE__);
+		printf("current_time %u, last_window_edge=%u \n",
+			current_time.tv_sec, bufferbloat_stat->last_window_edge);
+		exit(784145);
+	}
 
 	timeval last_window_edge;
 	last_window_edge.tv_sec = bufferbloat_stat->last_window_edge;
@@ -4282,30 +4339,34 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 			__LINE__); 
 		exit(414);
 	}
+
+	if(current_time.tv_sec <= bufferbloat_stat->last_window_edge){
+		printf("line %d: Error in update_following_left_edge\n",__LINE__);
+		printf("current_time %u, last_window_edge=%u \n",
+			current_time.tv_sec, bufferbloat_stat->last_window_edge);
+		exit(784145);
+	}
 	#endif
 
 
 	if (pkts_in_win == 0){
 		//No pkts have been seen in this direction in the previous window ==> 
 		// the only value to be updated is the time_zero (left_edge)
-
-		#ifdef SEVERE_DEBUG
-		if (	bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1 != 0 ||
-			bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1 != 0
-		){
-			printf("\nline %d: ERROR: if there are non pkts, values can not change\n",
-				__LINE__);
-			exit(46);
-		}
-		#endif
-		print_last_window_directional(an_type, trig,
-			bufferbloat_stat, conn_id, type,
-			BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES, window_size);
-		update_following_left_edge( bufferbloat_stat );
 		return -1;
 	}
 
-
+/*
+	#ifdef SEVERE_DEBUG
+	if (	bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1 != 0 ||
+		bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1 != 0
+	){
+		printf("\nline %d: ERROR: if there are non pkts, values can not change\n",
+				__LINE__);
+		exit(46);
+	}
+	#endif
+*/	print_last_window_directional(an_type, trig, bufferbloat_stat, conn_id, type,
+			BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES, window_size);
 
 	qd_window= (bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1)
 				/pkts_in_win;
@@ -4340,12 +4401,12 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 	bufferbloat_stat->qd_sum2_w1 += 
 		(bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1);
 
-	update_following_left_edge( bufferbloat_stat );
-
 	//stqd_max_w1atistics
 	bufferbloat_stat->qd_measured_count_w1++;
 	bufferbloat_stat->qd_measured_sum_w1 += qd_window;
 	bufferbloat_stat->qd_measured_sum2_w1 += ((qd_window)*(qd_window));
+
+	update_following_left_edge( bufferbloat_stat );
 
 	return qd_window;
 }
