@@ -921,14 +921,13 @@ void update_following_left_edge(utp_stat* bufferbloat_stat);
 float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger trig,
 	utp_stat* bufferbloat_stat, const char* type, int conn_id);
 
-void check_direction_consistency_light(utp_stat* this_bufferbloat_stat, 
-	utp_stat* other_bufferbloat_stat, int caller_line);
-
-
 #ifdef SEVERE_DEBUG
 //Check if the direction of the current packet and the opposite direction are handled
-//consistently. If it is not the case, the program will terminate
+//consistently. If it is not the case, the program will terminate.
 void check_direction_consistency(enum analysis_type an_type, 
 	enum bufferbloat_analysis_trigger trig, void* thisdir_, int call_line_number);
+
+void check_direction_consistency_light(utp_stat* this_bufferbloat_stat, 
+	utp_stat* other_bufferbloat_stat, int caller_line);
 #endif
 
