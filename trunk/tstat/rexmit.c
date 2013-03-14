@@ -611,6 +611,11 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       //<aa>TODO: take more care of this. Learn from ledbat example</aa>
       Bool overfitting_avoided = TRUE;
       Bool update_size_info = TRUE;
+
+      #ifdef SEVERE_DEBUG
+      check_direction_consistency_light(&(ptcb->bufferbloat_stat_ack_triggered),
+		otherdir_bufferbloat_stat, __LINE__);
+      #endif
       bufferbloat_analysis(TCP, ACK_TRIG, &(ptcb->ptp->addr_pair),
 		dir, &(ptcb->bufferbloat_stat_ack_triggered), 
 		otherdir_bufferbloat_stat, utp_conn_id, type, pkt_size, 
