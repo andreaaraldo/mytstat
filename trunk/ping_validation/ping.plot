@@ -23,11 +23,12 @@ echo "tstat output file is $TSTAT_OUT_FILE"
 #echo  "set xlab 'sample'; set ylab '[ms]'; plot '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with lines title 'rtt', '$TSTAT_OUT_FILE' u 1:(\$7+\$20) with lines title 'qd' ; pause 2; reread" > /tmp/ping.gp
 
 #to print tstat graph only
-echo  "set xlab 'sample'; set ylab '[ms]'; plot '$TSTAT_OUT_FILE' u 1:(\$20) with lines title 'qd' ; pause 2; reread" > /tmp/ping.gp
+echo  "set xlab 'sample'; set ylab '[ms]'; plot '< cat $TSTAT_OUT_FILE' u 1:(\$7) with lines title 'qd' ; pause 2; reread" > /tmp/ping.gp
 
 #ping -D localhost |   perl -ne 'BEGIN { $|=1 } m/^\[(\d+.?\d*).*req\=(\d+).*time\=(\d+.?\d*)\s*ms/; print "$1 $2 $3\n"; ' > /tmp/ping.DATA &
 
 sleep 2
+
 #Initialize ping data file to avoid gnuplot errors
 echo "0 0 0" > /tmp/ping.DATA
 

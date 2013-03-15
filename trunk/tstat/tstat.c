@@ -3836,13 +3836,13 @@ float bufferbloat_analysis(enum analysis_type an_type,
 	         ||otherdir_bufferbloat_stat->last_window_edge < latest_window_edge[(int)an_type][(int)trig]
 		)
 	) {
-		printf("this_bufferbloat_stat->last_window_edge=%u, other_bufferbloat_stat->last_window_edge=%u, latest_window_edge=%u, this_bufferbloat=%d, \n",
-			bufferbloat_stat->last_window_edge, 
-			otherdir_bufferbloat_stat->last_window_edge,
-			latest_window_edge[(int)an_type][(int)trig],
-			(int)this_bufferbloat, );
-		printf("\nERROR in line %d in bufferbloat_analysis, an_details=%s\n",
-			__LINE__, an_details);
+		printf("\nERROR in line %d in bufferbloat_analysis, an_details=%s, tcp_flows=%u\n",
+			__LINE__, an_details, f_TCP_count);
+		printf("this_bufferbloat_stat->last_window_edge=%u, other_bufferbloat_stat->last_window_edge=%u, latest_window_edge=%u, this_bufferbloat=%p, \n",
+			(unsigned)bufferbloat_stat->last_window_edge, 
+			(unsigned)otherdir_bufferbloat_stat->last_window_edge,
+			(unsigned)latest_window_edge[(int)an_type][(int)trig],
+			bufferbloat_stat);
 		exit(1274);
 	}
 	#endif
@@ -3929,10 +3929,10 @@ float bufferbloat_analysis(enum analysis_type an_type,
 	         ||otherdir_bufferbloat_stat->last_window_edge < latest_window_edge[(int)an_type][(int)trig]
 		)
 	) {
-		printf("this_bufferbloat_stat->last_window_edge=%u, other_bufferbloat_stat->last_window_edge=%u, latest_window_edge=%u\n",
-			bufferbloat_stat->last_window_edge, 
-			otherdir_bufferbloat_stat->last_window_edge,
-			latest_window_edge[(int)an_type][(int)trig]);
+		printf("bufferbloat_stat->last_window_edge=%u, other_bufferbloat_stat->last_window_edge=%u, latest_window_edge=%u\n",
+			(unsigned)bufferbloat_stat->last_window_edge, 
+			(unsigned)otherdir_bufferbloat_stat->last_window_edge,
+			(unsigned)latest_window_edge[(int)an_type][(int)trig]);
 		printf("\nERROR in line %d in bufferbloat_analysis, an_details=%s\n",
 			__LINE__, an_details);
 		exit(1274);
@@ -3973,14 +3973,15 @@ void print_last_window_general(enum analysis_type an_type,
 	if(current_time.tv_sec <= bufferbloat_stat_p->last_window_edge){
 		printf("line %d: Error in update_following_left_edge\n",__LINE__);
 		printf("current_time %u, last_window_edge=%u \n",
-			current_time.tv_sec, bufferbloat_stat_p->last_window_edge);
+			(unsigned)current_time.tv_sec, 
+			(unsigned)bufferbloat_stat_p->last_window_edge);
 		exit(784145);
 	}
 	if(bufferbloat_stat_p->last_window_edge < latest_window_edge[(int)an_type][(int)trig]) {
 		printf("line %d: ERROR in print_last_window_general\n",__LINE__);
 		printf("bufferbloat_stat_p->last_window_edge=%u, latest_window_edge=%u\n",
-			bufferbloat_stat_p->last_window_edge, 
-			latest_window_edge[(int)an_type][(int)trig]);
+			(unsigned)bufferbloat_stat_p->last_window_edge, 
+			(unsigned)latest_window_edge[(int)an_type][(int)trig]);
 	char* an_details;
 	if(an_type == TCP && trig == ACK_TRIG) 
 		an_details = "TCP-ACK_TRIG";
@@ -4019,7 +4020,7 @@ void print_last_window_general(enum analysis_type an_type,
 
 	#ifdef SEVERE_DEBUG
 	printf("line %d: latest_window_edge=%u\n",
-		__LINE__, latest_window_edge[(int)an_type][(int)trig]);
+		__LINE__, (unsigned)latest_window_edge[(int)an_type][(int)trig]);
 	#endif
 }
 
@@ -4170,10 +4171,12 @@ float windowed_queueing_delay(enum analysis_type an_type,
 		otherdir_bufferbloat_stat->last_window_edge = current_time.tv_sec;
 		#ifdef SEVERE_DEBUG
 		latest_window_edge[(int)an_type][(int)trig] = current_time.tv_sec;
-		printf("line %d: latest_window_edge=%u, thisdir_bufferbloat_stat->last_window_edge=%u, otherdir_bufferbloat_stat->last_window_edge=%u\n",
-			__LINE__, latest_window_edge[(int)an_type][(int)trig],
-			thisdir_bufferbloat_stat->last_window_edge, 
-			otherdir_bufferbloat_stat->last_window_edge);
+		printf("\n###############\nline %d: latest_window_edge=%u, thisdir_bufferbloat_stat->last_window_edge=%u, otherdir_bufferbloat_stat->last_window_edge=%u; thisdir_bufferbloat_stat=%p; otherdir_bufferbloat_stat=%p\n",
+			__LINE__, (unsigned)latest_window_edge[(int)an_type][(int)trig],
+			(unsigned)thisdir_bufferbloat_stat->last_window_edge, 
+			(unsigned)otherdir_bufferbloat_stat->last_window_edge,
+			thisdir_bufferbloat_stat, 
+			otherdir_bufferbloat_stat);
 		printf("an_details=%s\n", an_details);
 	
 		check_direction_consistency_light(thisdir_bufferbloat_stat,
@@ -4222,7 +4225,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 				otherdir_bufferbloat_stat, __LINE__);
 			#endif
 		}
-		wfprintf(fp_logc,"\n");
+		wfprintf(fp_logc,"\n"); fflush(fp_logc);
 
 		#ifdef SEVERE_DEBUG
 		if (dir!=C2S && dir!=S2C){
@@ -4270,7 +4273,8 @@ void check_direction_consistency_light(utp_stat* this_bufferbloat_stat,
 		printf("\ncheck_direction_consistency light called in line %d\n", 
 			caller_line);
 		printf("\nline %dERROR b. last_window_edge=%u; other_last_window_edge=%u\n",__LINE__,
-			last_window_edge.tv_sec, other_last_window_edge.tv_sec);
+			(unsigned)last_window_edge.tv_sec, 
+			(unsigned)other_last_window_edge.tv_sec);
 		exit(1000);
 	}
 
@@ -4280,7 +4284,8 @@ void check_direction_consistency_light(utp_stat* this_bufferbloat_stat,
 		printf("\ncheck_direction_consistency light called in line %d\n", 
 			caller_line);
 		printf("\nline %d: ERROR b. last_window_edge=%u; other_last_window_edge=%u\n",__LINE__,
-			last_window_edge.tv_sec, other_last_window_edge.tv_sec);
+			(unsigned)last_window_edge.tv_sec, 
+			(unsigned)other_last_window_edge.tv_sec);
 		exit(1008);
 	}
 
@@ -4289,9 +4294,10 @@ void check_direction_consistency_light(utp_stat* this_bufferbloat_stat,
 	){
 		printf("\ncheck_direction_consistency light called in line %d\n", 
 			caller_line);
-		printf("\nline %dERROR b. last_window_edge=%u; other_last_window_edge=%u; current_time\n",
-			__LINE__,last_window_edge.tv_sec, other_last_window_edge.tv_sec,
-			current_time.tv_sec);
+		printf("\nline %dERROR b. last_window_edge=%u; other_last_window_edge=%u; current_time=%u\n",
+			__LINE__,(unsigned)last_window_edge.tv_sec, 
+			(unsigned)other_last_window_edge.tv_sec,
+			(unsigned)current_time.tv_sec);
 		exit(1070);
 	}
 
@@ -4443,7 +4449,8 @@ void update_following_left_edge(utp_stat* bufferbloat_stat){
 	if(current_time.tv_sec <= bufferbloat_stat->last_window_edge){
 		printf("line %d: Error in update_following_left_edge\n",__LINE__);
 		printf("current_time %u, last_window_edge=%u \n",
-			current_time.tv_sec, bufferbloat_stat->last_window_edge);
+			(unsigned)current_time.tv_sec, 
+			(unsigned)bufferbloat_stat->last_window_edge);
 		exit(784145);
 	}
 
@@ -4498,7 +4505,8 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 	if(current_time.tv_sec <= bufferbloat_stat->last_window_edge){
 		printf("line %d: Error in update_following_left_edge\n",__LINE__);
 		printf("current_time %u, last_window_edge=%u \n",
-			current_time.tv_sec, bufferbloat_stat->last_window_edge);
+			(unsigned)current_time.tv_sec, 
+			(unsigned)bufferbloat_stat->last_window_edge);
 		exit(784145);
 	}
 	#endif
@@ -4561,10 +4569,10 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 	bufferbloat_stat->qd_measured_sum2_w1 += ((qd_window)*(qd_window));
 
 	update_following_left_edge( bufferbloat_stat );
-	printf("updated left edge=%u\n",bufferbloat_stat->last_window_edge);
+	printf("updated left edge=%u\n",(unsigned)bufferbloat_stat->last_window_edge);
 	latest_window_edge[(int)an_type][(int)trig] = current_time.tv_sec;
 	printf("line %d: latest_window_edge=%u\n",
-		__LINE__, latest_window_edge[(int)an_type][(int)trig]);
+		__LINE__, (unsigned)latest_window_edge[(int)an_type][(int)trig]);
 	
 
 	return qd_window;
