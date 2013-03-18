@@ -12,7 +12,8 @@ srv:
 	iperf -s
 	
 netem:	
-	sudo ./network_emulation.sh 1 1 fifo
+	sudo ./network_emulation.sh 1 1 fifo lo
+	sudo ./network_emulation.sh 1 1 fifo lo
 	
 cli:
 	iperf -t $(RUNTIME) -c localhost
