@@ -42,7 +42,7 @@
 #	ping.plot
 
 
-dev=lo
+dev=$4
 cap=${1:-1}
 loss=${2:-0}
 aqm=${3:-fifo}
@@ -50,10 +50,10 @@ aqm=${3:-fifo}
 # input check + restore
 [[ "$1" == "clean" ]] && { tc qdisc del dev $dev root; tc qdisc show dev $dev; exit 0; }
 [[ "$1" == "show" ]] && { tc qdisc show dev $dev; exit 0; }
-[[ "$#" == "3"  ]] || { 
+[[ "$#" == "4"  ]] || { 
 	echo "usage
-	sudo ./network_emulation.sh (clean|show) 
-	sudo ./network_emulation.sh capacity[Mbps] loss% (fifo|red|sfq)
+	sudo ./network_emulation.sh (clean|show) <dev>
+	sudo ./network_emulation.sh capacity[Mbps] loss% (fifo|red|sfq) <dev>
 	"
 	exit 1; 
 }
