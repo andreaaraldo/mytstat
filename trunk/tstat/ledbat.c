@@ -436,6 +436,8 @@ void BitTorrent_flow_stat (struct ip *pip, void *pproto, int tproto, void *pdir,
 }//flowstat
 
 void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
+  //<aa> All statistical updates are performed in different places now</aa>
+  return;
 	
   ucb *thisUdir,*thisC2S,*thisS2C;
   udp_pair *pup;
@@ -479,15 +481,15 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 #endif  	
 
   	 //w=1
-	  if (utpstat.qd_measured_count_w1>0) {
+	  if (utpstat.qd_samples_until_last_window>0) {
                 		
 		utpstat.queueing_delay_average_w1 = 
-			utpstat.qd_measured_sum_w1/utpstat.qd_measured_count_w1;
+			utpstat.windowed_qd_sum / utpstat.qd_samples_until_last_window;
 
-		int N=utpstat.qd_measured_count_w1;
+		int N = utpstat.qd_samples_until_last_window;
            
 		utpstat.queueing_delay_standev_w1 =Stdev(
-			utpstat.qd_measured_sum_w1,utpstat.qd_measured_sum2_w1,N );
+			utpstat.windowed_qd_sum, utpstat.windowed_qd_sum2,N );
 
           }
           else {
@@ -577,12 +579,12 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 
 
 	  //w=1
-          if (utpstat.qd_measured_count_w1>0) {
+          if (utpstat.qd_samples_until_last_window>0) {
                	utpstat.queueing_delay_average_w1=
-			utpstat.qd_measured_sum_w1/utpstat.qd_measured_count_w1;
-                int N=utpstat.qd_measured_count_w1;
+			utpstat.windowed_qd_sum / utpstat.qd_samples_until_last_window;
+                int N=utpstat.not_void_windows;
 		utpstat.queueing_delay_standev_w1=
-		Stdev(utpstat.qd_measured_sum_w1,utpstat.qd_measured_sum2_w1,N );
+			Stdev(utpstat.windowed_qd_sum, utpstat.windowed_qd_sum2, N );
 
           }
           else {

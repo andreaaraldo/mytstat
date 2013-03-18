@@ -278,18 +278,22 @@ typedef struct utp_stat
 	// on the values, each concerning a window
 	// </aa>
 	// <aa>number of not void windows (windows with at most 1 sample)</aa>
-        int qd_measured_count_w1;
+        int not_void_windows;
 
-	float qd_measured_sum_w1; // <aa>sum of all qd, each qd being the average of the 
+	float windowed_qd_sum; // <aa>sum of all windowed qd, each windowed qd being the 
+				// average of the 
 				  // estimated queueind dlys of the packets in a window 
 				  // (milliseconds)</aa>
 	
-	float qd_measured_sum2_w1;//<aa>sum of all qd^2, each qd being as above(milliseconds^2)</aa>
+	float windowed_qd_sum2;//<aa>sum of all qd^2, each qd being as above(milliseconds^2)</aa>
         float queueing_delay_average_w1;//<aa>mean of all qd, each qd being as above</aa>
         float queueing_delay_standev_w1;//<aa>standev of all qd, each qd being as above</aa>
 	// <aa>Windowed statistics: end </aa>
 
-
+	#ifdef SEVERE_DEBUG
+	float gross_dly_measured_sum;		//(milliseconds)
+	float gross_dly_sum_until_last_window;	//(milliseconds)
+	#endif
 
 
 	//99 95 90 75 percentile 
@@ -362,13 +366,14 @@ typedef struct utp_stat
 	// from the beginning to the last closed window
 	// </aa>
 	// <aa>TODO: do we really need them?</aa>
-        int qd_count_w1; // <aa> no. of packets calculated from the 
+        int qd_samples_until_last_window; // <aa> no. of packets calculated from the 
 		// beginning of the flow to the last closed window (not considering
 		// the queueing dlys of the open windows </aa>
 
-        float qd_sum_w1; // <aa>the sum of all the above queueing delays</aa>
+        float sample_qd_sum_until_last_window; // <aa>the sum of all the above queueing 
+						//delays (milliseconds) </aa>
 
-        float qd_sum2_w1; // <aa>sum of the square queue dly calculated as above
+        float sample_qd_sum2_until_last_window; // <aa>sum of the square queue dly calculated as above
 	// <aa> Stored values: end </aa>
 
 	//<aa>TODO: maybe not used anymore</aa>

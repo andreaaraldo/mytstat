@@ -885,7 +885,8 @@ void print_last_window_general(enum analysis_type an_type,
 
 /**
  * Print info for a specific direction
- * - qd_window:	queueing delay of the window (-1 if this window has non samples)
+ * - qd_window:	queueing delay of the window (milliseconds) 
+ *		(-1 if this window has non samples)
  * - conn_id:	it has no meaning for tcp analysis
  */
 void print_last_window_directional(enum analysis_type an_type,
@@ -915,7 +916,8 @@ void update_following_left_edge(utp_stat* bufferbloat_stat);
 
 /**
  * It closes the previous window and updates the value of the following one. 
- * It returns the queueing delay of the closed window or -1 if no pkts have been seen in the 
+ * It returns the queueing delay of the closed window (in milliseconds) or -1 if no 
+ * pkts have been seen in the 
  * previous window.
  */
 float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger trig,

@@ -821,6 +821,10 @@ void reopen_logfile(FILE **fp_ref,
     if (*fp_ref != NULL)
       fclose (*fp_ref);
     *fp_ref = fopen (logfile, "w");
+
+    //<aa>
+    wfprintf(*fp_ref,"\n"); fflush(*fp_ref);
+    //</aa>
    }
   
   if (*fp_ref == NULL)
@@ -3664,6 +3668,8 @@ void update_gross_delay_related_stuff(u_int32_t gross_delay,utp_stat* bufferbloa
 	if (gross_delay==0){
 		printf("Error: gross delay = 0\n"); exit(541);
 	}
+
+	bufferbloat_stat_p->gross_dly_measured_sum += gross_delay/1000;
 	#endif
 	int j=0;
 	while ( j<DELAY_BASE_HISTORY ){
@@ -3836,7 +3842,7 @@ float bufferbloat_analysis(enum analysis_type an_type,
 	         ||otherdir_bufferbloat_stat->last_window_edge < latest_window_edge[(int)an_type][(int)trig]
 		)
 	) {
-		printf("\nERROR in line %d in bufferbloat_analysis, an_details=%s, tcp_flows=%u\n",
+		printf("\nERROR in line %d in bufferbloat_analysis, an_details=%s, tcp_flows=%lu\n",
 			__LINE__, an_details, f_TCP_count);
 		printf("this_bufferbloat_stat->last_window_edge=%u, other_bufferbloat_stat->last_window_edge=%u, latest_window_edge=%u, this_bufferbloat=%p, \n",
 			(unsigned)bufferbloat_stat->last_window_edge, 
@@ -3910,10 +3916,10 @@ float bufferbloat_analysis(enum analysis_type an_type,
 
 		#ifdef SEVERE_DEBUG
 		if(	bufferbloat_stat->qd_measured_count - 
-			bufferbloat_stat->qd_measured_count_w1 <=0 
+			bufferbloat_stat->not_void_windows <=0 
 			&&
 			otherdir_bufferbloat_stat->qd_measured_count - 
-			otherdir_bufferbloat_stat->qd_measured_count_w1 <=0 
+			otherdir_bufferbloat_stat->not_void_windows <=0 
 		){
 			printf("ERROR on line %d: 0 pkts in both directions\n",__LINE__);
 			exit(223);
@@ -4069,26 +4075,36 @@ void print_last_window_directional(enum analysis_type an_type,
 	}
 	#endif
 
-	if (qd_window == BUFFEBLOAT_NOSAMPLES){
-		wfprintf(fp_logc, " - -");		
-	}
+
+	if (qd_window == BUFFEBLOAT_NOSAMPLES)
+		wfprintf(fp_logc, " - -");
 	else
 		wfprintf(fp_logc, " %f %f", 
-			qd_window/1000,			//7-20
+			qd_window,			//7-20
 			window_error			//8-21
 		);
 
-	wfprintf(fp_logc," %f %d %d %d %d %d %f %f %f %u",
+	float windowed_gross_dly=-1; //milliseconds
+
+	int samples_in_win = bufferbloat_stat->qd_measured_count- 
+			bufferbloat_stat->qd_samples_until_last_window;
+
+	#ifdef SEVERE_DEBUG
+	windowed_gross_dly = 	(bufferbloat_stat->gross_dly_measured_sum - 
+				 bufferbloat_stat->gross_dly_sum_until_last_window)/
+				samples_in_win;
+	#endif
+
+	wfprintf(fp_logc," %f %d %f %d %d %d %f %f %f %u",
 		bufferbloat_stat->qd_max_w1,		//9-22
-		(int)((int)qd_window/(window_size*1000)),//10-23
-		bufferbloat_stat->qd_count_w1,//window_no.//11-24
+		(int)((int)qd_window/(window_size*1000)),//10-23 CHE COSA E'?
+		windowed_gross_dly,			//11-24
 		conn_id,				//12-25
-		bufferbloat_stat->qd_measured_count- bufferbloat_stat->qd_count_w1,
-							//13-26:no_of_pkts_in_windows
-		bufferbloat_stat->qd_measured_count_w1,	//14-27: no of not void windows
+		samples_in_win,				//13-26:no_of_pkts_in_windows
+		bufferbloat_stat->not_void_windows,	//14-27: no of not void windows
 		bufferbloat_stat->qd_measured_sum,	//15-28
-		bufferbloat_stat->qd_measured_sum_w1,	//16-29
-		bufferbloat_stat->qd_sum_w1,		//17-30
+		bufferbloat_stat->windowed_qd_sum,	//16-29
+		bufferbloat_stat->sample_qd_sum_until_last_window,		//17-30
 		bufferbloat_stat->delay_base/1000	//18-31 (ms)
 	);
 }
@@ -4142,10 +4158,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 			#endif
 	}
 
-	//qd/1000 is in ms
-	//window in ms 
-
-	float qd_window;
+	float qd_window; //milliseconds
 	float return_val=-1;
 
 	#ifdef SEVERE_DEBUG
@@ -4191,7 +4204,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 		//window; but, at first, we have to print its values.
 		print_last_window_general(an_type, trig, addr_pair, 
 			thisdir_bufferbloat_stat );
-		float other_qd_window;
+		float other_qd_window; //milliseconds
 		//Print C2S first and then S2C
 		if (dir==C2S){
 			#ifdef SEVERE_DEBUG
@@ -4482,7 +4495,7 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 
 	//number of packets in the window we are going to close (not including the last packet)
 	int pkts_in_win = 
-		bufferbloat_stat->qd_measured_count- bufferbloat_stat->qd_count_w1;
+		bufferbloat_stat->qd_measured_count- bufferbloat_stat->qd_samples_until_last_window;
 
 	#ifdef SEVERE_DEBUG
 	if(an_type != LEDBAT && an_type != TCP){
@@ -4510,39 +4523,26 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 		exit(784145);
 	}
 	#endif
-
-/*
-	#ifdef SEVERE_DEBUG
-	if (	bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1 != 0 ||
-		bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1 != 0
-	){
-		printf("\nline %d: ERROR: if there are non pkts, values can not change\n",
-				__LINE__);
-		exit(46);
-	}
-	#endif
-*/
-
 	if (pkts_in_win != 0)
 		//No pkts have been seen in this direction in the previous window
-		qd_window= (bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1)
+		qd_window= (bufferbloat_stat->qd_measured_sum - bufferbloat_stat->sample_qd_sum_until_last_window)
 			/pkts_in_win;
 
-	window_error=Stdev(bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1, 
-		      bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1,
-		      bufferbloat_stat->qd_measured_count - bufferbloat_stat->qd_count_w1 );
+	window_error=Stdev(bufferbloat_stat->qd_measured_sum - bufferbloat_stat->sample_qd_sum_until_last_window, 
+		      bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->sample_qd_sum2_until_last_window,
+		      bufferbloat_stat->qd_measured_count - bufferbloat_stat->qd_samples_until_last_window );
 		
 	#ifdef SEVERE_DEBUG
-	if (bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1 < 0){
-		printf("\n\n\n\nline %d: ERROR: qd_measured_sum(%f) < qd_sum_w1(%f)\n\n\n",
+	if (bufferbloat_stat->qd_measured_sum - bufferbloat_stat->sample_qd_sum_until_last_window < 0){
+		printf("\n\n\n\nline %d: ERROR: qd_measured_sum(%f) < sample_qd_sum_until_last_window(%f)\n\n\n",
 			__LINE__,bufferbloat_stat->qd_measured_sum, 
-			bufferbloat_stat->qd_sum_w1);
+			bufferbloat_stat->sample_qd_sum_until_last_window);
 		exit(-9987);
 	}
 		
-	if (bufferbloat_stat->qd_sum_w1 < 0){
-		printf("\n\n\nline %d: ERROR: qd_sum_w1(%f) < 0\n\n\n\n",
-			__LINE__,bufferbloat_stat->qd_sum_w1);
+	if (bufferbloat_stat->sample_qd_sum_until_last_window < 0){
+		printf("\n\n\nline %d: ERROR: sample_qd_sum_until_last_window(%f) < 0\n\n\n\n",
+			__LINE__,bufferbloat_stat->sample_qd_sum_until_last_window);
 		exit(-9911);
 	}
 
@@ -4556,17 +4556,45 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 	print_last_window_directional(an_type, trig,bufferbloat_stat, conn_id, type, 
 		qd_window, window_error, window_size);
 
-	bufferbloat_stat->qd_sum_w1 += 
-		(bufferbloat_stat->qd_measured_sum - bufferbloat_stat->qd_sum_w1);		
-	bufferbloat_stat->qd_count_w1 += 
-		(bufferbloat_stat->qd_measured_count- bufferbloat_stat->qd_count_w1);
-	bufferbloat_stat->qd_sum2_w1 += 
-		(bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->qd_sum2_w1);
+	//<aa>TODO: maybe it's also correct to do:
+	// bufferbloat_stat->sample_qd_sum_until_last_window =
+	//	bufferbloat_stat->qd_measured_sum
+	bufferbloat_stat->sample_qd_sum_until_last_window += 
+		bufferbloat_stat->qd_measured_sum - 
+		bufferbloat_stat->sample_qd_sum_until_last_window;
+	bufferbloat_stat->qd_samples_until_last_window += 
+		bufferbloat_stat->qd_measured_count - 
+		bufferbloat_stat->qd_samples_until_last_window;
+	bufferbloat_stat->sample_qd_sum2_until_last_window += 
+		bufferbloat_stat->qd_measured_sum2 - 
+		bufferbloat_stat->sample_qd_sum2_until_last_window;
+	#ifdef SEVERE_DEBUG
+	bufferbloat_stat->gross_dly_sum_until_last_window +=
+		bufferbloat_stat->gross_dly_measured_sum -
+		bufferbloat_stat->gross_dly_sum_until_last_window;
+
+	if(	bufferbloat_stat->sample_qd_sum_until_last_window !=
+		bufferbloat_stat->qd_measured_sum)
+	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+
+	if(	bufferbloat_stat->qd_samples_until_last_window !=
+		bufferbloat_stat->qd_measured_count)
+	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+
+	if(	bufferbloat_stat->sample_qd_sum2_until_last_window !=
+		bufferbloat_stat->qd_measured_sum2)
+	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+	
+	if(	bufferbloat_stat->gross_dly_sum_until_last_window !=
+		bufferbloat_stat->gross_dly_measured_sum)
+	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+	
+	#endif
 
 	//stqd_max_w1atistics
-	bufferbloat_stat->qd_measured_count_w1++;
-	bufferbloat_stat->qd_measured_sum_w1 += qd_window;
-	bufferbloat_stat->qd_measured_sum2_w1 += ((qd_window)*(qd_window));
+	bufferbloat_stat->not_void_windows++;
+	bufferbloat_stat->windowed_qd_sum += qd_window;
+	bufferbloat_stat->windowed_qd_sum2 += ((qd_window)*(qd_window));
 
 	update_following_left_edge( bufferbloat_stat );
 	printf("updated left edge=%u\n",(unsigned)bufferbloat_stat->last_window_edge);
