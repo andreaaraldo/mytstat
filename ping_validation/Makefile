@@ -20,4 +20,4 @@ cli:
 
 #bidirectional
 bidir:
-	iperf -t $(RUNTIME) -c 127.0.0.1 -d
+	iperf -t $(RUNTIME) -c localhost -d
