@@ -814,8 +814,21 @@ extern double prof_cps;              // clock per seconds give by sysconf()
 //<aa>TODO: All that follows must be placed in a file named bufferbloat.c . How to insert this in
 //makefile?
 
+enum gross_dly_filtering{
+	NONE,YES
+};
+
 /**
- * returns an estimation of the queueing delay in microseconds
+ * Update the delay_base, bufferbloat_stat_p->cur_gross_delay_hist and 
+ * bufferbloat_stat_p->delay_base_hist. It does not update the aggregated values
+ * - gross_delay: in microseconds
+ */
+void update_gross_delay_related_stuff(u_int32_t gross_delay, utp_stat* bufferbloat_stat_p);
+
+/**
+ * returns an estimation of the queueing delay in microseconds.
+ * After a new gross_delay arrives, call update_gross_delay_related_stuff
+ * before calling this one
  */
 u_int32_t get_queueing_delay(const utp_stat* bufferbloat_stat_p);
 
@@ -828,14 +841,6 @@ int wrapping_compare_less(u_int32_t lhs, u_int32_t rhs); //libutp
  * It returns the baseline, i.e. the minimum of the last DELAY_BASE_HISTORY gross delays
  */
 u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p);
-
-/**
- * Update the delay_base, bufferbloat_stat_p->cur_gross_delay_hist and 
- * bufferbloat_stat_p->delay_base_hist.
- * - time_us, time_diff: in microseconds
- */
-void update_gross_delay_related_stuff(u_int32_t gross_delay, utp_stat* bufferbloat_stat_p);
-
 
 #ifdef BUFFERBLOAT_ANALYSIS
 enum analysis_type { 
@@ -915,7 +920,7 @@ void update_following_left_edge(utp_stat* bufferbloat_stat);
 
 
 /**
- * It closes the previous window and updates the value of the following one. 
+ * It closes the previous window and updates the values for the following one. 
  * It returns the queueing delay of the closed window (in milliseconds) or -1 if no 
  * pkts have been seen in the 
  * previous window.
@@ -929,7 +934,7 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 void check_direction_consistency(enum analysis_type an_type, 
 	enum bufferbloat_analysis_trigger trig, void* thisdir_, int call_line_number);
 
-void check_direction_consistency_light(utp_stat* this_bufferbloat_stat, 
-	utp_stat* other_bufferbloat_stat, int caller_line);
+void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat, 
+	const utp_stat* other_bufferbloat_stat, int caller_line);
 #endif
 

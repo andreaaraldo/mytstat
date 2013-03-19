@@ -150,6 +150,7 @@ elif [ "$3" == "red" ]; then
 fi
 #---------------------------------------------------
 
+echo "--- tc show --"
 
 # result verify
 [[ "$?" -ne 0 ]] && { echo "Error detected, restoring..."; tc qdisc del dev $dev root; tc qdisc show dev $dev; exit 1; }

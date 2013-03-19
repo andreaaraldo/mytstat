@@ -228,7 +228,7 @@ int is_utp_pkt(struct ip *pip, void *pproto, void *pdir, void *plast){
  * provide robustness to large delay peaks, as may occur with delayed ACKs in TCP"
  * Here, we implement this MIN filter.
  * </aa>
- */
+ *//*
 u_int32_t get_queueing_delay_vecchio(ucb *thisdir) {
 	u_int32_t min;
 	min=thisdir->utp.cur_delay_hist[0];	
@@ -241,18 +241,19 @@ u_int32_t get_queueing_delay_vecchio(ucb *thisdir) {
 		i++;
 	}
 
-	/** 
-	 * <aa> if we wanted to implement the MIN FILTER described in [ledbat_draft] we
-	 * would calculate
-	 *	queue_dly_est = min(last 3 owd) - baseline
-	 * On the contrary, since an element of thisdir->utp.cur_delay_hist is a queueing dly, 
-	 * we are calculating
-	 * 	queue_dly_est = min(last 3 queue_dly) = min (last 3 owd - baseline)
-	 * We verified that this does not affect the queueing delay estimation
-	 * </aa>
-	 */
+	//
+	// <aa> if we wanted to implement the MIN FILTER described in [ledbat_draft] we
+	// would calculate
+	//	queue_dly_est = min(last 3 owd) - baseline
+	// On the contrary, since an element of thisdir->utp.cur_delay_hist is a queueing dly, 
+	// we are calculating
+	// 	queue_dly_est = min(last 3 queue_dly) = min (last 3 owd - baseline)
+	// We verified that this does not affect the queueing delay estimation
+	// </aa>
+	//
 	return min;
 }
+*/
 
 // <aa>: trick to print the enum inspired by:
 // http://www.cs.utah.edu/~germain/PPS/Topics/C_Language/enumerated_types.html
@@ -654,7 +655,7 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 			utpstat.P[PERC_95], 
 			utpstat.P[PERC_99]);
 
-//araldo!!			
+		//<aa>TODO: check how to correctly print non printable strings</aa>
 		wfprintf(fp_ledbat_logc, "0x%X 0x%X ",
 	     		strlen(utpstat.peerID)>0 ? utpstat.peerID : "----",    				     	strlen(utpstat.infoHASH)>0 ? utpstat.infoHASH : "----");
           }//if log_engine
@@ -668,8 +669,8 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 float PSquare (void* pdir, float q, int p ){
 	ucb *thisdir;
 	thisdir = ( ucb *) pdir;
-	int k;
-	float P;
+	int k = -1;
+	float P=-1;
 
 
 	switch ( (int)(p) ){
@@ -692,6 +693,15 @@ float PSquare (void* pdir, float q, int p ){
 		default:
 			break;
 	}
+
+	//<aa>
+	#ifdef SEVERE_DEBUG
+	if(P<0){
+		printf("line %d:ERROR in Psquare\n",__LINE__);exit(88);
+	}
+	#endif
+	//</aa>
+
 
 
 			thisdir->utp.N_P[p]++;
@@ -769,7 +779,14 @@ float PSquare (void* pdir, float q, int p ){
 					}}}}}}
 				//printf("\n k is %d  ", k);
 						
-				
+				//<aa>
+				#ifdef SEVERE_DEBUG
+				if(k<0){
+					printf("line %d:ERROR in Psquare\n",__LINE__);
+					exit(88);
+				}
+				#endif
+				//</aa>
 
 				int i=0;
 				while ( i < 5){
@@ -781,8 +798,7 @@ float PSquare (void* pdir, float q, int p ){
 
   //                              printf("\n before x[0  1  2  3  4 ] %f %f %f %f %f", thisdir->utp.x_99P[0], thisdir->utp.x_99P[1], thisdir->utp.x_99P[2], thisdir->utp.x_99P[3], thisdir->utp.x_99P[4] );
 	
-				int j;
-				j=k;
+				int j = k;
 				while ( j< 5){	
 					thisdir->utp.x_P[j][p]++;
 					j++;

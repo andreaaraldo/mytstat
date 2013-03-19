@@ -2,6 +2,9 @@
 
 #how many seconds the client must run
 RUNTIME=2000000
+TARGET=localhost
+DEV=lo
+LOSS_PROBABILITY=0 #(percentage)
 
 all: load dbg srv netem cli 
 
@@ -12,12 +15,11 @@ srv:
 	iperf -s
 	
 netem:	
-	sudo ./network_emulation.sh 1 1 fifo lo
-	sudo ./network_emulation.sh 1 1 fifo lo
+	sudo ./network_emulation.sh 1 $(LOSS_PROBABILITY) fifo $(DEV)
 	
 cli:
-	iperf -t $(RUNTIME) -c localhost
+	iperf -t $(RUNTIME) -c $(TARGET)
 
-#bidirectional
+#bidirection
 bidir:
-	iperf -t $(RUNTIME) -c localhost -d
+	iperf -t $(RUNTIME) -c $(TARGET) -d

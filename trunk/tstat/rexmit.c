@@ -614,12 +614,13 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       #ifdef SEVERE_DEBUG
       check_direction_consistency_light(&(ptcb->bufferbloat_stat_ack_triggered),
 		otherdir_bufferbloat_stat, __LINE__);
-      printf("\ntcp.c line %d: Calling bufferbloat_analysis, ip-port-a=%s-%s",
+/*      printf("\rexmit.c line %d: Calling bufferbloat_analysis, ip-port-a=%s-%s",
 		__LINE__, HostName (ptcb->ptp->addr_pair.a_address), 
 		ServiceName (ptcb->ptp->addr_pair.a_port));
-      printf("\ntcp.c line %d: Calling bufferbloat_analysis, ip-port-b=%s-%s\n",
+      printf("\rexmit.c line %d: Calling bufferbloat_analysis, ip-port-b=%s-%s\n",
 		__LINE__, HostName (ptcb->ptp->addr_pair.b_address), 
 		ServiceName (ptcb->ptp->addr_pair.b_port));
+*/
       #endif
       bufferbloat_analysis(TCP, ACK_TRIG, &(ptcb->ptp->addr_pair),
 		dir, &(ptcb->bufferbloat_stat_ack_triggered), 

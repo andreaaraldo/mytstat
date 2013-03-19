@@ -3603,23 +3603,49 @@ void flush_histo_engine(void) {
 //<aa>TODO: All that follows must be placed in a file named bufferbloat.c . How to insert this in
 //makefile?
 
+static const enum gross_dly_filtering filtering = NONE;
+
+//<aa>
 u_int32_t get_queueing_delay(const utp_stat* bufferbloat_stat_p){
-	u_int32_t filtered_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[0];	
-	int i=1;
-	while ( i<CUR_DELAY_SIZE ){
-		if (	( (bufferbloat_stat_p->cur_gross_delay_hist[i]< filtered_gross_delay ) 
-			&&  (bufferbloat_stat_p->cur_gross_delay_hist[i]>0)	
-			)	
-				|| 
-			filtered_gross_delay == 0
-		)
-			filtered_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[i];
+	#ifdef SEVERE_DEBUG
+	if(filtering != YES && filtering != NONE){
+		printf("line %d:ERROR in get_queueing_delay",__LINE__);exit(451);
+	}
+	#endif
+
+	u_int32_t filtered_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[0];
+
+	if(filtering == YES){
+		//Find the minimum gross delay over cur_gross_delay_hist.
+		int i=1;
+		while ( i<CUR_DELAY_SIZE ){
+			if (	( (bufferbloat_stat_p->cur_gross_delay_hist[i]< filtered_gross_delay ) 
+				&&  (bufferbloat_stat_p->cur_gross_delay_hist[i]>0)	
+				)	
+					|| 
+				filtered_gross_delay == 0
+			)
+				filtered_gross_delay = bufferbloat_stat_p->cur_gross_delay_hist[i];
 	
-		i++;
+			i++;
+		}
+	}else{ //filtering == NONE
+		//only the first element of cur_gross_delay_hist is used
+		#ifdef SEVERE_DEBUG
+		int i=1;
+		while ( i<CUR_DELAY_SIZE ){
+			if (bufferbloat_stat_p->cur_gross_delay_hist[i] != 0){
+				printf("line %d:ERROR in get_queueing_delay",__LINE__);
+				exit(547921);
+			}
+			i++;
+		}
+		#endif
 	}
 	
 	return filtered_gross_delay - bufferbloat_stat_p->delay_base;
 }
+//</aa>
 
 
 // compare if lhs is less than rhs, taking wrapping
@@ -3650,9 +3676,13 @@ int wrapping_compare_less(u_int32_t lhs, u_int32_t rhs)
 
 //<aa>TODO: Find a more efficient way to compute the minimum</aa>
 u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p){
-	u_int32_t min;
+	#ifdef SEVERE_DEBUG
+	if(filtering != YES){
+		printf("line %d:ERROR in min_delay_base\n",__LINE__); exit(112);
+	}
+	#endif
 
-	min=bufferbloat_stat_p->delay_base_hist[0];
+	u_int32_t min = bufferbloat_stat_p->delay_base_hist[0];
 	int i=1;
 	while ( i<DELAY_BASE_HISTORY ){
 		if (wrapping_compare_less(bufferbloat_stat_p->delay_base_hist[i],min)) 
@@ -3669,58 +3699,102 @@ void update_gross_delay_related_stuff(u_int32_t gross_delay,utp_stat* bufferbloa
 		printf("Error: gross delay = 0\n"); exit(541);
 	}
 
-	bufferbloat_stat_p->gross_dly_measured_sum += gross_delay/1000;
-	#endif
-	int j=0;
-	while ( j<DELAY_BASE_HISTORY ){
-		if (bufferbloat_stat_p->delay_base_hist[j]==0) 
-			bufferbloat_stat_p->delay_base_hist[j]=gross_delay;
-		j++;
-		//bufferbloat_stat_p->delay_base=gross_delay;
+	if(filtering != YES && filtering != NONE){
+		printf("line %d:ERROR in update_gross_delay_related_stuff",__LINE__);
+		exit(451);
 	}
 
-	if ( 	 elapsed(bufferbloat_stat_p->last_rollover, current_time) > 60e6 ) {
-		// <aa>"LEDBAT sender stores BASE_HISTORY separate minima---one each for the
-		// last BASE_HISTORY-1 minutes, and one for the running current minute.
-		// At the end of the current minute, the window moves---the earliest
-		// minimum is dropped and the latest minimum is added."
-		// </aa>
-
-		//<aa>It corresponds to the "last_rollover" in the draft</aa>
-		bufferbloat_stat_p->last_rollover=current_time;
-		
-		int i=1; //rollover della lista di base_delay
-		while ( i<DELAY_BASE_HISTORY ){
-			bufferbloat_stat_p->delay_base_hist[i-1]=bufferbloat_stat_p->delay_base_hist[i];
-			i++;
+	if(filtering != YES){
+		//We do not use the delay_base_hist
+		int j=0;
+		for( ; j<DELAY_BASE_HISTORY; j++){
+			if (bufferbloat_stat_p->delay_base_hist[j]!=0){
+				printf("line %d:ERROR in update_gross_delay_related_stuff\n",__LINE__);
+				exit(74747);
+			}
 		}
-		bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]=gross_delay;
-	
-	}else{ //update the tail
-		if (wrapping_compare_less(gross_delay,bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]))  
-			bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]=gross_delay;
-			//<aa>according to the draft, we calculate the one-way delay minima over a
-			//one-minute interval</aa>
+
+		//We use only the first element of cur_gross_delay_hist
+		if(bufferbloat_stat_p->cur_delay_idx != 0){
+			printf("line %d:ERROR in update_gross_delay_related_stuff\n",__LINE__);
+			exit(74748);
+		}
+		for(j=1 ; j<DELAY_BASE_HISTORY; j++){
+			if(bufferbloat_stat_p->cur_gross_delay_hist[j] != 0){
+				printf("line %d:ERROR in update_gross_delay_related_stuff\n",__LINE__);
+				exit(74749);
+			}	
+		}
 	}
+	#endif
 
-   	//collect last CUR_DELAY_SIZE queueing delay 
-	bufferbloat_stat_p->delay_base=min_delay_base (bufferbloat_stat_p);
+	if(filtering == YES)
+	{
+		int j=0;
+		while ( j<DELAY_BASE_HISTORY ){
+			if (bufferbloat_stat_p->delay_base_hist[j]==0) 
+				bufferbloat_stat_p->delay_base_hist[j]=gross_delay;
+			j++;
+			//bufferbloat_stat_p->delay_base=gross_delay;
+		}
 
-	//<aa>estimated queueing delay for the current packet</aa>
-	u_int32_t delay= gross_delay - bufferbloat_stat_p->delay_base;
+		if ( 	 elapsed(bufferbloat_stat_p->last_rollover, current_time) > 60e6 ) {
+			// <aa>"LEDBAT sender stores BASE_HISTORY separate minima---one each for the
+			// last BASE_HISTORY-1 minutes, and one for the running current minute.
+			// At the end of the current minute, the window moves---the earliest
+			// minimum is dropped and the latest minimum is added."
+			// </aa>
 
-	//<aa>The following two lines correspond to update_current_delay(...) in 
-	//section 3.4.2 of [ledbat_draft]</aa>
-	// <aa>[ledbat_draft] sec 3.4.2 says that update_current_delay(...)
-	// mantains a list of one-way delays, whereas we mantain a list of estimated queueing delays.
-	// But we handle this vector in a slightly different way and verified that this does not 
-	// affect the queueing delay estimation</aa>
-	bufferbloat_stat_p->cur_delay_hist[bufferbloat_stat_p->cur_delay_idx]=delay;
-	bufferbloat_stat_p->cur_delay_idx= (bufferbloat_stat_p->cur_delay_idx+1)% CUR_DELAY_SIZE;
+			//<aa>It corresponds to the "last_rollover" in the draft</aa>
+			bufferbloat_stat_p->last_rollover=current_time;
+		
+			int i=1; //rollover della lista di base_delay
+			while ( i<DELAY_BASE_HISTORY ){
+				bufferbloat_stat_p->delay_base_hist[i-1]=bufferbloat_stat_p->delay_base_hist[i];
+				i++;
+			}
+			bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]=gross_delay;
+	
+		}else{ //update the tail
+			if (	wrapping_compare_less(	gross_delay, 
+					bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1])
+			)  
+				bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]=gross_delay;
+				//<aa>according to the draft, we calculate the one-way delay minima over a
+				//one-minute interval</aa>
+		}
 
-	//<aa>TODO: remove this
-	bufferbloat_stat_p->cur_gross_delay_hist[bufferbloat_stat_p->cur_delay_idx] = gross_delay;
-	//</aa>	
+		bufferbloat_stat_p->delay_base=min_delay_base (bufferbloat_stat_p);
+
+		//<aa>The following two lines correspond to update_current_delay(...) in 
+		//section 3.4.2 of [ledbat_draft]</aa>
+		// <aa>[ledbat_draft] sec 3.4.2 says that update_current_delay(...)
+		// mantains a list of one-way delays, whereas we mantain a list of estimated queueing delays.
+		// But we handle this vector in a slightly different way and verified that this does not 
+		// affect the queueing delay estimation</aa>
+
+	   	//collect last CUR_DELAY_SIZE queueing delay 
+		
+		//u_int32_t qd_delay= gross_delay - bufferbloat_stat_p->delay_base;
+		//bufferbloat_stat_p->cur_delay_hist[bufferbloat_stat_p->cur_delay_idx]=qd_delay;
+
+		//<aa>TODO: remove this or the update of cur_delay_hist
+		bufferbloat_stat_p->cur_gross_delay_hist[bufferbloat_stat_p->cur_delay_idx] = gross_delay;
+		//</aa>	
+
+		bufferbloat_stat_p->cur_delay_idx= (bufferbloat_stat_p->cur_delay_idx+1)% CUR_DELAY_SIZE;
+	} 
+	else{ //filtering == NONE
+		//Store the last gross_delay
+		bufferbloat_stat_p->cur_gross_delay_hist[0] = gross_delay;
+
+		if(	gross_delay < bufferbloat_stat_p->delay_base ||
+
+			bufferbloat_stat_p->delay_base == 0 
+			//delay_base never measured before
+		)
+			bufferbloat_stat_p->delay_base = gross_delay ;
+	}
 }
 //</aa>
 
@@ -3763,6 +3837,10 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 	#ifdef SEVERE_DEBUG
 	if (dir!=S2C && dir!=C2S) {
 		printf("ERROR: dir (%d) not valid\n",dir); exit(7777);
+	}
+
+	if(last_grossdelay < estimated_qd){
+		printf("line %d:ERROR in  print_queueing_dly_sample\n",__LINE__);exit(3356);
 	}
 	#endif
 
@@ -3851,10 +3929,12 @@ float bufferbloat_analysis(enum analysis_type an_type,
 			bufferbloat_stat);
 		exit(1274);
 	}
+
+	check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
+		__LINE__);
 	#endif
 
 	update_gross_delay_related_stuff(last_grossdelay, bufferbloat_stat );//ptcp is thisdir
-      
 	u_int32_t estimated_qd = get_queueing_delay((const utp_stat*)bufferbloat_stat ); 
 								//microseconds
 
@@ -3886,20 +3966,44 @@ float bufferbloat_analysis(enum analysis_type an_type,
 	if(	overfitting_avoided == TRUE 
 	      ||estimated_qd<120000 //<aa>??? why? </aa>
 	){
+		#ifdef SEVERE_DEBUG
+		check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
+			__LINE__);
+		#endif
+
 		//<aa>At first, see if a window can be closed (not including the present pkt)
                 windowed_qd = windowed_queueing_delay(an_type, trig, addr_pair, 
 			bufferbloat_stat, otherdir_bufferbloat_stat, dir, estimated_qd, type,
 			utp_conn_id);
 		//</aa>
 
+		#ifdef SEVERE_DEBUG
+		check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
+			__LINE__);
+		#endif
+
 		if ( update_size_info==TRUE )
 			bufferbloat_stat->last_measured_time_diff = last_grossdelay;
 	
-		float ewma; //Exponentially-Weighted Moving Average
-		//update statistics on queueing delay in ms 
 		bufferbloat_stat->qd_measured_count++;
 		bufferbloat_stat->qd_measured_sum+= (estimated_qd/1000);
 		bufferbloat_stat->qd_measured_sum2+= ((estimated_qd/1000)*(estimated_qd/1000));
+		bufferbloat_stat->gross_dly_measured_sum += last_grossdelay/1000;
+
+
+		#ifdef SEVERE_DEBUG
+		if(	filtering != YES && 
+			bufferbloat_stat->last_measured_time_diff != 
+			bufferbloat_stat->cur_gross_delay_hist[0]
+		){
+			printf("line %d:ERROR in bufferbloat_analysis\n",__LINE__);exit(799);
+		}
+		
+		check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
+			__LINE__);
+		#endif
+
+		float ewma; //Exponentially-Weighted Moving Average
 
        		if (bufferbloat_stat->ewma > 0) {
                    ewma = bufferbloat_stat->ewma;
@@ -3924,6 +4028,9 @@ float bufferbloat_analysis(enum analysis_type an_type,
 			printf("ERROR on line %d: 0 pkts in both directions\n",__LINE__);
 			exit(223);
 		}
+
+		check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
+			__LINE__);
 		#endif
 	}
 	#ifdef SEVERE_DEBUG
@@ -4024,10 +4131,11 @@ void print_last_window_general(enum analysis_type an_type,
        	           HostName (addr_pair->b_address),	//4.ip_addr_2
        	           ServiceName (addr_pair->b_port));	//5.port_2
 
-	#ifdef SEVERE_DEBUG
+/*	#ifdef SEVERE_DEBUG
 	printf("line %d: latest_window_edge=%u\n",
 		__LINE__, (unsigned)latest_window_edge[(int)an_type][(int)trig]);
 	#endif
+*/
 }
 
 
@@ -4047,8 +4155,6 @@ void print_last_window_directional(enum analysis_type an_type,
 		default: //LEDBAT
 			fp_logc = fp_ledbat_windowed_qd_logc;
 	}
-
-	wfprintf(fp_logc, " %s",type);			//6-19:type
 
 	#ifdef SEVERE_DEBUG
 	if (	(qd_window == BUFFEBLOAT_NOSAMPLES && qd_window != BUFFEBLOAT_NOSAMPLES)
@@ -4075,6 +4181,7 @@ void print_last_window_directional(enum analysis_type an_type,
 	}
 	#endif
 
+	wfprintf(fp_logc, " %s",type);			//6-19:type
 
 	if (qd_window == BUFFEBLOAT_NOSAMPLES)
 		wfprintf(fp_logc, " - -");
@@ -4093,6 +4200,12 @@ void print_last_window_directional(enum analysis_type an_type,
 	windowed_gross_dly = 	(bufferbloat_stat->gross_dly_measured_sum - 
 				 bufferbloat_stat->gross_dly_sum_until_last_window)/
 				samples_in_win;
+
+	if(windowed_gross_dly < qd_window){
+		printf("line %d:ERROR in print_last_window_directional: windowed_gross_dly=%f; qd_window=%f\n",
+			__LINE__, windowed_gross_dly, qd_window);
+		exit(441);
+	}
 	#endif
 
 	wfprintf(fp_logc," %f %d %f %d %d %d %f %f %f %u",
@@ -4184,14 +4297,14 @@ float windowed_queueing_delay(enum analysis_type an_type,
 		otherdir_bufferbloat_stat->last_window_edge = current_time.tv_sec;
 		#ifdef SEVERE_DEBUG
 		latest_window_edge[(int)an_type][(int)trig] = current_time.tv_sec;
-		printf("\n###############\nline %d: latest_window_edge=%u, thisdir_bufferbloat_stat->last_window_edge=%u, otherdir_bufferbloat_stat->last_window_edge=%u; thisdir_bufferbloat_stat=%p; otherdir_bufferbloat_stat=%p\n",
+/*		printf("\n###############\nline %d: latest_window_edge=%u, thisdir_bufferbloat_stat->last_window_edge=%u, otherdir_bufferbloat_stat->last_window_edge=%u; thisdir_bufferbloat_stat=%p; otherdir_bufferbloat_stat=%p\n",
 			__LINE__, (unsigned)latest_window_edge[(int)an_type][(int)trig],
 			(unsigned)thisdir_bufferbloat_stat->last_window_edge, 
 			(unsigned)otherdir_bufferbloat_stat->last_window_edge,
 			thisdir_bufferbloat_stat, 
 			otherdir_bufferbloat_stat);
 		printf("an_details=%s\n", an_details);
-	
+*/	
 		check_direction_consistency_light(thisdir_bufferbloat_stat,
 			otherdir_bufferbloat_stat, __LINE__);
 		#endif
@@ -4267,8 +4380,8 @@ float windowed_queueing_delay(enum analysis_type an_type,
 	return return_val;
 }//windowed
 
-void check_direction_consistency_light(utp_stat* this_bufferbloat_stat, 
-	utp_stat* other_bufferbloat_stat, int caller_line)
+void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat, 
+	const utp_stat* other_bufferbloat_stat, int caller_line)
 {
 	if(this_bufferbloat_stat==other_bufferbloat_stat){
 		printf("line %d: Error in check_direction_consistency_light\n",__LINE__);
@@ -4327,6 +4440,31 @@ void check_direction_consistency_light(utp_stat* this_bufferbloat_stat,
 		exit(1274);
 	}
 */
+	if(	  this_bufferbloat_stat->gross_dly_measured_sum - 
+		  this_bufferbloat_stat->gross_dly_sum_until_last_window
+		< this_bufferbloat_stat->qd_measured_sum - 
+		  this_bufferbloat_stat->sample_qd_sum_until_last_window
+	){
+		printf("\ncheck_direction_consistency light called in line %d\n", 
+			caller_line);
+		printf("line %d:ERROR gross_dly_win_sum=%f, qd_dly_win_sum=%f\n",__LINE__,
+			this_bufferbloat_stat->gross_dly_measured_sum - 
+			this_bufferbloat_stat->gross_dly_sum_until_last_window,
+			this_bufferbloat_stat->qd_measured_sum - 
+			this_bufferbloat_stat->sample_qd_sum_until_last_window
+		);
+		exit(223);
+	}
+
+	if(	  other_bufferbloat_stat->gross_dly_measured_sum - 
+		  other_bufferbloat_stat->gross_dly_sum_until_last_window
+		< other_bufferbloat_stat->qd_measured_sum - 
+		  other_bufferbloat_stat->sample_qd_sum_until_last_window
+	){
+		printf("\ncheck_direction_consistency light called in line %d\n", 
+			caller_line);
+		printf("line %d:ERROR \n",__LINE__); exit(223);
+	}
 }
 
 
@@ -4495,7 +4633,8 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 
 	//number of packets in the window we are going to close (not including the last packet)
 	int pkts_in_win = 
-		bufferbloat_stat->qd_measured_count- bufferbloat_stat->qd_samples_until_last_window;
+		bufferbloat_stat->qd_measured_count- 
+		bufferbloat_stat->qd_samples_until_last_window;
 
 	#ifdef SEVERE_DEBUG
 	if(an_type != LEDBAT && an_type != TCP){
@@ -4551,12 +4690,21 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 			__LINE__, pkts_in_win, qd_window); 
 		exit(558);
 	}
+
+	float windowed_gross_dly = 	(bufferbloat_stat->gross_dly_measured_sum - 
+				 bufferbloat_stat->gross_dly_sum_until_last_window)/
+				pkts_in_win;
+	if(windowed_gross_dly < qd_window){
+		printf("line %d:ERROR in close_window: windowed_gross_dly=%f; qd_window=%f\n",
+			__LINE__, windowed_gross_dly, qd_window);
+		exit(441);
+	}
 	#endif
 
 	print_last_window_directional(an_type, trig,bufferbloat_stat, conn_id, type, 
 		qd_window, window_error, window_size);
 
-	//<aa>TODO: maybe it's also correct to do:
+	//<aa>TODO: maybe it's also correct to do (it's verified in the following SEVERE_DEBUG block):
 	// bufferbloat_stat->sample_qd_sum_until_last_window =
 	//	bufferbloat_stat->qd_measured_sum
 	bufferbloat_stat->sample_qd_sum_until_last_window += 
@@ -4597,11 +4745,13 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 	bufferbloat_stat->windowed_qd_sum2 += ((qd_window)*(qd_window));
 
 	update_following_left_edge( bufferbloat_stat );
-	printf("updated left edge=%u\n",(unsigned)bufferbloat_stat->last_window_edge);
+
+	#ifdef SEVERE_DEBUG
+//	printf("updated left edge=%u\n",(unsigned)bufferbloat_stat->last_window_edge);
 	latest_window_edge[(int)an_type][(int)trig] = current_time.tv_sec;
-	printf("line %d: latest_window_edge=%u\n",
-		__LINE__, (unsigned)latest_window_edge[(int)an_type][(int)trig]);
-	
+//	printf("line %d: latest_window_edge=%u\n",
+//		__LINE__, (unsigned)latest_window_edge[(int)an_type][(int)trig]);
+	#endif
 
 	return qd_window;
 }
