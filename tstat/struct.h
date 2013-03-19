@@ -326,9 +326,9 @@ typedef struct utp_stat
 	// <aa> Instead, we are collecting estimated queueing delays. 	
 	// But we handle this vector in a slightly different way and verified that this does not 
 	// affect the queueing delay estimation</aa>
-        u_int32_t cur_delay_hist[CUR_DELAY_SIZE]; // queueing delay
+        //u_int32_t cur_delay_hist[CUR_DELAY_SIZE]; // queueing delay
 
-	//<aa>TODO: remove cur delay hist
+	//<aa>TODO: remove this or cur_delay_hist
 	//Gross delays are one one-way  delays in the case of ledbat bufferbloat analysis. 
 	//They are round trip delays in the case of tcp ledbat analysis
 	u_int32_t cur_gross_delay_hist[CUR_DELAY_SIZE];

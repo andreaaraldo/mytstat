@@ -10,25 +10,30 @@ killall iperf
 
 
 TSTAT_OUT_FOLDER=/tmp/tstat_out
+TSTAT_LOG=/tmp/tstat.log
+TARGET=localhost
+DEV=lo
 
 #Initialize ping data file to avoid gnuplot errors
 echo "0 0 0" > /tmp/ping.DATA
 
-ping -D localhost |   perl -ne 'BEGIN { $|=1 } m/^\[(\d+.?\d*).*req\=(\d+).*time\=(\d+.?\d*)\s*ms/; print "$1 $2 $3\n"; ' > /tmp/ping.DATA &
-tstat -i lo -l -s $TSTAT_OUT_FOLDER &
+make netem
+sleep 1
+
+ping -D $TARGET |   perl -ne 'BEGIN { $|=1 } m/^\[(\d+.?\d*).*req\=(\d+).*time\=(\d+.?\d*)\s*ms/; print "$1 $2 $3\n"; ' > /tmp/ping.DATA &
+tstat  -i $DEV -l -s $TSTAT_OUT_FOLDER > $TSTAT_LOG 2>&1 &
 
 make srv &
 sleep 1
 make cli &
 
-echo "sto fando la pausa"
 sleep 5
-echo "pausa fatta"
 #Get the latest analysis
-TSTAT_OUT_FILE=/tmp/tstat_out/`ls -Artl $TSTAT_OUT_FOLDER | tail -n1 | cut -f9 -d' '`/log_tcp_windowed_qd_acktrig
+ACK_TRIG_FILE=/tmp/tstat_out/`ls -Artl $TSTAT_OUT_FOLDER | tail -n1 | cut -f9 -d' '`/log_tcp_windowed_qd_acktrig
+DATA_TRIG_FILE=/tmp/tstat_out/`ls -Artl $TSTAT_OUT_FOLDER | tail -n1 | cut -f9 -d' '`/log_tcp_windowed_qd_datatrig
 
-echo "tstat output file is $TSTAT_OUT_FILE"
-gedit $TSTAT_OUT_FILE
+echo "ack triggered file is $ACK_TRIG_FILE"
+echo "data triggered file is $DATA_TRIG_FILE"
 
 #Setting gnuplot instructions
 #see: http://hxcaine.com/blog/2013/02/28/running-gnuplot-as-a-live-graph-with-automatic-updates/
@@ -37,10 +42,10 @@ gedit $TSTAT_OUT_FILE
 #echo  "set xlab 'sample'; set ylab '[ms]'; plot '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with lines title 'rtt'; pause 2; reread" > /tmp/ping.gp
 
 #to print both graphs
-echo  "set xlab 'sample'; set ylab '[ms]'; plot '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with lines title 'rtt_ping', '< cat $TSTAT_OUT_FILE' u 1:(\$11) with lines title 'rtt_tstat', '< cat $TSTAT_OUT_FILE' u 1:(\$7) with lines title 'windowed_qd' ; pause 2; reread" > /tmp/ping.gp
+echo  "set grid; show grid; set xlab 'sample'; set ylab '[ms]'; plot '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with lines title 'rtt_ping', '< cat $ACK_TRIG_FILE' u 1:(\$11) with lines title 'data2ack', '< cat $ACK_TRIG_FILE' u 1:(\$7) with lines title 'ack_trig_windowed_qd', '< cat $DATA_TRIG_FILE' u 1:(\$11) with lines title 'ack2data', '< cat $DATA_TRIG_FILE' u 1:(\$7) with lines title 'data_trig_windowed_qd' ; pause 2; reread" > /tmp/ping.gp
 
 #to print tstat graph only
-#echo  "set xlab 'sample'; set ylab '[ms]'; plot '< cat $TSTAT_OUT_FILE' u 1:(\$11) with lines title 'qd' ; pause 2; reread" > /tmp/ping.gp
+#echo  "set xlab 'sample'; set ylab '[ms]'; plot '< cat $ACK_TRIG_FILE' u 1:(\$11) with lines title 'qd' ; pause 2; reread" > /tmp/ping.gp
 
 sleep 2
 gnuplot /tmp/ping.gp
