@@ -3844,10 +3844,10 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 	}
 	#endif
 
-	u_int32_t current_time_ms = 
-		current_time.tv_sec * 1000 + (u_int32_t)current_time.tv_usec/1000;
+	float current_time_sec = 
+		current_time.tv_sec + ( (float)current_time.tv_usec)/1000000;
 	wfprintf(fp_qd,"%u ",
-		current_time_ms				//1. milliseconds
+		current_time.tv_sec				//1. seconds
 		
 	);	
 
@@ -3880,7 +3880,7 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 	wfprintf (fp_qd, "%u ", pkt_size); 		//11.pkt_size
 	wfprintf (fp_qd, "%u ", last_grossdelay/1000);	//12.last_grossdelay(milliseconds)
 	wfprintf (fp_qd, "%s\n", type);	 		//13.type
-
+	fflush(fp_qd);
 }
 
 const float EWMA_ALPHA = 0.5;
@@ -4311,7 +4311,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 	}
 	//<aa>TODO: we are computing (last_window_edge - current_time) 2 times: 
 	//here and inside close_window(...). It's not efficient</aa>
-	else if ( current_time.tv_sec - thisdir_bufferbloat_stat->last_window_edge > 1)
+	else if ( current_time.tv_sec - thisdir_bufferbloat_stat->last_window_edge >= 1)
 	{
 		//More than 1 second has passed from the last window edge. We can close the 
 		//window; but, at first, we have to print its values.

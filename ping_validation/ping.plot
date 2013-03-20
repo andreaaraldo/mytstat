@@ -29,11 +29,13 @@ make cli &
 
 sleep 5
 #Get the latest analysis
-ACK_TRIG_FILE=/tmp/tstat_out/`ls -Artl $TSTAT_OUT_FOLDER | tail -n1 | cut -f9 -d' '`/log_tcp_windowed_qd_acktrig
-DATA_TRIG_FILE=/tmp/tstat_out/`ls -Artl $TSTAT_OUT_FOLDER | tail -n1 | cut -f9 -d' '`/log_tcp_windowed_qd_datatrig
+WIN_ACK_TRIG_FILE=/tmp/tstat_out/`ls -Artl $TSTAT_OUT_FOLDER | tail -n1 | cut -f9 -d' '`/log_tcp_windowed_qd_acktrig
+WIN_DATA_TRIG_FILE=/tmp/tstat_out/`ls -Artl $TSTAT_OUT_FOLDER | tail -n1 | cut -f9 -d' '`/log_tcp_windowed_qd_datatrig
+SAMPLE_ACK_TRIG_FILE=/tmp/tstat_out/`ls -Artl $TSTAT_OUT_FOLDER | tail -n1 | cut -f9 -d' '`/log_tcp_qd_sample_acktrig
 
-echo "ack triggered file is $ACK_TRIG_FILE"
-echo "data triggered file is $DATA_TRIG_FILE"
+echo "window ack triggered file is $WIN_ACK_TRIG_FILE"
+echo "window data triggered file is $WIN_DATA_TRIG_FILE"
+echo "sample ack triggered file is $SAMPLE_ACK_TRIG_FILE"
 
 #Setting gnuplot instructions
 #see: http://hxcaine.com/blog/2013/02/28/running-gnuplot-as-a-live-graph-with-automatic-updates/
@@ -42,10 +44,12 @@ echo "data triggered file is $DATA_TRIG_FILE"
 #echo  "set xlab 'sample'; set ylab '[ms]'; plot '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with lines title 'rtt'; pause 2; reread" > /tmp/ping.gp
 
 #to print both graphs
-echo  "set grid; show grid; set xlab 'sample'; set ylab '[ms]'; plot '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with lines title 'rtt_ping', '< cat $ACK_TRIG_FILE' u 1:(\$11) with lines title 'data2ack', '< cat $ACK_TRIG_FILE' u 1:(\$7) with lines title 'ack_trig_windowed_qd', '< cat $DATA_TRIG_FILE' u 1:(\$11) with lines title 'ack2data', '< cat $DATA_TRIG_FILE' u 1:(\$7) with lines title 'data_trig_windowed_qd' ; pause 2; reread" > /tmp/ping.gp
+echo  "set grid; show grid; set xlab 'timestamp'; set ylab '[ms]'; set y2lab 'no samples'; set ytics nomirror; set y2tics; plot '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with lines axes x1y1 title 'rtt_ping', '< cat $WIN_ACK_TRIG_FILE' u 1:(\$11) with lines axes x1y1 title 'data2ack', '< cat $WIN_ACK_TRIG_FILE' u 1:(\$7) with linespoints axes x1y1 title 'ack_trig_windowed_qd', '< cat $WIN_ACK_TRIG_FILE' u 1:(\$13) with lines axes x1y2 title 'no samples', '< cat $SAMPLE_ACK_TRIG_FILE' u 1:(\$12) with points axes x1y1 title 'data2ack_samples' ; pause 2; reread" > /tmp/ping.gp
+
+#echo  "set grid; show grid; set xlab 'timestamp'; set ylab '[ms]'; plot '< cat $SAMPLE_ACK_TRIG_FILE' u 1:(\$12) with lines axes x1y1 title 'data2ack_samples' ; pause 2; reread" > /tmp/ping.gp
 
 #to print tstat graph only
-#echo  "set xlab 'sample'; set ylab '[ms]'; plot '< cat $ACK_TRIG_FILE' u 1:(\$11) with lines title 'qd' ; pause 2; reread" > /tmp/ping.gp
+#echo  "set xlab 'sample'; set ylab '[ms]'; plot '< cat $WIN_ACK_TRIG_FILE' u 1:(\$11) with lines title 'qd' ; pause 2; reread" > /tmp/ping.gp
 
 sleep 2
 gnuplot /tmp/ping.gp
