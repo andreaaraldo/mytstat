@@ -2,8 +2,8 @@
 
 #how many seconds the client must run
 RUNTIME=2000000
-TARGET=localhost
-DEV=lo
+TARGET=137.194.22.52
+DEV=eth0
 LOSS_PROBABILITY=0 #(percentage)
 
 all: load dbg srv netem cli 
