@@ -23,9 +23,9 @@ sleep 1
 ping -D $TARGET |   perl -ne 'BEGIN { $|=1 } m/^\[(\d+.?\d*).*req\=(\d+).*time\=(\d+.?\d*)\s*ms/; print "$1 $2 $3\n"; ' > /tmp/ping.DATA &
 tstat  -i $DEV -l -f filter -s $TSTAT_OUT_FOLDER > $TSTAT_LOG 2>&1 &
 
-#make srv &
+make srv &
 sleep 1
-make cli &
+#make cli &
 
 sleep 5
 #Get the latest analysis
