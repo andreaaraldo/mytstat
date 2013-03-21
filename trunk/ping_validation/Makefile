@@ -2,7 +2,7 @@
 
 #how many seconds the client must run
 RUNTIME=2000000
-TARGET=137.194.22.52
+TARGET=137.194.165.115
 DEV=eth0
 LOSS_PROBABILITY=0 #(percentage)
 
