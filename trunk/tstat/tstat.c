@@ -4484,6 +4484,8 @@ void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat,
 		other_bufferbloat_stat->qd_measured_count - 
 		other_bufferbloat_stat->qd_samples_until_last_window <=0 
 	){
+a			printf("\ncheck_direction_consistency light called in line %d\n", 
+			caller_line);
 			printf("ERROR on line %d: 0 pkts in both directions\n",__LINE__);
 			exit(223);
 		}
