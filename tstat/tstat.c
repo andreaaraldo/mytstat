@@ -1002,7 +1002,7 @@ void close_all_logfiles()
       if (fp_tcp_windowed_qd_acktrig_logc != NULL) 
 	{ gzclose(fp_tcp_windowed_qd_acktrig_logc); fp_tcp_windowed_qd_acktrig_logc=NULL; }
       if (fp_tcp_qd_sample_acktrig_logc != NULL) 
-	{ gzclose(fp_tcp_qd_acktrig_sample_logc); fp_tcp_qd_sample_acktrig_logc=NULL; }
+	{ gzclose(fp_tcp_qd_sample_acktrig_logc); fp_tcp_qd_sample_acktrig_logc=NULL; }
       if (fp_tcp_windowed_qd_datatrig_logc != NULL) 
 	{ gzclose(fp_tcp_windowed_qd_datatrig_logc); fp_tcp_windowed_qd_datatrig_logc=NULL; }
       if (fp_tcp_qd_sample_datatrig_logc != NULL) 
