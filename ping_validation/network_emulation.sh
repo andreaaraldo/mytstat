@@ -86,8 +86,12 @@ tc qdisc add dev $dev root handle 1: htb default 11
 #tc class add dev $dev parent 1: classid 1:1 htb rate 100mbit ceil 100mbit
 #
 # - as specified on the command line 
-echo "tc class add dev $dev parent 1: classid 1:1 htb rate ${cap}mbit ceil ${cap}mbit"
-tc class add dev $dev parent 1: classid 1:1 htb rate ${cap}mbit ceil ${cap}mbit
+# OLD - Mbit 
+#echo "tc class add dev $dev parent 1: classid 1:1 htb rate ${cap}mbit ceil ${cap}mbit"
+#tc class add dev $dev parent 1: classid 1:1 htb rate ${cap}mbit ceil ${cap}mbit
+# NEW
+echo "tc class add dev $dev parent 1: classid 1:1 htb rate ${cap}kbit ceil ${cap}kbit"
+tc class add dev $dev parent 1: classid 1:1 htb rate ${cap}kbit ceil ${cap}kbit
 #---------------------------------------------------
 
 

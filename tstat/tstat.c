@@ -4020,10 +4020,10 @@ float bufferbloat_analysis(enum analysis_type an_type,
 
 		#ifdef SEVERE_DEBUG
 		if(	bufferbloat_stat->qd_measured_count - 
-			bufferbloat_stat->not_void_windows <=0 
+			bufferbloat_stat->qd_samples_until_last_window <=0 
 			&&
 			otherdir_bufferbloat_stat->qd_measured_count - 
-			otherdir_bufferbloat_stat->not_void_windows <=0 
+			otherdir_bufferbloat_stat->qd_samples_until_last_window <=0 
 		){
 			printf("ERROR on line %d: 0 pkts in both directions\n",__LINE__);
 			exit(223);
@@ -4362,6 +4362,18 @@ float windowed_queueing_delay(enum analysis_type an_type,
 			printf("\nline %d:ERROR: No pkts in both direction\n",__LINE__);
 			exit(987324);
 		}
+
+		if(	thisdir_bufferbloat_stat->qd_measured_count - 
+			thisdir_bufferbloat_stat->qd_samples_until_last_window <=0 
+			&&
+			otherdir_bufferbloat_stat->qd_measured_count - 
+			otherdir_bufferbloat_stat->qd_samples_until_last_window <=0 
+		){
+			printf("ERROR on line %d: 0 pkts in both directions\n",__LINE__);
+			exit(223);
+		}
+
+
 		check_direction_consistency_light(thisdir_bufferbloat_stat,
 			otherdir_bufferbloat_stat, __LINE__);
 		#endif
@@ -4465,6 +4477,17 @@ void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat,
 			caller_line);
 		printf("line %d:ERROR \n",__LINE__); exit(223);
 	}
+
+	if(	this_bufferbloat_stat->qd_measured_count - 
+		this_bufferbloat_stat->qd_samples_until_last_window <=0 
+		&&
+		other_bufferbloat_stat->qd_measured_count - 
+		other_bufferbloat_stat->qd_samples_until_last_window <=0 
+	){
+			printf("ERROR on line %d: 0 pkts in both directions\n",__LINE__);
+			exit(223);
+		}
+
 }
 
 
