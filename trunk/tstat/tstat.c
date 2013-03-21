@@ -4645,6 +4645,7 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 	float qd_window = -1;
 	float window_error;
 	int window_size = 1;
+	float last_window_qd_sum=-1;
 
 	//number of packets in the window we are going to close (not including the last packet)
 	int pkts_in_win = 
@@ -4652,6 +4653,12 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 		bufferbloat_stat->qd_samples_until_last_window;
 
 	#ifdef SEVERE_DEBUG
+	if(bufferbloat_stat->qd_measured_count < bufferbloat_stat->qd_samples_until_last_window){
+		printf("ERROR in print_last_window_general, line %d, qd_measured_count=%u,qd_samples_until_last_window=%u\n",
+			__LINE__, bufferbloat_stat->qd_measured_count, bufferbloat_stat->qd_samples_until_last_window); 
+		exit(413);
+	}
+
 	if(an_type != LEDBAT && an_type != TCP){
 		printf("ERROR in print_last_window_general, line %d\n",__LINE__); 
 		exit(414);
@@ -4677,10 +4684,15 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 		exit(784145);
 	}
 	#endif
-	if (pkts_in_win != 0)
-		//No pkts have been seen in this direction in the previous window
-		qd_window= (bufferbloat_stat->qd_measured_sum - bufferbloat_stat->sample_qd_sum_until_last_window)
-			/pkts_in_win;
+
+	if (pkts_in_win != 0){
+		//Some pkts have been seen in this direction in the previous window
+		last_window_qd_sum = bufferbloat_stat->qd_measured_sum - 
+							bufferbloat_stat->sample_qd_sum_until_last_window;
+
+		qd_window= last_window_qd_sum/(float)pkts_in_win;
+		qd_window= floor(qd_window);
+	}
 
 	window_error=Stdev(bufferbloat_stat->qd_measured_sum - bufferbloat_stat->sample_qd_sum_until_last_window, 
 		      bufferbloat_stat->qd_measured_sum2 - bufferbloat_stat->sample_qd_sum2_until_last_window,
@@ -4705,13 +4717,32 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 			__LINE__, pkts_in_win, qd_window); 
 		exit(558);
 	}
+		
+	float last_window_gross_dly_sum = 
+			bufferbloat_stat->gross_dly_measured_sum - 
+			bufferbloat_stat->gross_dly_sum_until_last_window;
 
-	float windowed_gross_dly = 	(bufferbloat_stat->gross_dly_measured_sum - 
-				 bufferbloat_stat->gross_dly_sum_until_last_window)/
-				pkts_in_win;
-	if(windowed_gross_dly < qd_window){
-		printf("line %d:ERROR in close_window: windowed_gross_dly=%f; qd_window=%f\n",
-			__LINE__, windowed_gross_dly, qd_window);
+	if(last_window_gross_dly_sum - last_window_qd_sum < 0){
+		printf("last_window_gross_dly_sum == last_window_qd_sum ? %d\n",
+			(last_window_gross_dly_sum == last_window_qd_sum) ? 1:0);
+		printf("line %d:ERROR in close_window: last_window_gross_dly_sum=%f; last_window_qd_sum=%f\n",
+			__LINE__, last_window_gross_dly_sum, last_window_qd_sum);
+		exit(440);
+	}
+
+	float windowed_gross_dly = 	
+		last_window_gross_dly_sum /	(float)pkts_in_win;
+	windowed_gross_dly = floor(windowed_gross_dly);
+	if(windowed_gross_dly - qd_window < 0){
+		//We don't use the condition windowed_gross_dly < qd_window because
+		//of some issues with floating point numbers
+		printf("line %d:ERROR in close_window: windowed_gross_dly=%f; qd_window=%f, difference=%f, last_window_gross_dly_sum=%f, last_window_qd_sum=%f, pkts_in_win=%f, \n",
+			__LINE__, windowed_gross_dly, qd_window, windowed_gross_dly-qd_window,
+			last_window_gross_dly_sum, last_window_qd_sum, (float)pkts_in_win);
+		printf("Calculating again: windowed_gross_dly=%f, qd_window=%f\n",
+				last_window_gross_dly_sum/(float)pkts_in_win, last_window_qd_sum/(float)pkts_in_win);
+		printf("last_window_gross_dly_sum == last_window_qd_sum ? %d\n",
+			(last_window_gross_dly_sum == last_window_qd_sum) ? 1:0);
 		exit(441);
 	}
 	#endif
