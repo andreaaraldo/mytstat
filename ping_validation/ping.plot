@@ -50,7 +50,7 @@ echo "sample ack triggered file is $SAMPLE_ACK_TRIG_FILE"
 #echo  "set xlab 'sample'; set ylab '[ms]'; plot '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with lines title 'rtt'; pause 2; reread" > /tmp/ping.gp
 
 #to print both graphs
-echo  "set grid; show grid; set xlab 'timestamp'; set ylab '[ms]'; set y2lab 'no samples'; set ytics nomirror; set y2tics; plot '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with linespoints axes x1y1 title 'rtt_ping', '< cat $WIN_ACK_TRIG_FILE' u 1:(\$11) with linespoints axes x1y1 title 'data2ack', '< cat $WIN_ACK_TRIG_FILE' u 1:(\$7) with linespoints axes x1y1 title 'ack_trig_windowed_qd', '< cat $WIN_ACK_TRIG_FILE' u 1:(\$13) with linespoints axes x1y2 title 'no samples' ; pause 2; reread" > /tmp/ping.gp
+echo  "set grid; show grid; set xlab 'timestamp'; set ylab '[ms]'; set y2lab 'no samples'; set ytics nomirror; set y2tics; plot '< cat $WIN_ACK_TRIG_FILE' u 1:(\$11) with linespoints axes x1y1 title 'data2ack', '< cat $WIN_ACK_TRIG_FILE' u 1:(\$7) with linespoints axes x1y1 title 'ack_trig_windowed_qd', '< cat $WIN_ACK_TRIG_FILE' u 1:(\$13) with linespoints axes x1y2 title 'no samples', '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with linespoints axes x1y1 title 'rtt_ping' ; pause 2; reread" > /tmp/ping.gp
 #echo  "set grid; show grid; set xlab 'timestamp'; set ylab '[ms]'; set y2lab 'no samples'; set ytics nomirror; set y2tics; plot '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with linespoints axes x1y1 title 'rtt_ping'; pause 2; reread" > /tmp/ping.gp
 
 
