@@ -39,8 +39,8 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-build_triplet = x86_64-unknown-linux-gnu
-host_triplet = x86_64-unknown-linux-gnu
+build_triplet = i686-pc-linux-gnu
+host_triplet = i686-pc-linux-gnu
 DIST_COMMON = $(am__include_HEADERS_DIST) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.conf $(srcdir)/Makefile.in \
 	$(srcdir)/libtstat.pc.in $(top_srcdir)/tstat/Makefile.sources
@@ -120,13 +120,13 @@ HEADERS = $(include_HEADERS)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /home/araldo/tstat/config/missing --run aclocal-1.11
+ACLOCAL = ${SHELL} /home/andrea/tstat/config/missing --run aclocal-1.11
 AMTAR = $${TAR-tar}
 AR = ar
-AUTOCONF = ${SHELL} /home/araldo/tstat/config/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/araldo/tstat/config/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/araldo/tstat/config/missing --run automake-1.11
-AWK = mawk
+AUTOCONF = ${SHELL} /home/andrea/tstat/config/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/andrea/tstat/config/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/andrea/tstat/config/missing --run automake-1.11
+AWK = gawk
 
 ################################################################## 
 ################################################################## 
@@ -164,16 +164,16 @@ INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
-LD = /usr/bin/ld -m elf_x86_64
+LD = /usr/bin/ld
 LDFLAGS = 
 LIBOBJS = 
-LIBS = -lpcap -lpthread -lm 
+LIBS = -lpcap -lpthread -lm  -lz
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIBTSTAT_VERSION = 1.0.0
 LIPO = 
 LN_S = ln -s
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/araldo/tstat/config/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/andrea/tstat/config/missing --run makeinfo
 MANIFEST_TOOL = :
 MKDIR_P = /bin/mkdir -p
 NM = /usr/bin/nm -B
@@ -194,16 +194,16 @@ PCAP_LDLINK = -lpcap
 RANLIB = ranlib
 SED = /bin/sed
 SET_MAKE = 
-SHELL = /bin/bash
+SHELL = /bin/sh
 STRIP = strip
 VERSION = 2.3
 V_CCOPT = 
-V_DEFINES =  -D_BSD_SOURCE
+V_DEFINES =  -D_BSD_SOURCE -DHAVE_ZLIB
 V_INCLS = 
-abs_builddir = /home/araldo/tstat/libtstat
-abs_srcdir = /home/araldo/tstat/libtstat
-abs_top_builddir = /home/araldo/tstat
-abs_top_srcdir = /home/araldo/tstat
+abs_builddir = /home/andrea/tstat/libtstat
+abs_srcdir = /home/andrea/tstat/libtstat
+abs_top_builddir = /home/andrea/tstat
+abs_top_srcdir = /home/andrea/tstat
 ac_ct_AR = ar
 ac_ct_CC = gcc
 ac_ct_DUMPBIN = 
@@ -213,26 +213,26 @@ am__quote =
 am__tar = $${TAR-tar} chof - "$$tardir"
 am__untar = $${TAR-tar} xf -
 bindir = ${exec_prefix}/bin
-build = x86_64-unknown-linux-gnu
+build = i686-pc-linux-gnu
 build_alias = 
-build_cpu = x86_64
+build_cpu = i686
 build_os = linux-gnu
-build_vendor = unknown
+build_vendor = pc
 builddir = .
 datadir = ${datarootdir}
 datarootdir = ${prefix}/share
 docdir = ${datarootdir}/doc/${PACKAGE_TARNAME}
 dvidir = ${docdir}
 exec_prefix = ${prefix}
-host = x86_64-unknown-linux-gnu
+host = i686-pc-linux-gnu
 host_alias = 
-host_cpu = x86_64
+host_cpu = i686
 host_os = linux-gnu
-host_vendor = unknown
+host_vendor = pc
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/araldo/tstat/config/install-sh
+install_sh = ${SHELL} /home/andrea/tstat/config/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -381,7 +381,7 @@ top_srcdir = ..
 # format of the DAG tool
 #DEFINES += -DGROK_DAG
 # define GROK_LIVE_TCPDUMP for live capturing with pcap library
-DEFINES =  -D_BSD_SOURCE -DTSTAT_RUNASLIB -DBUILT_USER="\"`whoami`\"" \
+DEFINES =  -D_BSD_SOURCE -DHAVE_ZLIB -DTSTAT_RUNASLIB -DBUILT_USER="\"`whoami`\"" \
 	-DBUILT_HOST="\"`hostname`\"" -DBUILT_DATE="\"`date`\"" \
 	-DMSN_CLASSIFIER -DYMSG_CLASSIFIER -DXMPP_CLASSIFIER \
 	-DRTSP_CLASSIFIER -DRTP_CLASSIFIER -DSKYPE_CLASSIFIER \
@@ -428,7 +428,7 @@ CCOPT = -Wall
 AM_CFLAGS = $(CCOPT) $(DEFINES)
 
 # Standard LIBS
-LDLIBS = -lpcap -lpthread -lm  ${PCAP_LDLIBS} ${DPMI_LDLIBS}
+LDLIBS = -lpcap -lpthread -lm  -lz ${PCAP_LDLIBS} ${DPMI_LDLIBS}
 # for solaris, you probably want:
 #	LDLIBS = -lpcap -lnsl -lsocket -lm
 # for HP, I'm told that you need:

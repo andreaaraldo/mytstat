@@ -4376,6 +4376,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 			#endif
 		}
 		wfprintf(fp_logc,"\n"); fflush(fp_logc);
+		printf("\nWindow closed\n");
 
 		#ifdef SEVERE_DEBUG
 		if (dir!=C2S && dir!=S2C){
