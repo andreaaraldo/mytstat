@@ -4222,9 +4222,19 @@ void print_last_window_directional(enum analysis_type an_type,
 	}
 	#endif
 
-	wfprintf(fp_logc," %f %d %f %d %d %d %f %f %f %u",
+	float validity_ratio =
+		(	bufferbloat_stat->qd_measured_count - 
+			bufferbloat_stat->qd_samples_until_last_window	) 
+		/
+		(	bufferbloat_stat->qd_calculation_chances - 
+			bufferbloat_stat->qd_calculation_chances_until_last_window )
+	;
+		
+
+
+	wfprintf(fp_logc," %f %f %f %d %d %d %f %f %f %u",
 		bufferbloat_stat->qd_max_w1,		//9-22
-		(int)((int)qd_window/(window_size*1000)),//10-23 CHE COSA E'?
+		validity_ratio,				//10-23
 		windowed_gross_dly,			//11-24
 		conn_id,				//12-25
 		samples_in_win,				//13-26:no_of_pkts_in_windows
@@ -4751,8 +4761,8 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 		qd_window, window_error, window_size);
 
 	//<aa>TODO: maybe it's also correct to do (it's verified in the following SEVERE_DEBUG block):
-	// bufferbloat_stat->sample_qd_sum_until_last_window =
-	//	bufferbloat_stat->qd_measured_sum
+	// bufferbloat_stat->sample_qd_sum_until_last_window = bufferbloat_stat->qd_measured_sum
+	//The same holds for the other variables too
 	bufferbloat_stat->sample_qd_sum_until_last_window += 
 		bufferbloat_stat->qd_measured_sum - 
 		bufferbloat_stat->sample_qd_sum_until_last_window;
@@ -4762,6 +4772,10 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 	bufferbloat_stat->sample_qd_sum2_until_last_window += 
 		bufferbloat_stat->qd_measured_sum2 - 
 		bufferbloat_stat->sample_qd_sum2_until_last_window;
+	bufferbloat_stat->qd_calculation_chances_until_last_window += 
+		bufferbloat_stat->qd_calculation_chances - 
+		bufferbloat_stat->qd_calculation_chances_until_last_window;
+
 	#ifdef SEVERE_DEBUG
 	bufferbloat_stat->gross_dly_sum_until_last_window +=
 		bufferbloat_stat->gross_dly_measured_sum -
@@ -4781,6 +4795,9 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 	
 	if(	bufferbloat_stat->gross_dly_sum_until_last_window !=
 		bufferbloat_stat->gross_dly_measured_sum)
+	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+	if(	bufferbloat_stat->qd_calculation_chances_until_last_window !=
+		bufferbloat_stat->qd_calculation_chances)
 	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
 	
 	#endif

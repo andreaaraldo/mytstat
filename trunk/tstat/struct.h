@@ -248,7 +248,7 @@ typedef struct ledbat_window_descr //<aa>TODO: not used anymore</aa>
 #endif
 */
 
-//<aa>???: Why don't we wrap it in ifdef-endif?</aa>
+//<aa>???: Why don't we wrap it in ifdef BUFFERBLOAT_ANALYSIS -endif?</aa>
 typedef struct utp_stat
 {
         timeval start;
@@ -262,16 +262,20 @@ typedef struct utp_stat
         float ewma;
 
 
-        // <aa> Statistics on a per-pkt basis</aa>
-        int qd_measured_count; //<aa>no. of pkts that this flow has seen</aa>
+        // <aa> STATISTICS ON A PER-PKT BASIS: begin</aa>
+        int qd_measured_count; //<aa>no. of qd samples that this flow has seen</aa>
+	//<aa>
+	int qd_calculation_chances; //no. of pkts which can be potentially used for qd calculation
+		//Some of these ones, will be truly used, some of these will be ignored (for example 
+		//in the ack-triggered tcp queueing delay calculation, the total number of acks is
+		//qd_calculation_chances but only qd_measured_count are valid acks)
+	//</aa>
 
 	float queueing_delay_min, queueing_delay_max; //<aa> min, max of the estimated queueing
 							//dlys of all the packets</aa>
 	float qd_measured_sum;  // <aa>sum qd of all packets (in milliseconds)</aa>
         float qd_measured_sum2; // <aa>ssum qd^2 of all packets (in milliseconds^2)</aa>
-        // <aa> Statistics on a per-pkt basis: end
-
-
+        // <aa> STATISTICS ON A PER-PKT BASIS: end </aa>
 
 	// <aa> Windowed statistics
 	// These statistics are calculated not on the values concerning each single packet, but 
@@ -366,9 +370,11 @@ typedef struct utp_stat
 	// from the beginning to the last closed window
 	// </aa>
 	// <aa>TODO: do we really need them?</aa>
-        int qd_samples_until_last_window; // <aa> no. of packets calculated from the 
+        int qd_samples_until_last_window; // <aa> no. of qd samples calculated from the 
 		// beginning of the flow to the last closed window (not considering
 		// the queueing dlys of the open windows </aa>
+
+	int qd_calculation_chances_until_last_window; //<aa>See the meaning of qd_calculation_chances</aa>
 
         float sample_qd_sum_until_last_window; // <aa>the sum of all the above queueing 
 						//delays (milliseconds) </aa>
