@@ -368,6 +368,9 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	#ifdef SEVERE_DEBUG
 	check_direction_consistency(LEDBAT, DONT_CARE_TRIG, pdir, __LINE__);
 	#endif
+		printf("Vedere quando e' il caso di chiamare chance is not valid\n");
+		exit(44417899);
+
 	if (grossdelay > 0){
 		float windowed_qd = bufferbloat_analysis(LEDBAT, DONT_CARE_TRIG, 
 			&(pup->addr_pair), dir, bufferbloat_stat, 

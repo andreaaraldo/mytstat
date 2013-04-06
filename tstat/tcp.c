@@ -1191,8 +1191,10 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 	      }
 	      #endif
 
+		printf("Vedere quando e' il caso di chiamare chance is not valid\n");
+		exit(44417899);
+
 	      #ifdef BUFFERBLOAT_ANALYSIS
-	      thisdir->bufferbloat_stat_data_triggered.qd_calculation_chances++;
 	      if (	retrans == 0
 				//the segment does not contain any retransmitted byte
 			&& out_order == FALSE 
@@ -1320,10 +1322,12 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
       #ifdef BUFFERBLOAT_ANALYSIS
       thisdir->last_ack_type = ack_type;
       thisdir->last_ack_time = current_time;
-      thisdir->bufferbloat_stat_ack_triggered.qd_calculation_chances++;
       #endif
 
       ack_type = ack_in (otherdir, th_ack, tcp_data_length);
+
+		printf("Vedere quando e' il caso di chiamare chance is not valid\n");
+		exit(44417899);
 
       #ifdef SEVERE_DEBUG
       if(ack_type == NORMAL) printf("OK ");
