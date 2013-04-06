@@ -62,7 +62,7 @@
 #define HAVE_UNISTD_H 1
 
 /* Define to 1 if you have the <zlib.h> header file. */
-#define HAVE_ZLIB_H 1
+/* #undef HAVE_ZLIB_H */
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
@@ -93,7 +93,7 @@
 #define SIZEOF_UNSIGNED_INT 4
 
 /* The size of `unsigned long int', as computed by sizeof. */
-#define SIZEOF_UNSIGNED_LONG_INT 4
+#define SIZEOF_UNSIGNED_LONG_INT 8
 
 /* The size of `unsigned long long int', as computed by sizeof. */
 #define SIZEOF_UNSIGNED_LONG_LONG_INT 8

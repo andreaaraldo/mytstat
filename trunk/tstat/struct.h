@@ -26,11 +26,15 @@
  */
 
 
-// <aa>TODO: where do I have to put this
+// <aa>TODO: where do I have to put these ones
 //  If it is defined, a lot of redundant and overabundant checks will be performed to 
 // check for inconsistent states or data. This can be useful when you edit the code to be
 // sure that the modifications do not produce those inconcistencies
 #define SEVERE_DEBUG
+
+//If it is defined, tstat will perform the calculations to check how many pkts are used
+//for bufferbloat analysis and how many must be ignored
+#define SAMPLES_VALIDITY
 // </aa>
 
 // <aa>TODO: where do I have to put this
@@ -264,12 +268,15 @@ typedef struct utp_stat
 
         // <aa> STATISTICS ON A PER-PKT BASIS: begin</aa>
         int qd_measured_count; //<aa>no. of qd samples that this flow has seen</aa>
+
+	#ifdef SAMPLES_VALIDITY
 	//<aa>
 	int qd_calculation_chances; //no. of pkts which can be potentially used for qd calculation
 		//Some of these ones, will be truly used, some of these will be ignored (for example 
 		//in the ack-triggered tcp queueing delay calculation, the total number of acks is
 		//qd_calculation_chances but only qd_measured_count are valid acks)
 	//</aa>
+	#endif
 
 	float queueing_delay_min, queueing_delay_max; //<aa> min, max of the estimated queueing
 							//dlys of all the packets</aa>
@@ -308,7 +315,10 @@ typedef struct utp_stat
   	int N_P[4];	
 	float P[4];
 	
+	//<aa>TODO: maybe it is the same if qd_measured_count and can be eliminated
+	//See the check at the end of bufferbloat_analysis/aa>	
 	int total_pkt;
+
         int bytes;
         int pkt_type_num[6]; /*DATA FIN STATE_ACK STATE_SACK RESET SYN*/
         u_int32_t last_measured_time_diff; //avoid measuring multiple samples
@@ -374,8 +384,10 @@ typedef struct utp_stat
 		// beginning of the flow to the last closed window (not considering
 		// the queueing dlys of the open windows </aa>
 
+	#ifdef SAMPLES_VALIDITY
 	int qd_calculation_chances_until_last_window; //<aa>See the meaning of qd_calculation_chances</aa>
-
+	#endif
+	
         float sample_qd_sum_until_last_window; // <aa>the sum of all the above queueing 
 						//delays (milliseconds) </aa>
 

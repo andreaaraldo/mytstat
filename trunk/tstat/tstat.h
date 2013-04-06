@@ -880,10 +880,25 @@ float bufferbloat_analysis(enum analysis_type an_type,
 	int utp_conn_id, const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay,
 	Bool overfitting_avoided, Bool update_size_info);
 
+#ifdef SAMPLES_VALIDITY
+/**
+ * ONLY FOR TCP BUFFERBLOAT ANALYSIS
+ * Call it if a packet is received which cannot be used to perform bufferbloat computation
+ * (for example, in the case of tcp ack-triggered analysis, you must call it when you 
+ * receive a duplicate ack, an ack out of sequence, ....)
+ */
+void chance_is_not_valid(enum analysis_type an_type, 
+	enum bufferbloat_analysis_trigger trig, const tcp_pair_addrblock* addr_pair,
+	const int dir, const char* type, utp_stat* thisdir_bufferbloat_stat, 
+	utp_stat* otherdir_bufferbloat_stat, const int conn_id )
+#endif
 
+//<aa>TODO: Try to pass the FILE* fp_logc directly, instead of passing
+//an_type and trig and calculate fp_logc inside different functions</aa>
 void print_last_window_general(enum analysis_type an_type,  
-	enum bufferbloat_analysis_trigger trig, tcp_pair_addrblock* addr_pair,
-	utp_stat* bufferbloat_stat_p);
+	enum bufferbloat_analysis_trigger trig, time_t left_edge,
+	const tcp_pair_addrblock* addr_pair,
+	const utp_stat* bufferbloat_stat_p);
 
 //Use it as a signal when there are no samples in a window
 #define BUFFEBLOAT_NOSAMPLES -1
@@ -893,11 +908,17 @@ void print_last_window_general(enum analysis_type an_type,
  * - qd_window:	queueing delay of the window (milliseconds) 
  *		(-1 if this window has non samples)
  * - conn_id:	it has no meaning for tcp analysis
+ * - type:	//<aa>TODO: Maybe type is the same for both directions. Check this</aa>
  */
 void print_last_window_directional(enum analysis_type an_type,
 	enum bufferbloat_analysis_trigger trig,
-	utp_stat* bufferbloat_stat, int conn_id, const char* type,
-	float qd_window, float window_error, int window_size);
+	const utp_stat* bufferbloat_stat, const int conn_id, const char* type,
+	const float qd_window, const float window_error);
+
+void print_void_window(enum analysis_type an_type,  
+	enum bufferbloat_analysis_trigger trig, const time_t old_last_left_edge,
+	const tcp_pair_addrblock* addr_pair, const utp_stat* thisdir_bufferbloat_stat,
+	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type);
 
 //compute statistics
 //<aa>
@@ -907,9 +928,9 @@ void print_last_window_directional(enum analysis_type an_type,
  * - qd: an estimate of the queueing delay of the packet
  */
 float windowed_queueing_delay(enum analysis_type an_type, 
-	enum bufferbloat_analysis_trigger trig, tcp_pair_addrblock* addr_pair, 
+	enum bufferbloat_analysis_trigger trig, const tcp_pair_addrblock* addr_pair, 
 	utp_stat* thisdir_bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat, int dir, 
-	float qd, const char* type, int conn_id);
+	const char* type, const int conn_id);
 //</aa>
 
 
