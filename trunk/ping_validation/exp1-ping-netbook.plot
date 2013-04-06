@@ -33,7 +33,9 @@ echo "port $PORT_TO_SNIFF" > $FILTER_FILE
 tstat  -i $DEV -l -f $FILTER_FILE -s $TSTAT_OUT_FOLDER > $TSTAT_LOG 2>&1 &
 
 sleep 2
-ITGSend -T TCP -a desktop -rp 5001 -t 1000000 &
+ITGSend -T TCP -a desktop -t 1000000 -rp 5001 -O 10  > $LOG_FOLDER/ITGSend.log &
+#iperf -t 2000000 -c desktop -s $TSTAT_OUT_FOLDER > $TSTAT_LOG 2>&1 &
+#sh $TSTAT_FOLDER/ping_validation/traffic_generator.sh &
 
 sleep 5
 #Get the latest analysis
@@ -52,4 +54,4 @@ echo  "set grid; show grid; set xlab 'timestamp'; set ylab '[ms]'; set y2lab 'no
 sleep 2
 echo "launching gnuplot"
 gnuplot /tmp/ping.gp
-exit 
+exit
