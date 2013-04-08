@@ -1195,6 +1195,10 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 		exit(44417899);
 
 	      #ifdef BUFFERBLOAT_ANALYSIS
+	      char type[16];
+	      sprintf(type,"%u:%u", (thisdir->ptp)->con_type, (thisdir->ptp)->p2p_type);
+	      const int utp_conn_id = NO_MATTER; //not meaningful in tcp contest
+
 	      if (	retrans == 0
 				//the segment does not contain any retransmitted byte
 			&& out_order == FALSE 
@@ -1206,10 +1210,6 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 			&& otherdir->last_ack_type == NORMAL
 		)
 	      {
-		    char type[16];
-		    sprintf(type,"%u:%u", (thisdir->ptp)->con_type, (thisdir->ptp)->p2p_type);
-
-		    int utp_conn_id = NO_MATTER; //not meaningful in tcp contest
 
 		    //RTT(s,d)
 		    u_int32_t previous_segment_to_ack_time = (u_int32_t)otherdir->rtt_last;
@@ -1245,22 +1245,25 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 		    //<aa>TODO: take more care of the following two variables. Learn from ledbat example</aa>
 		    Bool overfitting_avoided = TRUE;
 		    Bool update_size_info = TRUE;
-		    bufferbloat_analysis(TCP, DATA_TRIG,&(thisdir->ptp->addr_pair), 
-				*dir, &(thisdir->bufferbloat_stat_data_triggered), 
+		    bufferbloat_analysis(TCP, DATA_TRIG,
+				(const tcp_pair_addrblock*) &(thisdir->ptp->addr_pair), 
+				(const int) *dir, &(thisdir->bufferbloat_stat_data_triggered),
 				&(otherdir->bufferbloat_stat_data_triggered),
 				utp_conn_id, type, tcp_data_length, 
 				gross_delay, overfitting_avoided, update_size_info);
 	
 	      }
-/*	      #ifdef SEVERE_DEBUG
-	      else{
-		   printf("\ncause=%d%d%d%d\n",
-			retrans!=0, out_order, 
-			start != otherdir->ack, otherdir->last_ack_type != NORMAL);
-	      }
+	      #ifdef SAMPLES_VALIDITY
+	      else
+		    chance_is_not_valid(TCP, DATA_TRIG, 
+			(const tcp_pair_addrblock*) &(thisdir->ptp->addr_pair), 
+			(const int) *dir, (const char*) type, 
+			&(thisdir->bufferbloat_stat_data_triggered),
+			&(otherdir->bufferbloat_stat_data_triggered), utp_conn_id );
 	      #endif
-*/
-	      #endif
+
+
+	      #endif //of BUFFERBLOAT_ANALYSIS
 	      //</aa>
 
 	      /* count anything NOT retransmitted as "unique" */
@@ -1322,12 +1325,25 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
       #ifdef BUFFERBLOAT_ANALYSIS
       thisdir->last_ack_type = ack_type;
       thisdir->last_ack_time = current_time;
-      #endif
+      
 
       ack_type = ack_in (otherdir, th_ack, tcp_data_length);
 
-		printf("Vedere quando e' il caso di chiamare chance is not valid\n");
-		exit(44417899);
+      #ifdef SAMPLES_VALIDITY
+      char type[16];
+      sprintf(type,"%u:%u", (thisdir->ptp)->con_type, (thisdir->ptp)->p2p_type);
+      utp_stat* thisdir_bufferbloat_stat = &(thisdir->bufferbloat_stat_ack_triggered);
+      utp_stat* otherdir_bufferbloat_stat = &(otherdir->bufferbloat_stat_ack_triggered);
+      const int utp_conn_id = NO_MATTER; //not meaningful in tcp contest
+
+      if(ack_type != NORMAL)
+		chance_is_not_valid(TCP, ACK_TRIG, 
+			(const tcp_pair_addrblock*) &(thisdir->ptp->addr_pair),
+			(const int) *dir, (const char*) type, 
+			thisdir_bufferbloat_stat, otherdir_bufferbloat_stat, 
+			utp_conn_id		);
+      //else bufferbloat_analysis(...) is called inside rtt_ackin (in rexmit.c)
+      #endif
 
       #ifdef SEVERE_DEBUG
       if(ack_type == NORMAL) printf("OK ");
@@ -1335,6 +1351,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
       fflush(stdout);
       #endif
 
+      #endif //of BUFFERBLOAT_ANALYSIS
   }
 
   /* stats for rexmitted data */
