@@ -875,7 +875,7 @@ void print_queueing_dly_sample(enum analysis_type an_type,
  * - return windowed queueing delay (microseconds) or -1 if the window was not closed
  */
 float bufferbloat_analysis(enum analysis_type an_type,
-	enum bufferbloat_analysis_trigger trig, tcp_pair_addrblock* addr_pair, 
+	enum bufferbloat_analysis_trigger trig, const tcp_pair_addrblock* addr_pair, 
 	int dir, utp_stat* bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat,
 	int utp_conn_id, const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay,
 	Bool overfitting_avoided, Bool update_size_info);
@@ -890,7 +890,7 @@ float bufferbloat_analysis(enum analysis_type an_type,
 void chance_is_not_valid(enum analysis_type an_type, 
 	enum bufferbloat_analysis_trigger trig, const tcp_pair_addrblock* addr_pair,
 	const int dir, const char* type, utp_stat* thisdir_bufferbloat_stat, 
-	utp_stat* otherdir_bufferbloat_stat, const int conn_id )
+	utp_stat* otherdir_bufferbloat_stat, const int conn_id );
 #endif
 
 //<aa>TODO: Try to pass the FILE* fp_logc directly, instead of passing

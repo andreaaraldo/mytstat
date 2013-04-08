@@ -3884,7 +3884,7 @@ const float EWMA_ALPHA = 0.5;
 
 //<aa>TODO: verify if the compiler do the call inlining</aa>
 float bufferbloat_analysis(enum analysis_type an_type,
-	enum bufferbloat_analysis_trigger trig, tcp_pair_addrblock* addr_pair, 
+	enum bufferbloat_analysis_trigger trig, const tcp_pair_addrblock* addr_pair, 
 	int dir, utp_stat* bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat, 
 	int utp_conn_id, const char* type, u_int32_t pkt_size, u_int32_t last_grossdelay,
 	Bool overfitting_avoided, Bool update_size_info)
@@ -4095,8 +4095,7 @@ void chance_is_not_valid(enum analysis_type an_type,
 	}
 	#endif
 
-	bufferbloat_stat->qd_calculation_chances++;
-
+	thisdir_bufferbloat_stat->qd_calculation_chances++;
 }
 #endif
 
