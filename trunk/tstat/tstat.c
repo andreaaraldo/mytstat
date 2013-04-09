@@ -3810,7 +3810,7 @@ void update_gross_delay_related_stuff(u_int32_t gross_delay,utp_stat* bufferbloa
 
 void print_queueing_dly_sample(enum analysis_type an_type,  
 	enum bufferbloat_analysis_trigger trig,
-	tcp_pair_addrblock* addr_pair, 	int dir,
+	const tcp_pair_addrblock* addr_pair, 	int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
 	const char* type, u_int32_t pkt_size, u_int32_t last_grossdelay)
 {
@@ -3837,7 +3837,7 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 	}
 	#endif
 
-	FILE* fp_qd;
+	FILE* fp_qd=NULL;
 	switch (an_type){
 		case TCP:	if(trig == ACK_TRIG)
 						fp_qd = fp_tcp_qd_sample_acktrig_logc;
@@ -4214,7 +4214,7 @@ void print_last_window_general(enum analysis_type an_type,
 	}
 	#endif
 
-	FILE* fp_qd;
+	FILE* fp_qd=NULL;
 	switch (an_type){
 		case TCP:	if(trig == ACK_TRIG)
 						fp_qd = fp_tcp_windowed_qd_acktrig_logc;
@@ -4252,7 +4252,7 @@ void print_last_window_directional(enum analysis_type an_type,
 	const utp_stat* bufferbloat_stat, const int conn_id, const char* type,
 	const float qd_window, const float window_error)
 {
-	FILE* fp_logc;
+	FILE* fp_logc=NULL;
 	switch(an_type){
 		case TCP:
 			if(trig == ACK_TRIG)
@@ -4377,7 +4377,7 @@ void print_void_window(enum analysis_type an_type,
 	const tcp_pair_addrblock* addr_pair, const utp_stat* thisdir_bufferbloat_stat,
 	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type)
 {
-	FILE* fp_logc;
+	FILE* fp_logc=NULL;
 	switch(an_type){
 		case TCP:
 			if(trig == ACK_TRIG)
@@ -4413,7 +4413,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 	utp_stat* thisdir_bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat, int dir, 
 	const char* type, const int conn_id )
 {
-	FILE* fp_logc;
+	FILE* fp_logc=NULL;
 	time_t old_last_left_edge = thisdir_bufferbloat_stat->last_window_edge;
 
 	#ifdef SEVERE_DEBUG

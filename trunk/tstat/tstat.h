@@ -870,7 +870,7 @@ enum bufferbloat_analysis_trigger
  */
 void print_queueing_dly_sample(enum analysis_type an_type, 
 	enum bufferbloat_analysis_trigger trig,
-	tcp_pair_addrblock* addr_pair, int dir,
+	const tcp_pair_addrblock* addr_pair, int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
 	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay);
 
