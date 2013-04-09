@@ -285,12 +285,16 @@ FILE *fp_ledbat_logc = NULL;
 	//<aa>TODO: sample by sample log should be optional </aa>	
 	FILE *fp_ledbat_qd_sample_logc= NULL;
 	FILE *fp_tcp_qd_sample_acktrig_logc= NULL;
+	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 	FILE *fp_tcp_qd_sample_datatrig_logc= NULL;
+	#endif
 
 	FILE *fp_ledbat_windowed_qd_logc = NULL;
 	FILE *fp_tcp_windowed_qd_acktrig_logc = NULL;
+	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 	FILE *fp_tcp_windowed_qd_datatrig_logc = NULL;
-#endif
+	#endif
+#endif //of BUFFERBLOAT_ANALYSIS
 #ifdef SEVERE_DEBUG
 	unsigned int ack_type_counter[T_ACK_NUMBER+1];
 #endif
@@ -921,12 +925,16 @@ create_new_outfiles (char *filename)
 #ifdef BUFFERBLOAT_ANALYSIS
          reopen_logfile(&fp_ledbat_qd_sample_logc,basename,"log_ledbat_qd_sample");
          reopen_logfile(&fp_tcp_qd_sample_acktrig_logc,basename,"log_tcp_qd_sample_acktrig");
+         #ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
          reopen_logfile(&fp_tcp_qd_sample_datatrig_logc,basename,"log_tcp_qd_sample_datatrig");
+         #endif
          reopen_logfile(&fp_ledbat_windowed_qd_logc,basename,"log_ledbat_windowed_qd");
          reopen_logfile(&fp_tcp_windowed_qd_acktrig_logc,basename,"log_tcp_windowed_qd_acktrig");
+         #ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
          reopen_logfile(&fp_tcp_windowed_qd_datatrig_logc,basename,"log_tcp_windowed_qd_datatrig");
+         #endif
 
-#endif
+#endif //of BUFFERBLOAT_ANALYSIS
 //</aa>
       
 	/* MSN+Yahoo+Jabber log */
@@ -1003,11 +1011,13 @@ void close_all_logfiles()
 	{ gzclose(fp_tcp_windowed_qd_acktrig_logc); fp_tcp_windowed_qd_acktrig_logc=NULL; }
       if (fp_tcp_qd_sample_acktrig_logc != NULL) 
 	{ gzclose(fp_tcp_qd_sample_acktrig_logc); fp_tcp_qd_sample_acktrig_logc=NULL; }
+	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
       if (fp_tcp_windowed_qd_datatrig_logc != NULL) 
 	{ gzclose(fp_tcp_windowed_qd_datatrig_logc); fp_tcp_windowed_qd_datatrig_logc=NULL; }
       if (fp_tcp_qd_sample_datatrig_logc != NULL) 
 	{ gzclose(fp_tcp_qd_sample_datatrig_logc); fp_tcp_qd_sample_datatrig_logc=NULL; }
-#endif
+	#endif
+#endif //of BUFFERBLOAT_ANALYSIS
 
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
       if (fp_chat_logc != NULL) { gzclose(fp_chat_logc); fp_chat_logc=NULL; }
@@ -3810,7 +3820,11 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 		exit(414);
 	}
 
-	if(an_type==TCP && trig!=ACK_TRIG && trig!=DATA_TRIG){
+	if(an_type==TCP && trig!=ACK_TRIG 
+		#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+		&& trig!=DATA_TRIG
+		#endif
+	){
 		printf("ERROR in print_queueing_dly_sample, line %d: trig vs ledbat\n",
 			__LINE__); 
 		exit(414);
@@ -3825,10 +3839,13 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 
 	FILE* fp_qd;
 	switch (an_type){
-		case TCP:	fp_qd = (trig == ACK_TRIG) ?
-					fp_tcp_qd_sample_acktrig_logc : 
-					fp_tcp_qd_sample_datatrig_logc ;
-				break;
+		case TCP:	if(trig == ACK_TRIG)
+						fp_qd = fp_tcp_qd_sample_acktrig_logc;
+					#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+					else 
+						fp_qd = fp_tcp_qd_sample_datatrig_logc ;
+					#endif
+					break;
 
 		default:	fp_qd = fp_ledbat_qd_sample_logc; 
 				break;
@@ -3885,7 +3902,7 @@ const float EWMA_ALPHA = 0.5;
 //<aa>TODO: verify if the compiler do the call inlining</aa>
 float bufferbloat_analysis(enum analysis_type an_type,
 	enum bufferbloat_analysis_trigger trig, const tcp_pair_addrblock* addr_pair, 
-	int dir, utp_stat* bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat, 
+	const int dir, utp_stat* bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat, 
 	int utp_conn_id, const char* type, u_int32_t pkt_size, u_int32_t last_grossdelay,
 	Bool overfitting_avoided, Bool update_size_info)
 {
@@ -3901,8 +3918,10 @@ float bufferbloat_analysis(enum analysis_type an_type,
 	char* an_details;
 	if(an_type == TCP && trig == ACK_TRIG) 
 		an_details = "TCP-ACK_TRIG";
+	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 	else if(an_type == TCP && trig == DATA_TRIG) 
 		an_details = "TCP-DATA_TRIG";
+	#endif
 	else if(an_type == LEDBAT) 
 		an_details = "LEDBAT";
 	else	an_details = "ERROR";
@@ -3970,20 +3989,32 @@ float bufferbloat_analysis(enum analysis_type an_type,
 		if(	bufferbloat_stat->not_void_windows != 0
 			&&
 			otherdir_bufferbloat_stat->not_void_windows != 0
-			&&
-			bufferbloat_stat->qd_measured_count - 
-			bufferbloat_stat->qd_samples_until_last_window <=0 
-			&&
-			otherdir_bufferbloat_stat->qd_measured_count - 
-			otherdir_bufferbloat_stat->qd_samples_until_last_window <=0 
 		){
-				printf("ERROR on line %d: 0 pkts in both directions\n",__LINE__);
+			if(	bufferbloat_stat->qd_calculation_chances - 
+				bufferbloat_stat->qd_calculation_chances_until_last_window <=0 
+				&&
+				otherdir_bufferbloat_stat->qd_calculation_chances - 
+				otherdir_bufferbloat_stat->qd_calculation_chances_until_last_window <=0 
+			){
+				printf("\nERROR on line %d: 0 qd chances in both directions\n",__LINE__);
+				exit(222);
+			}
+			#ifndef SAMPLES_VALIDITY 
+			if(	bufferbloat_stat->qd_measured_count - 
+				bufferbloat_stat->qd_samples_until_last_window <=0 
+				||
+				otherdir_bufferbloat_stat->qd_measured_count - 
+				otherdir_bufferbloat_stat->qd_samples_until_last_window <=0 
+			){
+				printf("\nERROR on line %d: 0 qd samples in both directions\n",__LINE__);
 				exit(223);
+			}
+			#endif
 		}
-		#endif
+		#endif //of SEVERE_DEBUG
 
 		//<aa>At first, see if a window can be closed (not including the present pkt)
-        	windowed_qd = windowed_queueing_delay(an_type, trig, addr_pair, 
+        windowed_qd = windowed_queueing_delay(an_type, trig, addr_pair, 
 			bufferbloat_stat, otherdir_bufferbloat_stat, dir, type,
 			utp_conn_id);
 		//</aa>
@@ -4036,16 +4067,34 @@ float bufferbloat_analysis(enum analysis_type an_type,
 			bufferbloat_stat->queueing_delay_min= (estimated_qd/1000);
 
 		#ifdef SEVERE_DEBUG
-		if(	bufferbloat_stat->qd_measured_count - 
-			bufferbloat_stat->qd_samples_until_last_window <=0 
+		check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
+			__LINE__);
+			
+		if(	bufferbloat_stat->not_void_windows != 0
 			&&
-			otherdir_bufferbloat_stat->qd_measured_count - 
-			otherdir_bufferbloat_stat->qd_samples_until_last_window <=0 
+			otherdir_bufferbloat_stat->not_void_windows != 0
 		){
-			printf("ERROR on line %d: 0 pkts in both directions\n",__LINE__);
-			exit(223);
+			if(	bufferbloat_stat->qd_calculation_chances - 
+				bufferbloat_stat->qd_calculation_chances_until_last_window <=0 
+				&&
+				otherdir_bufferbloat_stat->qd_calculation_chances - 
+				otherdir_bufferbloat_stat->qd_calculation_chances_until_last_window <=0 
+			){
+				printf("\nERROR on line %d: 0 qd chances in both directions\n",__LINE__);
+				exit(222);
+			}
+			#ifndef SAMPLES_VALIDITY 
+			if(	bufferbloat_stat->qd_measured_count - 
+				bufferbloat_stat->qd_samples_until_last_window <=0 
+				||
+				otherdir_bufferbloat_stat->qd_measured_count - 
+				otherdir_bufferbloat_stat->qd_samples_until_last_window <=0 
+			){
+				printf("\nERROR on line %d: 0 qd samples in both directions\n",__LINE__);
+				exit(223);
+			}
+			#endif
 		}
-
 		check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
 			__LINE__);
 		#endif
@@ -4086,16 +4135,21 @@ void chance_is_not_valid(enum analysis_type an_type,
 	const int dir, const char* type, utp_stat* thisdir_bufferbloat_stat, 
 	utp_stat* otherdir_bufferbloat_stat, const int conn_id )
 {
-	float x = windowed_queueing_delay(an_type, trig, addr_pair, 
+	windowed_queueing_delay(an_type, trig, addr_pair, 
 		thisdir_bufferbloat_stat, otherdir_bufferbloat_stat, dir, 
 		type, conn_id);
-	#ifdef SEVERE_DEBUG
-	if(x!=-1){
-		printf("line %d: Error\n",__LINE__);exit(2185);
-	}
-	#endif
 
 	thisdir_bufferbloat_stat->qd_calculation_chances++;
+
+	#ifdef SEVERE_DEBUG
+	char an_descr[16];
+	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+	sprintf(an_descr, "%s-%s", (an_type==TCP)? "TCP":"LEDBAT", 
+			(trig==ACK_TRIG)? "ACK_TRIG":"DATA_TRIG" );
+	#else
+	sprintf(an_descr, "%s-%s", (an_type==TCP)? "TCP":"LEDBAT","DATA_TRIG" );	
+	#endif
+	#endif //of SEVERE_DEBUG
 }
 #endif
 
@@ -4111,7 +4165,11 @@ void print_last_window_general(enum analysis_type an_type,
 		exit(414);
 	}
 
-	if(an_type==TCP && trig!=ACK_TRIG && trig!=DATA_TRIG){
+	if(an_type==TCP && trig!=ACK_TRIG 
+		#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+		&& trig!=DATA_TRIG
+		#endif
+	){
 		printf("ERROR in print_last_window_general, line %d: trig vs ledbat\n",
 			__LINE__); 
 		exit(414);
@@ -4143,8 +4201,10 @@ void print_last_window_general(enum analysis_type an_type,
 	char* an_details;
 	if(an_type == TCP && trig == ACK_TRIG) 
 		an_details = "TCP-ACK_TRIG";
+	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 	else if(an_type == TCP && trig == DATA_TRIG) 
 		an_details = "TCP-DATA_TRIG";
+	#endif
 	else if(an_type == LEDBAT) 
 		an_details = "LEDBAT";
 	else	an_details = "ERROR";
@@ -4156,9 +4216,12 @@ void print_last_window_general(enum analysis_type an_type,
 
 	FILE* fp_qd;
 	switch (an_type){
-		case TCP:	fp_qd = (trig == ACK_TRIG) ?
-					fp_tcp_windowed_qd_acktrig_logc : 
-					fp_tcp_windowed_qd_datatrig_logc  ;
+		case TCP:	if(trig == ACK_TRIG)
+						fp_qd = fp_tcp_windowed_qd_acktrig_logc;
+					#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+					else
+						fp_qd = fp_tcp_windowed_qd_datatrig_logc;
+					#endif
 				break;
 
 		default:	//LEDBAT
@@ -4192,9 +4255,12 @@ void print_last_window_directional(enum analysis_type an_type,
 	FILE* fp_logc;
 	switch(an_type){
 		case TCP:
-			fp_logc = (trig == ACK_TRIG) ?
-				fp_tcp_windowed_qd_acktrig_logc : 
-				fp_tcp_windowed_qd_datatrig_logc  ;
+			if(trig == ACK_TRIG)
+				fp_logc = fp_tcp_windowed_qd_acktrig_logc;
+			#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+			else
+				fp_logc = fp_tcp_windowed_qd_datatrig_logc;
+			#endif
 			break;
 
 		default: //LEDBAT
@@ -4213,7 +4279,11 @@ void print_last_window_directional(enum analysis_type an_type,
 		exit(414);
 	}
 
-	if(an_type==TCP && trig!=ACK_TRIG && trig!=DATA_TRIG){
+	if(an_type==TCP && trig!=ACK_TRIG 
+		#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+		&& trig!=DATA_TRIG
+		#endif
+	){
 		printf("ERROR in print_last_window_directional, line %d: trig vs ledbat\n",
 			__LINE__); 
 		exit(414);
@@ -4310,9 +4380,12 @@ void print_void_window(enum analysis_type an_type,
 	FILE* fp_logc;
 	switch(an_type){
 		case TCP:
-			fp_logc = (trig == ACK_TRIG) ?
-				fp_tcp_windowed_qd_acktrig_logc : 
-				fp_tcp_windowed_qd_datatrig_logc  ;
+			if(trig == ACK_TRIG)
+				fp_logc = fp_tcp_windowed_qd_acktrig_logc;
+			#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+			else
+				fp_logc = fp_tcp_windowed_qd_datatrig_logc;
+			#endif
 			break;
 
 		default: //LEDBAT
@@ -4358,7 +4431,11 @@ float windowed_queueing_delay(enum analysis_type an_type,
 		exit(414);
 	}
 
-	if(an_type==TCP && trig!=ACK_TRIG && trig!=DATA_TRIG){
+	if(an_type==TCP && trig!=ACK_TRIG 
+		#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+		&& trig!=DATA_TRIG
+		#endif
+	){
 		printf("ERROR in windowed_queueing_delay, line %d: trig vs ledbat\n",
 			__LINE__); 
 		exit(414);
@@ -4380,9 +4457,12 @@ float windowed_queueing_delay(enum analysis_type an_type,
 
 	switch(an_type){
 		case TCP:
-			fp_logc = (trig == ACK_TRIG) ?
-				fp_tcp_windowed_qd_acktrig_logc : 
-				fp_tcp_windowed_qd_datatrig_logc  ;
+			if(trig == ACK_TRIG)
+				fp_logc = fp_tcp_windowed_qd_acktrig_logc;
+			#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+			else
+				fp_logc = fp_tcp_windowed_qd_datatrig_logc  ;
+			#endif
 			break;
 
 		default: //LEDBAT
@@ -4417,6 +4497,37 @@ float windowed_queueing_delay(enum analysis_type an_type,
 		print_last_window_general(an_type, trig, current_time.tv_sec,
 			addr_pair, thisdir_bufferbloat_stat );
 		float other_qd_window; //milliseconds
+		
+		#ifdef SEVERE_DEBUG
+		//We must have seen at least one chance (the one that has led to the previous
+		//window closure, in other words the chance immediately after the last closed
+		//window right edge)
+		if(	thisdir_bufferbloat_stat->qd_calculation_chances - 
+			thisdir_bufferbloat_stat->qd_calculation_chances_until_last_window <=0 
+			&&
+			otherdir_bufferbloat_stat->qd_calculation_chances - 
+			otherdir_bufferbloat_stat->qd_calculation_chances_until_last_window <=0 
+		){
+			printf("\nERROR on line %d: 0 qd chances in both directions\n",__LINE__);
+			exit(222);
+		}
+		#ifndef SAMPLES_VALIDITY
+		//We must have seen at least one qd sample (the one that has led to the 
+		//previous window closure, in other words the chance immediately after 
+		//the last closed window right edge)
+		if(	thisdir_bufferbloat_stat->qd_measured_count - 
+			thisdir_bufferbloat_stat->qd_samples_until_last_window <=0 
+			&&
+			otherdir_bufferbloat_stat->qd_measured_count - 
+			otherdir_bufferbloat_stat->qd_samples_until_last_window <=0 
+		){
+			printf("\nERROR on line %d: 0 qd samples in both directions\n",__LINE__);
+			exit(223);
+		}
+		#endif
+		
+		#endif //of SEVERE_DEBUG
+		
 		//Print C2S first and then S2C
 		if (dir==C2S){
 			#ifdef SEVERE_DEBUG
@@ -4429,14 +4540,16 @@ float windowed_queueing_delay(enum analysis_type an_type,
 			other_qd_window = close_window(an_type, trig, 
 				otherdir_bufferbloat_stat, type, conn_id);
 			#ifdef SEVERE_DEBUG
+			#ifndef SAMPLES_VALIDITY
 			if (qd_window == -1 && other_qd_window ==-1){
 				printf("\nline %d:ERROR: No pkts in both direction\n",__LINE__);
 				exit(987324);
 			}
+			#endif //of SAMPLES_VALIDITY
 			check_direction_consistency_light(thisdir_bufferbloat_stat,
 				otherdir_bufferbloat_stat, __LINE__);
-			#endif
-		}else{
+			#endif //of SEVERE_DEBUG
+		}else{ //dir==S2C
 			#ifdef SEVERE_DEBUG
 			check_direction_consistency_light(thisdir_bufferbloat_stat,
 				otherdir_bufferbloat_stat, __LINE__);
@@ -4453,7 +4566,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 		wfprintf(fp_logc,"\n"); fflush(fp_logc);
 		printf("\nWindow closed\n");
 
-		for(	old_last_left_edge++; 
+		for(old_last_left_edge++; 
 			old_last_left_edge < thisdir_bufferbloat_stat->last_window_edge;
 			old_last_left_edge++
 		)
@@ -4464,14 +4577,29 @@ float windowed_queueing_delay(enum analysis_type an_type,
 				conn_id, type);
 
 		#ifdef SEVERE_DEBUG
+		//After having closed windows, the following quantities must be the same
+		if( thisdir_bufferbloat_stat->qd_calculation_chances !=
+			thisdir_bufferbloat_stat->qd_calculation_chances_until_last_window
+			||
+			otherdir_bufferbloat_stat->qd_calculation_chances !=
+			otherdir_bufferbloat_stat->qd_calculation_chances_until_last_window
+			||
+			thisdir_bufferbloat_stat->qd_measured_count != 
+			thisdir_bufferbloat_stat->qd_samples_until_last_window
+			||
+			otherdir_bufferbloat_stat->qd_measured_count !=
+			otherdir_bufferbloat_stat->qd_samples_until_last_window
+		){	printf("\nline %d:ERROR\n",__LINE__); exit(987323); }
+		
+		#ifndef SAMPLES_VALIDITY
 		if (qd_window == -1 && other_qd_window ==-1){
-			printf("\nline %d:ERROR: No pkts in both direction\n",__LINE__);
+			printf("\nline %d:ERROR: No qd sampkes in both direction\n",__LINE__);
 			exit(987324);
 		}
-
+		#endif //of SAMPLES_VALIDITY
 		check_direction_consistency_light(thisdir_bufferbloat_stat,
 			otherdir_bufferbloat_stat, __LINE__);
-		#endif
+		#endif //of SEVERE_DEBUG
 	}
 
 	#ifdef SEVERE_DEBUG
@@ -4583,7 +4711,11 @@ void check_direction_consistency(enum analysis_type an_type,
 		exit(414);
 	}
 
-	if(an_type==TCP && trig!=ACK_TRIG && trig!=DATA_TRIG){
+	if(an_type==TCP && trig!=ACK_TRIG 
+		#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+		&& trig!=DATA_TRIG
+		#endif
+	){
 		printf("ERROR in check_direction_consistency, line %d\n",
 			__LINE__); 
 		exit(414);
@@ -4615,12 +4747,15 @@ void check_direction_consistency(enum analysis_type an_type,
 				printf("ERROR a"); exit(7);
 			}
 
+			#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 			if(trig == DATA_TRIG){
 				thisdir_bufferbloat_stat = 
 					&(thisdir_tcp->bufferbloat_stat_data_triggered);
 				otherdir_bufferbloat_stat = 
 					&(otherdir_tcp->bufferbloat_stat_data_triggered);
-			} else if(trig == ACK_TRIG) {
+			} else 
+			#endif //of DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+			if(trig == ACK_TRIG) {
 				thisdir_bufferbloat_stat = 
 					&(thisdir_tcp->bufferbloat_stat_ack_triggered);
 				otherdir_bufferbloat_stat = 
@@ -4744,7 +4879,11 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 		exit(414);
 	}
 
-	if(an_type==TCP && trig!=ACK_TRIG && trig!=DATA_TRIG){
+	if(an_type==TCP && trig!=ACK_TRIG 
+		#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+		&& trig!=DATA_TRIG
+		#endif
+	){
 		printf("ERROR in print_last_window_general, line %d: trig vs ledbat\n",
 			__LINE__); 
 		exit(414);
@@ -4879,6 +5018,13 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 	if(	bufferbloat_stat->qd_calculation_chances_until_last_window !=
 		bufferbloat_stat->qd_calculation_chances)
 	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+	
+	if(qd_samples_in_win==0 && qd_window!=-1)
+	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5488); }
+	
+	if(qd_window==0)
+		printf("line %d: qd_samples_in_win=%d, qd_window=%f\n",
+				__LINE__, qd_samples_in_win, qd_window);
 	
 	#endif
 

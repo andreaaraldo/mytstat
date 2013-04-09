@@ -1191,10 +1191,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 	      }
 	      #endif
 
-		printf("Vedere quando e' il caso di chiamare chance is not valid\n");
-		exit(44417899);
-
-	      #ifdef BUFFERBLOAT_ANALYSIS
+	      #if defined(BUFFERBLOAT_ANALYSIS) && defined(DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS)
 	      char type[16];
 	      sprintf(type,"%u:%u", (thisdir->ptp)->con_type, (thisdir->ptp)->p2p_type);
 	      const int utp_conn_id = NO_MATTER; //not meaningful in tcp contest
@@ -1240,7 +1237,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 				__LINE__, gross_delay);
 			exit(87934);
 		    }
-		    #endif
+		    #endif //of SEVERE_DEBUG
 		
 		    //<aa>TODO: take more care of the following two variables. Learn from ledbat example</aa>
 		    Bool overfitting_avoided = TRUE;
@@ -1260,10 +1257,10 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 			(const int) *dir, (const char*) type, 
 			&(thisdir->bufferbloat_stat_data_triggered),
 			&(otherdir->bufferbloat_stat_data_triggered), utp_conn_id );
-	      #endif
+	      #endif //of SAMPLES_VALIDITY
 
 
-	      #endif //of BUFFERBLOAT_ANALYSIS
+	      #endif //of BUFFERBLOAT_ANALYSIS && DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 	      //</aa>
 
 	      /* count anything NOT retransmitted as "unique" */

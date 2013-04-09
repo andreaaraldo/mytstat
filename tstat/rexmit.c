@@ -602,6 +602,7 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       int dir = (&(ptcb->ptp->c2s) == ptcb) ? C2S : S2C ;
       char type[16];
       sprintf(type,"%u:%u", (ptcb->ptp)->con_type, (ptcb->ptp)->p2p_type);
+      utp_stat* thisdir_bufferbloat_stat = &(ptcb->bufferbloat_stat_ack_triggered);
       utp_stat* otherdir_bufferbloat_stat = (dir==C2S) ?
 		&(ptcb->ptp->s2c.bufferbloat_stat_ack_triggered) : 
 		&(ptcb->ptp->c2s.bufferbloat_stat_ack_triggered) ;
@@ -623,7 +624,7 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
 */
       #endif
       bufferbloat_analysis(TCP, ACK_TRIG, &(ptcb->ptp->addr_pair),
-		dir, &(ptcb->bufferbloat_stat_ack_triggered), 
+		dir, thisdir_bufferbloat_stat, 
 		otherdir_bufferbloat_stat, utp_conn_id, type, pkt_size, 
 		(u_int32_t)etime_rtt, overfitting_avoided,  update_size_info);
       #endif

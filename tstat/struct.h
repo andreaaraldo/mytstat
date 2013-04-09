@@ -29,16 +29,18 @@
 // <aa>TODO: where do I have to put these ones
 //  If it is defined, a lot of redundant and overabundant checks will be performed to 
 // check for inconsistent states or data. This can be useful when you edit the code to be
-// sure that the modifications do not produce those inconcistencies
+// sure that the modifications do not produce those inconcistencies</aa>
 #define SEVERE_DEBUG
+
+// <aa>TODO: where do I have to put this</aa>
+#define BUFFERBLOAT_ANALYSIS
 
 //If it is defined, tstat will perform the calculations to check how many pkts are used
 //for bufferbloat analysis and how many must be ignored
 #define SAMPLES_VALIDITY
-// </aa>
 
-// <aa>TODO: where do I have to put this
-#define BUFFERBLOAT_ANALYSIS
+//While ack triggered bufferbloat analysis is mandatory, data triggered bufferbloat analysis is optional and can be enabled by this constant.
+#define DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 //</aa>
 
 
@@ -675,11 +677,13 @@ typedef struct tcb
 
   //<aa>
   #ifdef BUFFERBLOAT_ANALYSIS
+  #ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
   utp_stat bufferbloat_stat_data_triggered;
+  #endif
   utp_stat bufferbloat_stat_ack_triggered;
   timeval last_ack_time; 	//<aa>when the last valid ack was seen in this direction</aa>
   enum t_ack last_ack_type;
-  #endif
+  #endif //of BUFFERBLOAT_ANALYSIS
   //</aa>
   
   skype_stat *skype;
