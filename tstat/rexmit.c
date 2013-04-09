@@ -72,10 +72,12 @@ static int addseg (tcb *, quadrant *, seqnum, seglen, Bool *, u_short);
 static void rtt_retrans (tcb *, segment *);
 
 /**<aa>
+ * - 
  * - rexmit: true if the rtt is invalid, for the segment being acked with the present ack
-		is not the last transmitted one
+ *		is not the last transmitted one
+ * - opposite_dir: the tcb opposite to the direction in which the present ack has been sent
  */ //</aa>
-static enum t_ack rtt_ackin (tcb *, segment *, Bool rexmit);
+static enum t_ack rtt_ackin (tcb * opposite_dir, segment *, Bool rexmit);
 
 
 /* LM start return the type of segment */
@@ -590,6 +592,7 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       ++ptcb->rtt_count;
       ret = NORMAL;
 
+	  //<aa>
       #if defined(BUFFERBLOAT_ANALYSIS) && defined(SEVERE_DEBUG)
       check_direction_consistency(TCP, ACK_TRIG, (void*)ptcb, __LINE__ );
       if(etime_rtt > UINT32_MAX){
@@ -598,38 +601,43 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       #endif
 
       #ifdef BUFFERBLOAT_ANALYSIS
+      tcb* opposite_tcb = ptcb; //Remember that ptcb is not the direction of the ack, but
+      							//is the opposite one
+      							
+      //ack_dir represents the direction of the ack. Notice how it is calculated in a way
+      //opposite to the usual one
+      int ack_dir = (&(opposite_tcb->ptp->c2s) == opposite_tcb) ? S2C : C2S;
+
+      utp_stat* opposite_dir_bufferbloat_stat = &(opposite_tcb->bufferbloat_stat_ack_triggered);
+      utp_stat* ack_dir_bufferbloat_stat = (ack_dir == C2S) ?
+			&(ptcb->ptp->c2s.bufferbloat_stat_ack_triggered) : 
+			&(ptcb->ptp->s2c.bufferbloat_stat_ack_triggered) ;
+
       int utp_conn_id = NO_MATTER; //not meaningful in tcp contest
-      int dir = (&(ptcb->ptp->c2s) == ptcb) ? C2S : S2C ;
       char type[16];
       sprintf(type,"%u:%u", (ptcb->ptp)->con_type, (ptcb->ptp)->p2p_type);
-      utp_stat* thisdir_bufferbloat_stat = &(ptcb->bufferbloat_stat_ack_triggered);
-      utp_stat* otherdir_bufferbloat_stat = (dir==C2S) ?
-		&(ptcb->ptp->s2c.bufferbloat_stat_ack_triggered) : 
-		&(ptcb->ptp->c2s.bufferbloat_stat_ack_triggered) ;
-
+      
       u_int32_t pkt_size = pseg->seq_lastbyte - pseg->seq_firstbyte + 1;
 
       //<aa>TODO: take more care of this. Learn from ledbat example</aa>
       Bool overfitting_avoided = TRUE;
       Bool update_size_info = TRUE;
       #ifdef SEVERE_DEBUG
-      check_direction_consistency_light(&(ptcb->bufferbloat_stat_ack_triggered),
-		otherdir_bufferbloat_stat, __LINE__);
-/*      printf("\rexmit.c line %d: Calling bufferbloat_analysis, ip-port-a=%s-%s",
-		__LINE__, HostName (ptcb->ptp->addr_pair.a_address), 
-		ServiceName (ptcb->ptp->addr_pair.a_port));
-      printf("\rexmit.c line %d: Calling bufferbloat_analysis, ip-port-b=%s-%s\n",
-		__LINE__, HostName (ptcb->ptp->addr_pair.b_address), 
-		ServiceName (ptcb->ptp->addr_pair.b_port));
-*/
-      #endif
-      bufferbloat_analysis(TCP, ACK_TRIG, &(ptcb->ptp->addr_pair),
-		dir, thisdir_bufferbloat_stat, 
-		otherdir_bufferbloat_stat, utp_conn_id, type, pkt_size, 
-		(u_int32_t)etime_rtt, overfitting_avoided,  update_size_info);
-      #endif
+      utp_stat* ack_dir_bufferbloat_stat_test = (ptcb == &(ptcb->ptp->c2s) )?
+			&(ptcb->ptp->s2c.bufferbloat_stat_ack_triggered) : 
+			&(ptcb->ptp->c2s.bufferbloat_stat_ack_triggered) ;
+	  if(ack_dir_bufferbloat_stat_test != ack_dir_bufferbloat_stat)
+	  {	printf("\nline %d: ERROR\n",__LINE__); exit(234);}
       
-
+      check_direction_consistency_light( 
+      		ack_dir_bufferbloat_stat, opposite_dir_bufferbloat_stat, __LINE__);
+      #endif //of SEVERE_DEBUG
+      
+      bufferbloat_analysis(TCP, ACK_TRIG, (const tcp_pair_addrblock*) &(ptcb->ptp->addr_pair),
+			ack_dir, ack_dir_bufferbloat_stat, opposite_dir_bufferbloat_stat, utp_conn_id, 
+			type, pkt_size, (u_int32_t)etime_rtt, overfitting_avoided,  update_size_info);
+      #endif //of BUFFERBLOAT_ANALYSIS
+      //</aa>
   }else{
       /* retrans, can't use it */
       ret = AMBIG;
@@ -666,7 +674,11 @@ rtt_retrans (tcb * ptcb, segment * pseg)
   pseg->time = current_time;
 }
 
-
+/**
+ * //<aa>
+ * - ptcb: the tcb of the direction opposite to the one in which this ack has been sent.
+ * //</aa>
+ */
 enum t_ack
 ack_in (tcb * ptcb, seqnum ack, unsigned tcp_data_length)
 {

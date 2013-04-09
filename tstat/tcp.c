@@ -1322,33 +1322,35 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
       #ifdef BUFFERBLOAT_ANALYSIS
       thisdir->last_ack_type = ack_type;
       thisdir->last_ack_time = current_time;
+      #endif //of BUFFERBLOAT_ANALYSIS
       
 
       ack_type = ack_in (otherdir, th_ack, tcp_data_length);
 
-      #ifdef SAMPLES_VALIDITY
+      #ifdef BUFFERBLOAT_ANALYSIS
       char type[16];
       sprintf(type,"%u:%u", (thisdir->ptp)->con_type, (thisdir->ptp)->p2p_type);
       utp_stat* thisdir_bufferbloat_stat = &(thisdir->bufferbloat_stat_ack_triggered);
       utp_stat* otherdir_bufferbloat_stat = &(otherdir->bufferbloat_stat_ack_triggered);
       const int utp_conn_id = NO_MATTER; //not meaningful in tcp contest
 
+	  #ifdef SAMPLES_VALIDITY
       if(ack_type != NORMAL)
 		chance_is_not_valid(TCP, ACK_TRIG, 
-			(const tcp_pair_addrblock*) &(thisdir->ptp->addr_pair),
-			(const int) *dir, (const char*) type, 
-			thisdir_bufferbloat_stat, otherdir_bufferbloat_stat, 
-			utp_conn_id		);
-      //else bufferbloat_analysis(...) is called inside rtt_ackin (in rexmit.c)
-      #endif
+				(const tcp_pair_addrblock*) &(thisdir->ptp->addr_pair),
+				(const int) *dir, (const char*) type, 
+				thisdir_bufferbloat_stat, otherdir_bufferbloat_stat, 
+				utp_conn_id		);
+	  #endif //of SAMPLES_VALIDITY
+	  //else bufferbloat_analysis(..) is called inside ack_in(..)
+
+      #endif //of BUFFERBLOAT_ANALYSIS
 
       #ifdef SEVERE_DEBUG
       if(ack_type == NORMAL) printf("OK ");
       else printf("no ");
       fflush(stdout);
       #endif
-
-      #endif //of BUFFERBLOAT_ANALYSIS
   }
 
   /* stats for rexmitted data */
