@@ -849,8 +849,14 @@ enum analysis_type {
 };
 
 enum bufferbloat_analysis_trigger
-{	DATA_TRIG, ACK_TRIG, DONT_CARE_TRIG };
-#endif
+{
+	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+	DATA_TRIG, 
+	#endif
+	ACK_TRIG, 
+	DONT_CARE_TRIG 
+};
+#endif //of BUFFERBLOAT_ANALYSIS
 
 #define NO_MATTER -1
 
@@ -876,7 +882,7 @@ void print_queueing_dly_sample(enum analysis_type an_type,
  */
 float bufferbloat_analysis(enum analysis_type an_type,
 	enum bufferbloat_analysis_trigger trig, const tcp_pair_addrblock* addr_pair, 
-	int dir, utp_stat* bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat,
+	const int dir, utp_stat* bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat,
 	int utp_conn_id, const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay,
 	Bool overfitting_avoided, Bool update_size_info);
 
