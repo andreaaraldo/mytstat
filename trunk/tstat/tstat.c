@@ -4188,9 +4188,10 @@ void print_last_window_general(enum analysis_type an_type,
 
 	if(current_time.tv_sec <= bufferbloat_stat_p->last_window_edge){
 		printf("line %d: Error in update_following_left_edge\n",__LINE__);
-		printf("current_time %u, last_window_edge=%u \n",
+		printf("current_time %u, last_window_edge=%u. I can print a window only when I decide to close it, and I decide to close it only if I see a packet falling in a following window (in a different second)  \n",
 			(unsigned)current_time.tv_sec, 
 			(unsigned)bufferbloat_stat_p->last_window_edge);
+		printf("Now, it's like I'm going to close the window in correspondance to a packet falling in the same window. It must not be done");
 		exit(784145);
 	}
 	if(bufferbloat_stat_p->last_window_edge < latest_window_edge[(int)an_type][(int)trig]) {
@@ -4377,6 +4378,19 @@ void print_void_window(enum analysis_type an_type,
 	const tcp_pair_addrblock* addr_pair, const utp_stat* thisdir_bufferbloat_stat,
 	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type)
 {
+	#ifdef SEVERE_DEBUG
+	const utp_stat* bufferbloat_stat_p = thisdir_bufferbloat_stat;
+	if(current_time.tv_sec <= bufferbloat_stat_p->last_window_edge){
+		printf("line %d: Error in print_void_window(..)\n",__LINE__);
+		printf("current_time %u, last_window_edge=%u. I can print a window only when I decide to close it, and I decide to close it only if I see a packet falling in a following window (in a different second)  \n",
+			(unsigned)current_time.tv_sec, 
+			(unsigned)bufferbloat_stat_p->last_window_edge);
+		printf("Now, it's like I'm going to close the window in correspondance to a packet falling in the same window. It must not be done");
+		exit(784146);
+	}
+
+	#endif
+	
 	FILE* fp_logc=NULL;
 	switch(an_type){
 		case TCP:
