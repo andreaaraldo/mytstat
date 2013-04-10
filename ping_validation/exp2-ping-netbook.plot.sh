@@ -69,7 +69,7 @@ echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$26) with linespoints axes x1y2 title
 
 #echo -ne ", '< cat $WIN_ACK_TRIG_FILE' u 1:($13/\$10) with linespoints axes x1y1 title 'validity_ratio_C2S'" >> /tmp/ping.gp
 
-echo -ne ", '< cat $WIN_ACK_TRIG_FILE' u 1:($26/\$23) with linespoints axes x1y1 title 'validity_ratio_S2C';\n" >> /tmp/ping.gp
+echo -ne ", 'awk '{if(\$23>0) print \$1,\$26/\$23 }'' $WIN_ACK_TRIG_FILE' u 1:2 with linespoints axes x1y1 title 'validity_ratio_S2C';\n" >> /tmp/ping.gp
 
 echo -ne "pause 2; reread;" >> /tmp/ping.gp
 

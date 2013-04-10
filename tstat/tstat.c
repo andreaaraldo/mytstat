@@ -4160,6 +4160,22 @@ void print_last_window_general(enum analysis_type an_type,
 	const utp_stat* bufferbloat_stat_p)
 {
 	#ifdef SEVERE_DEBUG
+	///////// TAKING CARE OF WINDOW EDGE: begin
+	if(left_edge <= bufferbloat_stat_p->last_printed_window_edge)
+	{	printf("ERROR in print_last_window_general, line %d\n",__LINE__); 
+		exit(413);
+	}
+	#ifdef SAMPLES_VALIDITY
+	if(	bufferbloat_stat_p->last_printed_window_edge != 0 &&
+		left_edge != bufferbloat_stat_p->last_printed_window_edge+1
+	){	printf("\nERROR in print_last_window_general, line %d, last_printed_window_edge=%d, left_edge=%d\n",
+			__LINE__, (int)bufferbloat_stat_p->last_printed_window_edge, (int)left_edge); 
+		exit(412);
+	}	
+	#endif
+	///////// TAKING CARE OF WINDOW EDGE: end
+	
+	
 	if(an_type != LEDBAT && an_type != TCP){
 		printf("ERROR in print_last_window_general, line %d\n",__LINE__); 
 		exit(414);
@@ -4186,12 +4202,12 @@ void print_last_window_general(enum analysis_type an_type,
 		exit(414);
 	}
 
-	if(current_time.tv_sec <= bufferbloat_stat_p->last_window_edge){
-		printf("line %d: Error in update_following_left_edge\n",__LINE__);
-		printf("current_time %u, last_window_edge=%u. I can print a window only when I decide to close it, and I decide to close it only if I see a packet falling in a following window (in a different second)  \n",
-			(unsigned)current_time.tv_sec, 
-			(unsigned)bufferbloat_stat_p->last_window_edge);
-		printf("Now, it's like I'm going to close the window in correspondance to a packet falling in the same window. It must not be done");
+	if(current_time.tv_sec <= left_edge){
+		printf("\nline %d: Error in print_last_window_general\n",__LINE__);
+		printf("current_time %u, last_window_edge=%u, left_edge=%d. I can print a window only when I decide to close it, and I decide to close it only if I see a packet falling in a following window (in a different second)  \n",
+			(unsigned)current_time.tv_sec,  
+			(unsigned)bufferbloat_stat_p->last_window_edge, left_edge);
+		printf("Now, it's like I'm going to close the window in correspondence to a packet falling in the same window. It must not be done\n");
 		exit(784145);
 	}
 	if(bufferbloat_stat_p->last_window_edge < latest_window_edge[(int)an_type][(int)trig]) {
@@ -4267,6 +4283,15 @@ void print_last_window_directional(enum analysis_type an_type,
 		default: //LEDBAT
 			fp_logc = fp_ledbat_windowed_qd_logc;
 	}
+	
+	int samples_in_win = bufferbloat_stat->qd_measured_count- 
+			bufferbloat_stat->qd_samples_until_last_window;
+	
+	#ifdef SAMPLES_VALIDITY
+	int chances_in_win = 
+		bufferbloat_stat->qd_calculation_chances - 
+		bufferbloat_stat->qd_calculation_chances_until_last_window;
+	#endif
 
 	#ifdef SEVERE_DEBUG
 	if (	(qd_window == BUFFEBLOAT_NOSAMPLES && qd_window != BUFFEBLOAT_NOSAMPLES)
@@ -4295,7 +4320,13 @@ void print_last_window_directional(enum analysis_type an_type,
 			__LINE__); 
 		exit(414);
 	}
+	
+	#ifdef SAMPLES_VALIDITY
+	if(samples_in_win > chances_in_win)
+	{	printf("\nline %d: ERROR.\n"); exit(555);}
 	#endif
+	
+	#endif //of SEVERE_DEBUG
 
 	wfprintf(fp_logc, " %s",type);			//6-19:type
 
@@ -4308,9 +4339,6 @@ void print_last_window_directional(enum analysis_type an_type,
 		);
 
 	float windowed_gross_dly=-1; //milliseconds
-
-	int samples_in_win = bufferbloat_stat->qd_measured_count- 
-			bufferbloat_stat->qd_samples_until_last_window;
 
 	#ifdef SEVERE_DEBUG
 	if (samples_in_win>0){
@@ -4346,10 +4374,8 @@ void print_last_window_directional(enum analysis_type an_type,
 
 
 	#ifdef SAMPLES_VALIDITY
-	wfprintf(fp_logc," %d",
-		bufferbloat_stat->qd_calculation_chances - 
-		bufferbloat_stat->qd_calculation_chances_until_last_window
-	);						//10-23: chances
+	wfprintf(fp_logc," %d",chances_in_win);
+										//10-23: chances
 	#else
 	wfprintf(fp_logc," -");				//10-23
 	#endif
@@ -4379,16 +4405,16 @@ void print_void_window(enum analysis_type an_type,
 	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type)
 {
 	#ifdef SEVERE_DEBUG
+	printf("\nline %d: printing edge %u\n",__LINE__,(unsigned)old_last_left_edge);
 	const utp_stat* bufferbloat_stat_p = thisdir_bufferbloat_stat;
-	if(current_time.tv_sec <= bufferbloat_stat_p->last_window_edge){
+	if(current_time.tv_sec <= old_last_left_edge){
 		printf("line %d: Error in print_void_window(..)\n",__LINE__);
 		printf("current_time %u, last_window_edge=%u. I can print a window only when I decide to close it, and I decide to close it only if I see a packet falling in a following window (in a different second)  \n",
 			(unsigned)current_time.tv_sec, 
 			(unsigned)bufferbloat_stat_p->last_window_edge);
-		printf("Now, it's like I'm going to close the window in correspondance to a packet falling in the same window. It must not be done");
+		printf("Now, it's like I'm going to close the window in correspondence to a packet falling in the same window. It must not be done\n");
 		exit(784146);
 	}
-
 	#endif
 	
 	FILE* fp_logc=NULL;
@@ -4414,7 +4440,6 @@ void print_void_window(enum analysis_type an_type,
 		conn_id, type, BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES);
 	print_last_window_directional(an_type, trig, otherdir_bufferbloat_stat, 
 		conn_id, type, BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES);
-
 	
 	wfprintf(fp_logc,"\n"); fflush(fp_logc);
 	
@@ -4428,7 +4453,6 @@ float windowed_queueing_delay(enum analysis_type an_type,
 	const char* type, const int conn_id )
 {
 	FILE* fp_logc=NULL;
-	time_t old_last_left_edge = thisdir_bufferbloat_stat->last_window_edge;
 
 	#ifdef SEVERE_DEBUG
 	if (dir!=C2S && dir!=S2C){
@@ -4506,13 +4530,34 @@ float windowed_queueing_delay(enum analysis_type an_type,
 	//here and inside close_window(...). It's not efficient</aa>
 	else if ( current_time.tv_sec - thisdir_bufferbloat_stat->last_window_edge >= 1)
 	{
+		time_t old_last_left_edge = thisdir_bufferbloat_stat->last_window_edge;
+
 		//More than 1 second has passed from the last window edge. We can close the 
 		//window; but, at first, we have to print its values.
-		print_last_window_general(an_type, trig, current_time.tv_sec,
+		print_last_window_general(an_type, trig, 
+			thisdir_bufferbloat_stat->last_window_edge,
 			addr_pair, thisdir_bufferbloat_stat );
 		float other_qd_window; //milliseconds
 		
 		#ifdef SEVERE_DEBUG
+		
+		//Taking care of window edge
+		thisdir_bufferbloat_stat->last_printed_window_edge = 
+			thisdir_bufferbloat_stat->last_window_edge;
+		otherdir_bufferbloat_stat->last_printed_window_edge =
+			thisdir_bufferbloat_stat->last_window_edge;
+		
+		if(current_time.tv_sec <= thisdir_bufferbloat_stat->last_window_edge){
+			printf("line %d: Error\n",__LINE__);
+			printf("current_time %u, last_window_edge=%u. I can print a window only when I decide to close it, and I decide to close it only if I see a packet falling in a following window (in a different second)  \n",
+				(unsigned)current_time.tv_sec, 
+				(unsigned)thisdir_bufferbloat_stat->last_window_edge);
+			printf("Now, it's like I'm going to close the window in correspondence to a packet falling in the same window. It must not be done\n");
+			exit(784146);
+		}
+
+		
+		
 		//We must have seen at least one chance (the one that has led to the previous
 		//window closure, in other words the chance immediately after the last closed
 		//window right edge)
@@ -4580,15 +4625,28 @@ float windowed_queueing_delay(enum analysis_type an_type,
 		wfprintf(fp_logc,"\n"); fflush(fp_logc);
 		printf("\nWindow closed\n");
 
+		#ifdef SEVERE_DEBUG
+		if(old_last_left_edge == 0)
+		{	printf("\nline %d: ERROR\n",__LINE__); exit(2411);}
+		#endif
+		
+		#ifdef SAMPLES_VALIDITY
 		for(old_last_left_edge++; 
 			old_last_left_edge < thisdir_bufferbloat_stat->last_window_edge;
 			old_last_left_edge++
-		)
+		){
 			print_void_window(an_type, trig, 
 				(const time_t) old_last_left_edge,addr_pair, 
 				(const utp_stat*) thisdir_bufferbloat_stat,
 				(const utp_stat*) otherdir_bufferbloat_stat, 
 				conn_id, type);
+
+			#ifdef SEVERE_DEBUG //Taking care of window edge
+			thisdir_bufferbloat_stat->last_printed_window_edge =old_last_left_edge;
+			otherdir_bufferbloat_stat->last_printed_window_edge=old_last_left_edge;
+			#endif
+		}
+		#endif
 
 		#ifdef SEVERE_DEBUG
 		//After having closed windows, the following quantities must be the same
@@ -4626,6 +4684,13 @@ float windowed_queueing_delay(enum analysis_type an_type,
 void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat, 
 	const utp_stat* other_bufferbloat_stat, int caller_line)
 {
+	if(	this_bufferbloat_stat->last_printed_window_edge !=
+		other_bufferbloat_stat->last_printed_window_edge
+	){
+		printf("line %d: Error in check_direction_consistency_light\n",__LINE__);
+		exit(6697);
+	}
+	
 	if(this_bufferbloat_stat==other_bufferbloat_stat){
 		printf("line %d: Error in check_direction_consistency_light\n",__LINE__);
 		exit(6698);
@@ -4670,19 +4735,7 @@ void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat,
 		exit(1070);
 	}
 
-/*	if(	latest_window_edge[(int)an_type][(int)trig] != 0
-	     && (  this_bufferbloat_stat->last_window_edge < latest_window_edge[(int)an_type][(int)trig]
-	         ||other_bufferbloat_stat->last_window_edge < latest_window_edge[(int)an_type][(int)trig]
-		)
-	) {
-		printf("this_bufferbloat_stat->last_window_edge=%u, other_bufferbloat_stat->last_window_edge=%u, latest_window_edge=%u\n",
-			this_bufferbloat_stat->last_window_edge, other_bufferbloat_stat->last_window_edge,
-			latest_window_edge[(int)an_type][(int)trig]);
-		printf("\nERROR in line %d, check_direction_consistency light called in line %d\n", 
-			__LINE__,caller_line);
-		exit(1274);
-	}
-*/
+
 	if(	  this_bufferbloat_stat->gross_dly_measured_sum - 
 		  this_bufferbloat_stat->gross_dly_sum_until_last_window
 		< this_bufferbloat_stat->qd_measured_sum - 
@@ -4708,6 +4761,68 @@ void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat,
 			caller_line);
 		printf("line %d:ERROR \n",__LINE__); exit(223);
 	}
+	
+	if(	!
+		(
+			this_bufferbloat_stat->qd_samples_until_last_window <=
+			this_bufferbloat_stat->qd_measured_count
+		)
+	){	
+		printf("\ncheck_direction_consistency light called in line %d\n", 
+			caller_line);
+		printf("qd_measured_count=%d, qd_samples_until_last_window=%d\n",
+			this_bufferbloat_stat->qd_measured_count,
+			this_bufferbloat_stat->qd_samples_until_last_window);
+		printf("line %d:ERROR \n",__LINE__); exit(224);
+	}
+
+	if(	!
+		(
+			other_bufferbloat_stat->qd_samples_until_last_window <=
+			other_bufferbloat_stat->qd_measured_count
+		)
+	){	
+		printf("\ncheck_direction_consistency light called in line %d\n", 
+			caller_line);
+		printf("line %d:ERROR \n",__LINE__); exit(228);
+	}
+
+	if(	!
+		(
+			this_bufferbloat_stat->qd_calculation_chances_until_last_window <=
+			this_bufferbloat_stat->qd_calculation_chances
+			&&
+			other_bufferbloat_stat->qd_calculation_chances_until_last_window <=
+			other_bufferbloat_stat->qd_calculation_chances
+		)
+	){	
+		printf("\ncheck_direction_consistency light called in line %d\n", 
+			caller_line);
+		printf("line %d:ERROR \n",__LINE__); exit(227);
+	}
+
+	
+	if(	!
+		(
+			this_bufferbloat_stat->qd_measured_count <= 
+			this_bufferbloat_stat->qd_calculation_chances
+			&&
+			other_bufferbloat_stat->qd_measured_count <= 
+			other_bufferbloat_stat->qd_calculation_chances
+			&&
+			this_bufferbloat_stat->qd_samples_until_last_window <= 
+			this_bufferbloat_stat->qd_calculation_chances_until_last_window
+			&&
+			other_bufferbloat_stat->qd_samples_until_last_window <= 
+			other_bufferbloat_stat->qd_calculation_chances_until_last_window
+		)
+	){	
+		printf("\ncheck_direction_consistency light called in line %d\n", 
+			caller_line);
+		printf("line %d:ERROR \n",__LINE__); exit(225);
+	}
+	
+	
 }
 
 

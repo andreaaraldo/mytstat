@@ -304,6 +304,7 @@ typedef struct utp_stat
 	// <aa>Windowed statistics: end </aa>
 
 	#ifdef SEVERE_DEBUG
+	time_t last_printed_window_edge;
 	float gross_dly_measured_sum;		//(milliseconds)
 	float gross_dly_sum_until_last_window;	//(milliseconds)
 	#endif
