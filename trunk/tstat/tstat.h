@@ -902,7 +902,7 @@ void chance_is_not_valid(enum analysis_type an_type,
 //<aa>TODO: Try to pass the FILE* fp_logc directly, instead of passing
 //an_type and trig and calculate fp_logc inside different functions</aa>
 void print_last_window_general(enum analysis_type an_type,  
-	enum bufferbloat_analysis_trigger trig, time_t left_edge,
+	enum bufferbloat_analysis_trigger trig, unsigned long long left_edge,
 	const tcp_pair_addrblock* addr_pair,
 	const utp_stat* bufferbloat_stat_p);
 
@@ -922,7 +922,7 @@ void print_last_window_directional(enum analysis_type an_type,
 	const float qd_window, const float window_error);
 
 void print_void_window(enum analysis_type an_type,  
-	enum bufferbloat_analysis_trigger trig, const time_t old_last_left_edge,
+	enum bufferbloat_analysis_trigger trig, const unsigned long long old_last_left_edge,
 	const tcp_pair_addrblock* addr_pair, const utp_stat* thisdir_bufferbloat_stat,
 	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type);
 

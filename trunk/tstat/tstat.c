@@ -117,7 +117,7 @@ int tot_cloud_nets;
 
 //<aa>
 #if defined(BUFFERBLOAT_ANALYSIS) && defined(SEVERE_DEBUG)
-static time_t latest_window_edge[2][3]; //first index is in {TCP,LEDBAT}, 
+static unsigned long long latest_window_edge[2][3]; //first index is in {TCP,LEDBAT}, 
 					 //second index is in {ACK_TRIG,DATA_TRIG, DONT_CARE}
 					 //for ledbat, alway set second index = DONT_CARE
 #endif
@@ -4155,7 +4155,7 @@ void chance_is_not_valid(enum analysis_type an_type,
 
 //<aa>:TODO: pass the filedescriptor rather than passing an_type and trig</aa>
 void print_last_window_general(enum analysis_type an_type, 
-	enum bufferbloat_analysis_trigger trig, time_t left_edge,
+	enum bufferbloat_analysis_trigger trig, unsigned long long left_edge,
 	const tcp_pair_addrblock* addr_pair,
 	const utp_stat* bufferbloat_stat_p)
 {
@@ -4204,9 +4204,9 @@ void print_last_window_general(enum analysis_type an_type,
 
 	if(current_time.tv_sec <= left_edge){
 		printf("\nline %d: Error in print_last_window_general\n",__LINE__);
-		printf("current_time %u, last_window_edge=%u, left_edge=%d. I can print a window only when I decide to close it, and I decide to close it only if I see a packet falling in a following window (in a different second)  \n",
-			(unsigned)current_time.tv_sec,  
-			(unsigned)bufferbloat_stat_p->last_window_edge, left_edge);
+		printf("current_time %llu, last_window_edge=%llu, left_edge=%llu. I can print a window only when I decide to close it, and I decide to close it only if I see a packet falling in a following window (in a different second)  \n",
+			(unsigned long long)current_time.tv_sec, 
+			bufferbloat_stat_p->last_window_edge, left_edge);
 		printf("Now, it's like I'm going to close the window in correspondence to a packet falling in the same window. It must not be done\n");
 		exit(784145);
 	}
@@ -4252,7 +4252,7 @@ void print_last_window_general(enum analysis_type an_type,
 	wfprintf (fp_qd, "%s %s ",
       	           HostName (addr_pair->a_address),	//2.ip_addr_1
        	           ServiceName (addr_pair->a_port));	//3.port_1
-  	wfprintf (fp_qd, "%s %s ",
+  	wfprintf (fp_qd, "%s %s",
        	           HostName (addr_pair->b_address),	//4.ip_addr_2
        	           ServiceName (addr_pair->b_port));	//5.port_2
 
@@ -4286,6 +4286,10 @@ void print_last_window_directional(enum analysis_type an_type,
 	
 	int samples_in_win = bufferbloat_stat->qd_measured_count- 
 			bufferbloat_stat->qd_samples_until_last_window;
+	if(samples_in_win<0){
+		printf("ERROR in print_last_window_directional, line %d\n",__LINE__); 
+		exit(412);
+	}
 	
 	#ifdef SAMPLES_VALIDITY
 	int chances_in_win = 
@@ -4323,7 +4327,7 @@ void print_last_window_directional(enum analysis_type an_type,
 	
 	#ifdef SAMPLES_VALIDITY
 	if(samples_in_win > chances_in_win)
-	{	printf("\nline %d: ERROR.\n"); exit(555);}
+	{	printf("\nline %d: ERROR.\n",__LINE__); exit(555);}
 	#endif
 	
 	#endif //of SEVERE_DEBUG
@@ -4334,8 +4338,8 @@ void print_last_window_directional(enum analysis_type an_type,
 		wfprintf(fp_logc, " - -");
 	else
 		wfprintf(fp_logc, " %f %f", 
-			qd_window,			//7-20
-			window_error			//8-21
+			qd_window,						//7-20
+			window_error					//8-21
 		);
 
 	float windowed_gross_dly=-1; //milliseconds
@@ -4385,11 +4389,11 @@ void print_last_window_directional(enum analysis_type an_type,
 		wfprintf(fp_logc, " -");		//11-24
 	else
 		wfprintf(fp_logc, " %f",windowed_gross_dly);
-							//11-24 
+										//11-24 
 	
 	wfprintf(fp_logc," %d %d %d %f %f %f %u",
-		conn_id,				//12-25
-		samples_in_win,				//13-26: no_of_qd_samples_in_windows
+		conn_id,						//12-25
+		samples_in_win,					//13-26: no_of_qd_samples_in_windows
 		bufferbloat_stat->not_void_windows,	//14-27: no of not void windows
 		bufferbloat_stat->qd_measured_sum,	//15-28
 		bufferbloat_stat->windowed_qd_sum,	//16-29
@@ -4400,7 +4404,7 @@ void print_last_window_directional(enum analysis_type an_type,
 
 #ifdef SAMPLES_VALIDITY
 void print_void_window(enum analysis_type an_type,  
-	enum bufferbloat_analysis_trigger trig, const time_t old_last_left_edge,
+	enum bufferbloat_analysis_trigger trig, const unsigned long long old_last_left_edge,
 	const tcp_pair_addrblock* addr_pair, const utp_stat* thisdir_bufferbloat_stat,
 	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type)
 {
@@ -4530,7 +4534,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 	//here and inside close_window(...). It's not efficient</aa>
 	else if ( current_time.tv_sec - thisdir_bufferbloat_stat->last_window_edge >= 1)
 	{
-		time_t old_last_left_edge = thisdir_bufferbloat_stat->last_window_edge;
+		unsigned long long old_last_left_edge = thisdir_bufferbloat_stat->last_window_edge;
 
 		//More than 1 second has passed from the last window edge. We can close the 
 		//window; but, at first, we have to print its values.
@@ -4958,7 +4962,8 @@ void update_following_left_edge(utp_stat* bufferbloat_stat){
 
 	#ifdef SEVERE_DEBUG
 	//offset is the time(seconds) from the future window left edge and current_time
-	time_t offset = current_time.tv_sec - bufferbloat_stat->last_window_edge;
+	unsigned long long offset = 
+		current_time.tv_sec - bufferbloat_stat->last_window_edge;
 	//offset corresponds to the number of void windows between the last_window_edge and 
 	//current_time
 
@@ -4978,9 +4983,10 @@ void update_following_left_edge(utp_stat* bufferbloat_stat){
 		(	elapsed(last_window_edge, current_time) >= 1e6*offset &&
 			elapsed(last_window_edge, current_time) <= 1e6*(offset+1)    )
 	){
-		printf("\nline.c %d: ERROR:\n dir->utp.last_window_edge=%lu;\n current_time=%lus%luus;\n offset=%lu\n elapsed(last_window_edge, current_time)=%f\n", 
+		printf("\nline.c %d: ERROR:\n dir->utp.last_window_edge=%llu;\n current_time=%llus%lluus;\n offset=%llu\n elapsed(last_window_edge, current_time)=%f\n", 
 			__LINE__, bufferbloat_stat->last_window_edge, current_time.tv_sec,
-			current_time.tv_usec, offset, elapsed(last_window_edge, current_time));
+			( (long long unsigned int) current_time.tv_usec) , offset, 
+			elapsed(last_window_edge, current_time));
 		exit(978);
 	}
 	#endif
