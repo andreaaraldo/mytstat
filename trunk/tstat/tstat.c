@@ -4246,8 +4246,7 @@ void print_last_window_general(enum analysis_type an_type,
 				break;
 	}
 
-	wfprintf(fp_qd,"%u ", (unsigned) bufferbloat_stat_p->last_window_edge );
-							//1.last_window_edge(seconds)
+	wfprintf(fp_qd,"%llu ", left_edge);				//1.last_window_edge(seconds)
 
 	wfprintf (fp_qd, "%s %s ",
       	           HostName (addr_pair->a_address),	//2.ip_addr_1
@@ -4535,17 +4534,25 @@ float windowed_queueing_delay(enum analysis_type an_type,
 	else if ( current_time.tv_sec - thisdir_bufferbloat_stat->last_window_edge >= 1)
 	{
 		unsigned long long old_last_left_edge = thisdir_bufferbloat_stat->last_window_edge;
-
+		
 		//More than 1 second has passed from the last window edge. We can close the 
 		//window; but, at first, we have to print its values.
 		print_last_window_general(an_type, trig, 
 			thisdir_bufferbloat_stat->last_window_edge,
-			addr_pair, thisdir_bufferbloat_stat );
+			addr_pair, (const utp_stat*) thisdir_bufferbloat_stat );
 		float other_qd_window; //milliseconds
 		
 		#ifdef SEVERE_DEBUG
 		
 		//Taking care of window edge
+		if(	thisdir_bufferbloat_stat->last_printed_window_edge !=0 &&
+			thisdir_bufferbloat_stat->last_window_edge != 
+			thisdir_bufferbloat_stat->last_printed_window_edge+1)
+		{	printf("\nline %d: ERROR: last_window_edge=%llu, last_printed_window_edge=%llu\n",
+				__LINE__, thisdir_bufferbloat_stat->last_window_edge, 
+				thisdir_bufferbloat_stat->last_printed_window_edge); 
+			exit(123243);}
+		
 		thisdir_bufferbloat_stat->last_printed_window_edge = 
 			thisdir_bufferbloat_stat->last_window_edge;
 		otherdir_bufferbloat_stat->last_printed_window_edge =
@@ -4640,7 +4647,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 			old_last_left_edge++
 		){
 			print_void_window(an_type, trig, 
-				(const time_t) old_last_left_edge,addr_pair, 
+				(const unsigned long long) old_last_left_edge,addr_pair, 
 				(const utp_stat*) thisdir_bufferbloat_stat,
 				(const utp_stat*) otherdir_bufferbloat_stat, 
 				conn_id, type);
