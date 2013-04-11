@@ -16,7 +16,7 @@ ethtool -s eth0 autoneg off
 ethtool -s eth0 speed 10 duplex full
 
 iperf -s --port 5011 --interval 2 > $DESKTOP_LOG_FOLDER/iperfserv.log &
-ssh -n -f root@netbook "iperf -s --port "$CROSS_TRAFFIC_PORT" --interval 2 > "$NETBOOK_LOG_FOLDER"/iperfserv.log ; nohup ./whatever > /dev/null 2>&1 &"
+ssh -n -f root@netbook "iperf -s --udp --port "$CROSS_TRAFFIC_PORT" --interval 2 > "$NETBOOK_LOG_FOLDER"/iperfserv.log ; nohup ./whatever > /dev/null 2>&1 &"
 
 sleep 1
 echo "Receivers started"
@@ -27,10 +27,10 @@ echo "netbook ping script started"
 sleep 15;
 echo "starting cross traffic"
 #50 100 500 1000 5000 10000 50000 
-for bandwidth in 1 2 3 4 5;
+for bandwidth in 5M 8M 9M;
 do 
-	echo "iperf -t 5 --udp -c netbook --port $CROSS_TRAFFIC_PORT"
-	iperf -t 15 -c netbook --port $CROSS_TRAFFIC_PORT;
+	echo "iperf -t 15 --udp -c netbook --port $CROSS_TRAFFIC_PORT --bandwidth $bandwidth;"
+	iperf -t 15 -c netbook --udp --port $CROSS_TRAFFIC_PORT --bandwidth $bandwidth;
 	sleep 15;
 done
 
