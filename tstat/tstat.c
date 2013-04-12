@@ -4684,9 +4684,9 @@ float windowed_queueing_delay(enum analysis_type an_type,
 			#endif
 		}
 		wfprintf(fp_logc,"\n"); fflush(fp_logc);
-		printf("\nWindow closed\n");
 
 		#ifdef SEVERE_DEBUG
+		printf("\nWindow closed\n");
 		if(old_last_left_edge == 0)
 		{	printf("\nline %d: ERROR\n",__LINE__); exit(2411);}
 		#endif
