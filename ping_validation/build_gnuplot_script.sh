@@ -45,10 +45,10 @@ echo -ne "plot " >> $PING_SCRIPT
 
 echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$26) with linespoints axes x1y2 title 'no qd_samples_S2C'" >> $PING_SCRIPT
 
-
 #echo -ne ", '< cat $WIN_ACK_TRIG_FILE' u 1:($13/\$10) with linespoints axes x1y1 title 'validity_ratio_C2S'" >> $PING_SCRIPT
 
-echo -ne ", \"< awk '{if(\$23>0) print \$1,\$26/\$23 }' $WIN_ACK_TRIG_FILE\" u 1:2 with linespoints axes x1y1 title 'validity_ratio_S2C';\n" >> $PING_SCRIPT
+echo -ne ", \"< awk '{if(\$23>0) print \$1,\$26/\$23 }' $WIN_ACK_TRIG_FILE\" u 1:2 with linespoints axes x1y1 title 'validity_ratio_S2C'" >> $PING_SCRIPT
+echo -ne ";\n" >> $PING_SCRIPT
 
 #To be sure that the 2 graphs have exactly the same ticks
 echo -ne "set xrange [GPVAL_X_MIN:GPVAL_X_MAX];\n" >> $PING_SCRIPT

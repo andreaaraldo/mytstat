@@ -30,7 +30,7 @@
 //  If it is defined, a lot of redundant and overabundant checks will be performed to 
 // check for inconsistent states or data. This can be useful when you edit the code to be
 // sure that the modifications do not produce those inconcistencies</aa>
-#define SEVERE_DEBUG
+//#define SEVERE_DEBUG
 
 // <aa>TODO: where do I have to put this</aa>
 #define BUFFERBLOAT_ANALYSIS
@@ -40,22 +40,22 @@
 #define SAMPLES_VALIDITY
 
 //While ack triggered bufferbloat analysis is mandatory, data triggered bufferbloat analysis is optional and can be enabled by this constant.
-#define DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+//#define DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 
 //If it is defined, the logs with all the queueing delay samples will be produced
 //(in addition to the windowed logs). Otherwise, only the windowed queueing delay
 //log files will be produced;
-#define SAMPLE_BY_SAMPLE_LOG
+//#define SAMPLE_BY_SAMPLE_LOG
 
 //If it is defined, some functions will be forced to be inlined
 //(see http://www.greenend.org.uk/rjk/tech/inline.html)
 //This should lead to a faster running time but also to a larger
-//object code size. Disable this if your compiler does not support
+//object code size. Disable it if your compiler does not support
 //call inlining
 #define FORCE_CALL_INLINING
 
 //If you are sure you are monitoring only one flow
-#define ONE_FLOW_ONLY
+//#define ONE_FLOW_ONLY
 //</aa>
 
 
