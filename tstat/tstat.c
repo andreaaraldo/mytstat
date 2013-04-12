@@ -282,12 +282,13 @@ FILE *fp_ledbat_logc = NULL;
 
 //<aa>
 #ifdef BUFFERBLOAT_ANALYSIS
-	//<aa>TODO: sample by sample log should be optional </aa>	
+	#ifdef SAMPLES_BY_SAMPLES_LOG
 	FILE *fp_ledbat_qd_sample_logc= NULL;
 	FILE *fp_tcp_qd_sample_acktrig_logc= NULL;
 	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 	FILE *fp_tcp_qd_sample_datatrig_logc= NULL;
 	#endif
+	#endif //of SAMPLES_BY_SAMPLES_LOG
 
 	FILE *fp_ledbat_windowed_qd_logc = NULL;
 	FILE *fp_tcp_windowed_qd_acktrig_logc = NULL;
@@ -923,11 +924,14 @@ create_new_outfiles (char *filename)
 
 //<aa>
 #ifdef BUFFERBLOAT_ANALYSIS
+		 #ifdef SAMPLES_BY_SAMPLES_LOG
          reopen_logfile(&fp_ledbat_qd_sample_logc,basename,"log_ledbat_qd_sample");
          reopen_logfile(&fp_tcp_qd_sample_acktrig_logc,basename,"log_tcp_qd_sample_acktrig");
          #ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
          reopen_logfile(&fp_tcp_qd_sample_datatrig_logc,basename,"log_tcp_qd_sample_datatrig");
          #endif
+         #endif //of SAMPLES_BY_SAMPLES_LOG
+         
          reopen_logfile(&fp_ledbat_windowed_qd_logc,basename,"log_ledbat_windowed_qd");
          reopen_logfile(&fp_tcp_windowed_qd_acktrig_logc,basename,"log_tcp_windowed_qd_acktrig");
          #ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
@@ -1004,19 +1008,29 @@ void close_all_logfiles()
 #ifdef BUFFERBLOAT_ANALYSIS
       if (fp_ledbat_windowed_qd_logc != NULL) 
 	{ gzclose(fp_ledbat_windowed_qd_logc); fp_ledbat_windowed_qd_logc=NULL; }
+
+	#ifdef SAMPLES_BY_SAMPLES_LOG
       if (fp_ledbat_qd_sample_logc != NULL) 
 	{ gzclose(fp_ledbat_qd_sample_logc); fp_ledbat_qd_sample_logc=NULL; }
+	#endif
 
       if (fp_tcp_windowed_qd_acktrig_logc != NULL) 
 	{ gzclose(fp_tcp_windowed_qd_acktrig_logc); fp_tcp_windowed_qd_acktrig_logc=NULL; }
+	
+	#ifdef SAMPLES_BY_SAMPLES_LOG
       if (fp_tcp_qd_sample_acktrig_logc != NULL) 
 	{ gzclose(fp_tcp_qd_sample_acktrig_logc); fp_tcp_qd_sample_acktrig_logc=NULL; }
+	#endif
+	
 	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
       if (fp_tcp_windowed_qd_datatrig_logc != NULL) 
 	{ gzclose(fp_tcp_windowed_qd_datatrig_logc); fp_tcp_windowed_qd_datatrig_logc=NULL; }
+	
+	#ifdef SAMPLES_BY_SAMPLES_LOG
       if (fp_tcp_qd_sample_datatrig_logc != NULL) 
 	{ gzclose(fp_tcp_qd_sample_datatrig_logc); fp_tcp_qd_sample_datatrig_logc=NULL; }
-	#endif
+	#endif //of SAMPLES_BY_SAMPLES_LOG
+	#endif //of DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 #endif //of BUFFERBLOAT_ANALYSIS
 
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
@@ -3808,6 +3822,7 @@ void update_gross_delay_related_stuff(u_int32_t gross_delay,utp_stat* bufferbloa
 }
 //</aa>
 
+#ifdef SAMPLES_BY_SAMPLES_LOG
 void print_queueing_dly_sample(enum analysis_type an_type,  
 	enum bufferbloat_analysis_trigger trig,
 	const tcp_pair_addrblock* addr_pair, 	int dir,
@@ -3896,6 +3911,7 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 	wfprintf (fp_qd, "%s\n", type);	 		//13.type
 	fflush(fp_qd);
 }
+#endif //of SAMPLES_BY_SAMPLES_LOG
 
 const float EWMA_ALPHA = 0.5;
 
@@ -3954,9 +3970,11 @@ float bufferbloat_analysis(enum analysis_type an_type,
 	u_int32_t estimated_qd = get_queueing_delay((const utp_stat*)bufferbloat_stat ); 
 								//microseconds
 
+	#ifdef SAMPLES_BY_SAMPLES_LOG
 	print_queueing_dly_sample(an_type, trig, addr_pair,
 		dir, bufferbloat_stat, 0, estimated_qd, type, pkt_size, 
 		last_grossdelay);
+	#endif
 
 	/***** UPDATING PACKETS AND BYTES INFO: begin *****/
 	//some statistics
@@ -4154,10 +4172,13 @@ void chance_is_not_valid(enum analysis_type an_type,
 #endif
 
 //<aa>:TODO: pass the filedescriptor rather than passing an_type and trig</aa>
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 void print_last_window_general(enum analysis_type an_type, 
 	enum bufferbloat_analysis_trigger trig, unsigned long long left_edge,
 	const tcp_pair_addrblock* addr_pair,
-	const utp_stat* bufferbloat_stat_p)
+	const utp_stat* bufferbloat_stat_p) 
 {
 	#ifdef SEVERE_DEBUG
 	///////// TAKING CARE OF WINDOW EDGE: begin

@@ -868,11 +868,13 @@ enum bufferbloat_analysis_trigger
  * - dir: can be C2S or S2C
  * - last_gross_delay (microseconds) (it will be printed on the logfile in milliseconds)
  */
+ #ifdef SAMPLES_BY_SAMPLES_LOG
 void print_queueing_dly_sample(enum analysis_type an_type, 
 	enum bufferbloat_analysis_trigger trig,
 	const tcp_pair_addrblock* addr_pair, int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
 	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay);
+#endif
 
 /**
  * Estimates queueing delay, updates the data structure needed to calculate the queueing delay
@@ -901,10 +903,17 @@ void chance_is_not_valid(enum analysis_type an_type,
 
 //<aa>TODO: Try to pass the FILE* fp_logc directly, instead of passing
 //an_type and trig and calculate fp_logc inside different functions</aa>
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 void print_last_window_general(enum analysis_type an_type,  
 	enum bufferbloat_analysis_trigger trig, unsigned long long left_edge,
 	const tcp_pair_addrblock* addr_pair,
-	const utp_stat* bufferbloat_stat_p);
+	const utp_stat* bufferbloat_stat_p)
+#ifdef FORCE_CALL_INLINING
+	__attribute__((always_inline))
+#endif
+	;
 
 //Use it as a signal when there are no samples in a window
 #define BUFFEBLOAT_NOSAMPLES -1
