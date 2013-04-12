@@ -53,6 +53,9 @@
 //object code size. Disable this if your compiler does not support
 //call inlining
 #define FORCE_CALL_INLINING
+
+//If you are sure you are monitoring only one flow
+#define ONE_FLOW_ONLY
 //</aa>
 
 

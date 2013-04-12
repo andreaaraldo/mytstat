@@ -116,7 +116,7 @@ int cloud_net_mask[MAX_CLOUD_HOSTS];
 int tot_cloud_nets;
 
 //<aa>
-#if defined(BUFFERBLOAT_ANALYSIS) && defined(SEVERE_DEBUG)
+#if defined(BUFFERBLOAT_ANALYSIS) && defined(SEVERE_DEBUG) && defined(ONE_FLOW_ONLY)
 static unsigned long long latest_window_edge[2][3]; //first index is in {TCP,LEDBAT}, 
 					 //second index is in {ACK_TRIG,DATA_TRIG, DONT_CARE}
 					 //for ledbat, alway set second index = DONT_CARE
@@ -3951,6 +3951,7 @@ float bufferbloat_analysis(enum analysis_type an_type,
 	check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
 		__LINE__);
 
+	#ifdef ONE_FLOW_ONLY
 	if(	latest_window_edge[(int)an_type][(int)trig] != 0
 	     && bufferbloat_stat->last_window_edge != 0
 	     && (  bufferbloat_stat->last_window_edge < latest_window_edge[(int)an_type][(int)trig]
@@ -3966,10 +3967,11 @@ float bufferbloat_analysis(enum analysis_type an_type,
 			bufferbloat_stat);
 		exit(1274);
 	}
+	#endif //of ONE_FLOW_ONLY
 
 	check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
 		__LINE__);
-	#endif
+	#endif //of SEVERE_DEBUG
 
 	update_gross_delay_related_stuff(last_grossdelay, bufferbloat_stat );//ptcp is thisdir
 	u_int32_t estimated_qd = get_queueing_delay((const utp_stat*)bufferbloat_stat ); 
@@ -4131,6 +4133,7 @@ float bufferbloat_analysis(enum analysis_type an_type,
 	check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
 		__LINE__);
 
+	#ifdef ONLE_FLOW_ONLY
 	if(	latest_window_edge[(int)an_type][(int)trig] != 0
 	     && (  bufferbloat_stat->last_window_edge < latest_window_edge[(int)an_type][(int)trig]
 	         ||otherdir_bufferbloat_stat->last_window_edge < latest_window_edge[(int)an_type][(int)trig]
@@ -4144,6 +4147,7 @@ float bufferbloat_analysis(enum analysis_type an_type,
 			__LINE__, an_details);
 		exit(1274);
 	}
+	#endif
 
 	//<aa>TODO: If they are always equal, for every analysis (TCP, LEDBAT, 
 	//ACKTRIG, DATATRIG), remove one of the two</aa>
@@ -4152,7 +4156,7 @@ float bufferbloat_analysis(enum analysis_type an_type,
 			__LINE__, an_details);
 		exit(1275);
 	}
-	#endif
+	#endif //of SEVERE_DEBUG
 
       	return windowed_qd;
 }
@@ -4203,7 +4207,7 @@ void print_last_window_general(enum analysis_type an_type,
 			__LINE__, (int)bufferbloat_stat_p->last_printed_window_edge, (int)left_edge); 
 		exit(412);
 	}	
-	#endif
+	#endif //of SAMPLES_VALIDITY
 	///////// TAKING CARE OF WINDOW EDGE: end
 	
 	
@@ -4241,26 +4245,29 @@ void print_last_window_general(enum analysis_type an_type,
 		printf("Now, it's like I'm going to close the window in correspondence to a packet falling in the same window. It must not be done\n");
 		exit(784145);
 	}
+
+	#ifdef ONE_FLOW_ONLY
 	if(bufferbloat_stat_p->last_window_edge < latest_window_edge[(int)an_type][(int)trig]) {
 		printf("line %d: ERROR in print_last_window_general\n",__LINE__);
 		printf("bufferbloat_stat_p->last_window_edge=%u, latest_window_edge=%u\n",
 			(unsigned)bufferbloat_stat_p->last_window_edge, 
 			(unsigned)latest_window_edge[(int)an_type][(int)trig]);
-	char* an_details;
-	if(an_type == TCP && trig == ACK_TRIG) 
-		an_details = "TCP-ACK_TRIG";
-	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
-	else if(an_type == TCP && trig == DATA_TRIG) 
-		an_details = "TCP-DATA_TRIG";
-	#endif
-	else if(an_type == LEDBAT) 
-		an_details = "LEDBAT";
-	else	an_details = "ERROR";
-	printf("an_details=%s\n",an_details);
+		char* an_details;
+		if(an_type == TCP && trig == ACK_TRIG) 
+			an_details = "TCP-ACK_TRIG";
+		#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+		else if(an_type == TCP && trig == DATA_TRIG) 
+			an_details = "TCP-DATA_TRIG";
+		#endif //of DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+		else if(an_type == LEDBAT) 
+			an_details = "LEDBAT";
+		else	an_details = "ERROR";
+		printf("an_details=%s\n",an_details);
 
 		exit(1274);
 	}
-	#endif
+	#endif	//of ONE_FLOW_ONLY
+	#endif //of SEVERE_DEBUG
 
 	FILE* fp_qd=NULL;
 	switch (an_type){
@@ -4529,11 +4536,13 @@ float windowed_queueing_delay(enum analysis_type an_type,
 	check_direction_consistency_light(thisdir_bufferbloat_stat,
 		otherdir_bufferbloat_stat, __LINE__);
 
+	#ifdef ONE_FLOW_ONLY
 	if(current_time.tv_sec < latest_window_edge[(int)an_type][(int)trig]) {
 		printf("line %d: ERROR in windowed_queueing_delay\n",__LINE__);
 		exit(1274);
 	}
 	#endif
+	#endif //of SEVERE_DEBUG
 
 	switch(an_type){
 		case TCP:
@@ -4563,9 +4572,11 @@ float windowed_queueing_delay(enum analysis_type an_type,
 		thisdir_bufferbloat_stat->last_window_edge = current_time.tv_sec;
 		otherdir_bufferbloat_stat->last_window_edge = current_time.tv_sec;
 		#ifdef SEVERE_DEBUG
+		#ifdef ONE_FLOW_ONLY
 		latest_window_edge[(int)an_type][(int)trig] = current_time.tv_sec;
 		check_direction_consistency_light(thisdir_bufferbloat_stat,
 			otherdir_bufferbloat_stat, __LINE__);
+		#endif
 		#endif
 	}
 	//<aa>TODO: we are computing (last_window_edge - current_time) 2 times: 
@@ -5227,11 +5238,8 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 
 	update_following_left_edge( bufferbloat_stat );
 
-	#ifdef SEVERE_DEBUG
-//	printf("updated left edge=%u\n",(unsigned)bufferbloat_stat->last_window_edge);
+	#if defined(SEVERE_DEBUG) && defined(ONE_FLOW_ONLY)
 	latest_window_edge[(int)an_type][(int)trig] = current_time.tv_sec;
-//	printf("line %d: latest_window_edge=%u\n",
-//		__LINE__, (unsigned)latest_window_edge[(int)an_type][(int)trig]);
 	#endif
 
 	return qd_window;
