@@ -856,7 +856,6 @@ enum bufferbloat_analysis_trigger
 	ACK_TRIG, 
 	DONT_CARE_TRIG 
 };
-#endif //of BUFFERBLOAT_ANALYSIS
 
 #define NO_MATTER -1
 
@@ -869,11 +868,18 @@ enum bufferbloat_analysis_trigger
  * - last_gross_delay (microseconds) (it will be printed on the logfile in milliseconds)
  */
  #ifdef SAMPLES_BY_SAMPLES_LOG
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 void print_queueing_dly_sample(enum analysis_type an_type, 
 	enum bufferbloat_analysis_trigger trig,
 	const tcp_pair_addrblock* addr_pair, int dir,
 	utp_stat* bufferbloat_stat_p, int utp_conn_id,u_int32_t estimated_qd, 
-	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay);
+	const char* type, u_int32_t pkt_size, u_int32_t last_gross_delay)
+#ifdef FORCE_CALL_INLINING
+	__attribute__((always_inline))
+#endif
+;
 #endif
 
 /**
@@ -925,15 +931,29 @@ void print_last_window_general(enum analysis_type an_type,
  * - conn_id:	it has no meaning for tcp analysis
  * - type:	//<aa>TODO: Maybe type is the same for both directions. Check this</aa>
  */
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 void print_last_window_directional(enum analysis_type an_type,
 	enum bufferbloat_analysis_trigger trig,
 	const utp_stat* bufferbloat_stat, const int conn_id, const char* type,
-	const float qd_window, const float window_error);
+	const float qd_window, const float window_error)
+#ifdef FORCE_CALL_INLINING
+	__attribute__((always_inline))
+#endif
+;
 
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 void print_void_window(enum analysis_type an_type,  
 	enum bufferbloat_analysis_trigger trig, const unsigned long long old_last_left_edge,
 	const tcp_pair_addrblock* addr_pair, const utp_stat* thisdir_bufferbloat_stat,
-	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type);
+	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type)
+#ifdef FORCE_CALL_INLINING
+	__attribute__((always_inline))
+#endif
+;
 
 //compute statistics
 //<aa>
@@ -942,17 +962,31 @@ void print_void_window(enum analysis_type an_type,
  * returns the estimated queueing delay for that window. It returns -1 otherwise.
  * - qd: an estimate of the queueing delay of the packet
  */
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 float windowed_queueing_delay(enum analysis_type an_type, 
 	enum bufferbloat_analysis_trigger trig, const tcp_pair_addrblock* addr_pair, 
 	utp_stat* thisdir_bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat, int dir, 
-	const char* type, const int conn_id);
+	const char* type, const int conn_id)
+#ifdef FORCE_CALL_INLINING
+	__attribute__((always_inline))
+#endif
+;
 //</aa>
 
 
 /**
  * It updates the left edge of the following not void window
  */
-void update_following_left_edge(utp_stat* bufferbloat_stat);
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
+void update_following_left_edge(utp_stat* bufferbloat_stat)
+#ifdef FORCE_CALL_INLINING
+	__attribute__((always_inline))
+#endif
+;
 
 
 /**
@@ -961,8 +995,15 @@ void update_following_left_edge(utp_stat* bufferbloat_stat);
  * pkts have been seen in the 
  * previous window.
  */
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger trig,
-	utp_stat* bufferbloat_stat, const char* type, int conn_id);
+	utp_stat* bufferbloat_stat, const char* type, int conn_id)
+#ifdef FORCE_CALL_INLINING
+	__attribute__((always_inline))
+#endif
+;
 
 #ifdef SEVERE_DEBUG
 //Check if the direction of the current packet and the opposite direction are handled
@@ -974,3 +1015,4 @@ void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat,
 	const utp_stat* other_bufferbloat_stat, int caller_line);
 #endif
 
+#endif //of BUFFERBLOAT_ANALYSIS

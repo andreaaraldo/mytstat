@@ -40,7 +40,7 @@
 #define SAMPLES_VALIDITY
 
 //While ack triggered bufferbloat analysis is mandatory, data triggered bufferbloat analysis is optional and can be enabled by this constant.
-//#define DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+#define DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 
 //If it is defined, the logs with all the queueing delay samples will be produced
 //(in addition to the windowed logs). Otherwise, only the windowed queueing delay
