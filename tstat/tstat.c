@@ -3627,6 +3627,8 @@ void flush_histo_engine(void) {
 //<aa>TODO: All that follows must be placed in a file named bufferbloat.c . How to insert this in
 //makefile?
 
+#ifdef BUFFERBLOAT_ANALYSIS
+
 static const enum gross_dly_filtering filtering = NONE;
 
 //<aa>
@@ -3823,6 +3825,9 @@ void update_gross_delay_related_stuff(u_int32_t gross_delay,utp_stat* bufferbloa
 //</aa>
 
 #ifdef SAMPLES_BY_SAMPLES_LOG
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 void print_queueing_dly_sample(enum analysis_type an_type,  
 	enum bufferbloat_analysis_trigger trig,
 	const tcp_pair_addrblock* addr_pair, 	int dir,
@@ -4008,6 +4013,7 @@ float bufferbloat_analysis(enum analysis_type an_type,
 			&&
 			otherdir_bufferbloat_stat->not_void_windows != 0
 		){
+			#ifdef SAMPLES_VALIDITY
 			if(	bufferbloat_stat->qd_calculation_chances - 
 				bufferbloat_stat->qd_calculation_chances_until_last_window <=0 
 				&&
@@ -4017,7 +4023,7 @@ float bufferbloat_analysis(enum analysis_type an_type,
 				printf("\nERROR on line %d: 0 qd chances in both directions\n",__LINE__);
 				exit(222);
 			}
-			#ifndef SAMPLES_VALIDITY 
+			#else //SAMPLES_VALIDITY is not defined
 			if(	bufferbloat_stat->qd_measured_count - 
 				bufferbloat_stat->qd_samples_until_last_window <=0 
 				||
@@ -4027,7 +4033,7 @@ float bufferbloat_analysis(enum analysis_type an_type,
 				printf("\nERROR on line %d: 0 qd samples in both directions\n",__LINE__);
 				exit(223);
 			}
-			#endif
+			#endif //of SAMPLES_VALIDITY
 		}
 		#endif //of SEVERE_DEBUG
 
@@ -4049,15 +4055,18 @@ float bufferbloat_analysis(enum analysis_type an_type,
 		//TODO: why expressing qd in microseconds and qd_max_w1 in milliseconds?</aa>
 		if (estimated_qd/1000 >= bufferbloat_stat->qd_max_w1)
 			bufferbloat_stat->qd_max_w1=estimated_qd/1000;
-
+		
+		#ifdef SAMPLES_VALIDITY
 		bufferbloat_stat->qd_calculation_chances++;
+		#endif
+
 		bufferbloat_stat->qd_measured_count++;
 		bufferbloat_stat->qd_measured_sum+= (estimated_qd/1000);
 		bufferbloat_stat->qd_measured_sum2+= ((estimated_qd/1000)*(estimated_qd/1000));
-		bufferbloat_stat->gross_dly_measured_sum += last_grossdelay/1000;
-
 
 		#ifdef SEVERE_DEBUG
+		bufferbloat_stat->gross_dly_measured_sum += last_grossdelay/1000;
+
 		if(	filtering != YES && 
 			bufferbloat_stat->last_measured_time_diff != 
 			bufferbloat_stat->cur_gross_delay_hist[0]
@@ -4092,6 +4101,7 @@ float bufferbloat_analysis(enum analysis_type an_type,
 			&&
 			otherdir_bufferbloat_stat->not_void_windows != 0
 		){
+			#ifdef SAMPLES_VALIDITY
 			if(	bufferbloat_stat->qd_calculation_chances - 
 				bufferbloat_stat->qd_calculation_chances_until_last_window <=0 
 				&&
@@ -4101,7 +4111,7 @@ float bufferbloat_analysis(enum analysis_type an_type,
 				printf("\nERROR on line %d: 0 qd chances in both directions\n",__LINE__);
 				exit(222);
 			}
-			#ifndef SAMPLES_VALIDITY 
+			#else //SAMPLES_VALIDITY is not defined
 			if(	bufferbloat_stat->qd_measured_count - 
 				bufferbloat_stat->qd_samples_until_last_window <=0 
 				||
@@ -4111,11 +4121,11 @@ float bufferbloat_analysis(enum analysis_type an_type,
 				printf("\nERROR on line %d: 0 qd samples in both directions\n",__LINE__);
 				exit(223);
 			}
-			#endif
+			#endif //of SAMPLES_VALIDITY
 		}
 		check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
 			__LINE__);
-		#endif
+		#endif //of SEVERE_DEBUG
 	}
 	#ifdef SEVERE_DEBUG
 	check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
@@ -4283,7 +4293,9 @@ void print_last_window_general(enum analysis_type an_type,
 */
 }
 
-
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 void print_last_window_directional(enum analysis_type an_type,
 	enum bufferbloat_analysis_trigger trig,
 	const utp_stat* bufferbloat_stat, const int conn_id, const char* type,
@@ -4423,6 +4435,9 @@ void print_last_window_directional(enum analysis_type an_type,
 }
 
 #ifdef SAMPLES_VALIDITY
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 void print_void_window(enum analysis_type an_type,  
 	enum bufferbloat_analysis_trigger trig, const unsigned long long old_last_left_edge,
 	const tcp_pair_addrblock* addr_pair, const utp_stat* thisdir_bufferbloat_stat,
@@ -4471,6 +4486,9 @@ void print_void_window(enum analysis_type an_type,
 #endif
 
 //<aa>TODO: float is not the most efficient data_type to return</aa>
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 float windowed_queueing_delay(enum analysis_type an_type, 
 	enum bufferbloat_analysis_trigger trig, const tcp_pair_addrblock* addr_pair, 
 	utp_stat* thisdir_bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat, int dir, 
@@ -4589,7 +4607,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 		}
 
 		
-		
+		#ifdef SAMPLES_VALIDITY
 		//We must have seen at least one chance (the one that has led to the previous
 		//window closure, in other words the chance immediately after the last closed
 		//window right edge)
@@ -4602,7 +4620,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 			printf("\nERROR on line %d: 0 qd chances in both directions\n",__LINE__);
 			exit(222);
 		}
-		#ifndef SAMPLES_VALIDITY
+		#else //SAMPLES_VALIDITY is not defined
 		//We must have seen at least one qd sample (the one that has led to the 
 		//previous window closure, in other words the chance immediately after 
 		//the last closed window right edge)
@@ -4615,7 +4633,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 			printf("\nERROR on line %d: 0 qd samples in both directions\n",__LINE__);
 			exit(223);
 		}
-		#endif
+		#endif //of SAMPLES_VALIDITY
 		
 		#endif //of SEVERE_DEBUG
 		
@@ -4682,20 +4700,21 @@ float windowed_queueing_delay(enum analysis_type an_type,
 
 		#ifdef SEVERE_DEBUG
 		//After having closed windows, the following quantities must be the same
-		if( thisdir_bufferbloat_stat->qd_calculation_chances !=
-			thisdir_bufferbloat_stat->qd_calculation_chances_until_last_window
-			||
-			otherdir_bufferbloat_stat->qd_calculation_chances !=
-			otherdir_bufferbloat_stat->qd_calculation_chances_until_last_window
-			||
-			thisdir_bufferbloat_stat->qd_measured_count != 
+		if( 	thisdir_bufferbloat_stat->qd_measured_count != 
 			thisdir_bufferbloat_stat->qd_samples_until_last_window
 			||
 			otherdir_bufferbloat_stat->qd_measured_count !=
 			otherdir_bufferbloat_stat->qd_samples_until_last_window
+		){	printf("\nline %d:ERROR\n",__LINE__); exit(987322); }
+
+		#ifdef SAMPLES_VALIDITY
+		if( 	thisdir_bufferbloat_stat->qd_calculation_chances !=
+			thisdir_bufferbloat_stat->qd_calculation_chances_until_last_window
+			||
+			otherdir_bufferbloat_stat->qd_calculation_chances !=
+			otherdir_bufferbloat_stat->qd_calculation_chances_until_last_window
 		){	printf("\nline %d:ERROR\n",__LINE__); exit(987323); }
-		
-		#ifndef SAMPLES_VALIDITY
+		#else //SAMPLES_VALIDITY is not defined
 		if (qd_window == -1 && other_qd_window ==-1){
 			printf("\nline %d:ERROR: No qd sampkes in both direction\n",__LINE__);
 			exit(987324);
@@ -4713,6 +4732,7 @@ float windowed_queueing_delay(enum analysis_type an_type,
 	return qd_window;
 }//windowed_queueing_delay
 
+#ifdef SEVERE_DEBUG
 void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat, 
 	const utp_stat* other_bufferbloat_stat, int caller_line)
 {
@@ -4819,6 +4839,7 @@ void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat,
 		printf("line %d:ERROR \n",__LINE__); exit(228);
 	}
 
+	#ifdef SAMPLES_VALIDITY
 	if(	!
 		(
 			this_bufferbloat_stat->qd_calculation_chances_until_last_window <=
@@ -4832,7 +4853,6 @@ void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat,
 			caller_line);
 		printf("line %d:ERROR \n",__LINE__); exit(227);
 	}
-
 	
 	if(	!
 		(
@@ -4853,11 +4873,12 @@ void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat,
 			caller_line);
 		printf("line %d:ERROR \n",__LINE__); exit(225);
 	}
-	
+	#endif //of SAMPLES_VALIDITY
 	
 }
+#endif //of SEVERE_DEBUG
 
-
+#ifdef SEVERE_DEBUG
 void check_direction_consistency(enum analysis_type an_type, 
 	enum bufferbloat_analysis_trigger trig, void* thisdir_, int call_line_number)
 {
@@ -4984,7 +5005,11 @@ void check_direction_consistency(enum analysis_type an_type,
 		printf("\nline %d: ERROR\n",__LINE__); exit(473);	
 	}
 }
+#endif //of SEVERE_DEBUG
 
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 void update_following_left_edge(utp_stat* bufferbloat_stat){
 	//Compute the left edge of the following not void window
 
@@ -5023,6 +5048,9 @@ void update_following_left_edge(utp_stat* bufferbloat_stat){
 }
 
 
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
 float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger trig,
 	utp_stat* bufferbloat_stat, const char* type, int conn_id)
 {
@@ -5137,7 +5165,7 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 			(last_window_gross_dly_sum == last_window_qd_sum) ? 1:0);
 		exit(441);
 	}
-	#endif
+	#endif //of SEVERE_DEBUG
 
 	print_last_window_directional(an_type, trig,bufferbloat_stat, conn_id, type, 
 		qd_window, window_error);
@@ -5154,9 +5182,12 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 	bufferbloat_stat->sample_qd_sum2_until_last_window += 
 		bufferbloat_stat->qd_measured_sum2 - 
 		bufferbloat_stat->sample_qd_sum2_until_last_window;
+
+	#ifdef SAMPLES_VALIDITY
 	bufferbloat_stat->qd_calculation_chances_until_last_window += 
 		bufferbloat_stat->qd_calculation_chances - 
 		bufferbloat_stat->qd_calculation_chances_until_last_window;
+	#endif
 
 	#ifdef SEVERE_DEBUG
 	bufferbloat_stat->gross_dly_sum_until_last_window +=
@@ -5178,10 +5209,13 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 	if(	bufferbloat_stat->gross_dly_sum_until_last_window !=
 		bufferbloat_stat->gross_dly_measured_sum)
 	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+
+	#ifdef SAMPLES_VALIDITY
 	if(	bufferbloat_stat->qd_calculation_chances_until_last_window !=
 		bufferbloat_stat->qd_calculation_chances)
 	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
-	
+	#endif	
+
 	if(qd_samples_in_win==0 && qd_window!=-1)
 	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5488); }
 	
@@ -5189,7 +5223,7 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 		printf("line %d: qd_samples_in_win=%d, qd_window=%f\n",
 				__LINE__, qd_samples_in_win, qd_window);
 	
-	#endif
+	#endif //of SEVERE_DEBUG
 
 	update_following_left_edge( bufferbloat_stat );
 
@@ -5202,5 +5236,7 @@ float close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigger
 
 	return qd_window;
 }
+
+#endif //of BUFFERBLOAT_ANALYSIS
 
 //</aa>

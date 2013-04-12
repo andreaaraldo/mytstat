@@ -288,13 +288,15 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 
 
 	#ifdef SEVERE_DEBUG
-	check_direction_consistency(LEDBAT, DONT_CARE_TRIG, thisdir, __LINE__);
 	if (thisdir == otherdir){
 		printf("ledbat.c %d: thisdir == otherdir\n", __LINE__); exit(11);
 	}	
+	#ifdef BUFFERBLOAT_ANALYSIS
+	check_direction_consistency(LEDBAT, DONT_CARE_TRIG, thisdir, __LINE__);
 	if (bufferbloat_stat == other_bufferbloat_stat){
 		printf("ledbat.c %d: bufferbloat_stat == other_bufferbloat_stat\n", __LINE__); exit(11);
 	}
+	#endif
 	#endif
 
     	void *theheader;
@@ -316,18 +318,9 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	//<aa>
 	u_int32_t grossdelay = ntohl(putp->time_diff);
 	#ifdef SEVERE_DEBUG
-	if (dir!=C2S && dir!=S2C){
-		printf("\ndir=%d\n", dir); exit(5454512);
-	}
 
+	#ifdef BUFFERBLOAT_ANALYSIS
 	check_direction_consistency(LEDBAT, DONT_CARE_TRIG, (void*)thisdir, __LINE__);
-	if( elapsed(current_time,thisdir->last_pkt_time) != 0 )
-	{
-		printf("\nledbat.c %d: current_time=%ldsec %ldusec last_pkt_seen=%ldsec %ldusec\n",
-			__LINE__,current_time.tv_sec, current_time.tv_usec, 
-			thisdir->last_pkt_time.tv_sec, thisdir->last_pkt_time.tv_usec);
-		exit(5646);
-	}
 
 	if (grossdelay > 1000*1000000){
 		printf("\nledbat.c %d: ATTTTTTTEEEEENNNNNNZZZZZIONNNNNEEEEEEE: ERROR: time_diff is %u, more than a quarter of hour\n",
@@ -336,19 +329,29 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		exit(213254);
 		//<aa>TODO: reactivate exit</aa>
 	}
+	if (grossdelay==0){
+		printf("ledbat.c %d: ATTTTTENZZIONNNEEE: gross delay = 0\n", __LINE__); 
+	}
+	#endif //of BUFFERBLOAT_ANALYSIS
+
 	if (elapsed(thisdir->utp.last_rollover, current_time)<=0 ){
 		printf("\nledbat.c %d: \n", __LINE__); exit(849);
 	}
 
 
+	if( elapsed(current_time,thisdir->last_pkt_time) != 0 )
+	{
+		printf("\nledbat.c %d: current_time=%ldsec %ldusec last_pkt_seen=%ldsec %ldusec\n",
+			__LINE__,current_time.tv_sec, current_time.tv_usec, 
+			thisdir->last_pkt_time.tv_sec, thisdir->last_pkt_time.tv_usec);
+		exit(5646);
+	}
+
 	if (dir!=S2C && dir!=C2S) {
 		printf("ledbat.c %d: ERROR: dir (%d) not valid\n",__LINE__,dir); 
 		exit(7777);
 	}
-	if (grossdelay==0){
-		printf("ledbat.c %d: ATTTTTENZZIONNNEEE: gross delay = 0\n", __LINE__); 
-	}
-	#endif	
+	#endif //of SEVERE_DEBUG
 	//</aa>
 
 	//to avoid overfitting, we neglect multiple consecutive equal queueing delay samples 
@@ -365,12 +368,13 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 
 	bufferbloat_stat->pkt_type_num[type_utp-1]++; //count the number of packets of a given type 
 
-	#ifdef SEVERE_DEBUG
+	#if defined(SEVERE_DEBUG) && defined(BUFFERBLOAT_ANALYSIS)
 	check_direction_consistency(LEDBAT, DONT_CARE_TRIG, pdir, __LINE__);
 	#endif
-		printf("Vedere quando e' il caso di chiamare chance is not valid\n");
+	printf("Vedere quando e' il caso di chiamare chance is not valid\n");
 		exit(44417899);
 
+	#ifdef BUFFERBLOAT_ANALYSIS
 	if (grossdelay > 0){
 		float windowed_qd = bufferbloat_analysis(LEDBAT, DONT_CARE_TRIG, 
 			&(pup->addr_pair), dir, bufferbloat_stat, 
@@ -389,10 +393,12 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 			estimated_75P=PSquare(thisdir, (int)windowed_qd, PERC_75);
 		}
 	}
-
 	#ifdef SEVERE_DEBUG
 	check_direction_consistency(LEDBAT, DONT_CARE_TRIG, thisdir, __LINE__);
 	#endif
+
+	#endif //of BUFFERBLOAT_ANALYSIS
+
 	
 	/*start of bittorrent message*/
 	u_int8_t *pputp=NULL;
