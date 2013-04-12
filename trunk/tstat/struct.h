@@ -41,6 +41,18 @@
 
 //While ack triggered bufferbloat analysis is mandatory, data triggered bufferbloat analysis is optional and can be enabled by this constant.
 //#define DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+
+//If it is defined, the logs with all the queueing delay samples will be produced
+//(in addition to the windowed logs). Otherwise, only the windowed queueing delay
+//log files will be produced;
+#define SAMPLE_BY_SAMPLE_LOG
+
+//If it is defined, some functions will be forced to be inlined
+//(see http://www.greenend.org.uk/rjk/tech/inline.html)
+//This should lead to a faster running time but also to a larger
+//object code size. Disable this if your compiler does not support
+//call inlining
+#define FORCE_CALL_INLINING
 //</aa>
 
 
