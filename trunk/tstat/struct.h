@@ -42,26 +42,26 @@
 //If FILTERING is enabled, tstat will use rollover and other 
 //ledbat-inspired stuff to compute the basedelay. Otherwise, the base delay is
 //simply the minimum over all gross delays
-//#define FILTERING
+#define FILTERING
 //</aa>
 //######## USEFUL DEBUG OPTION: begin ##############
 // <aa>TODO: where do I have to put these ones
 //  If it is defined, a lot of redundant and overabundant checks will be performed to 
 // check for inconsistent states or data. This can be useful when you edit the code to be
 // sure that the modifications do not produce those inconcistencies</aa>
-//#define SEVERE_DEBUG
+#define SEVERE_DEBUG
 
 //If it is defined, tstat will perform the calculations to check how many pkts are used
 //for bufferbloat analysis and how many must be ignored
-//#define SAMPLES_VALIDITY
+#define SAMPLES_VALIDITY
 
 //If it is defined, the logs with all the queueing delay samples will be produced
 //(in addition to the windowed logs). Otherwise, only the windowed queueing delay
 //log files will be produced;
-//#define SAMPLE_BY_SAMPLE_LOG
+#define SAMPLE_BY_SAMPLE_LOG
 
 //If you are sure you are monitoring only one flow
-//#define ONE_FLOW_ONLY
+#define ONE_FLOW_ONLY
 
 //######## USEFUL DEBUG OPTION: end   ##############
 

@@ -115,13 +115,13 @@ struct in_addr cloud_net_mask2[MAX_CLOUD_HOSTS];
 int cloud_net_mask[MAX_CLOUD_HOSTS];
 int tot_cloud_nets;
 
-//<aa>
-#if defined(BUFFERBLOAT_ANALYSIS) && defined(SEVERE_DEBUG) && defined(ONE_FLOW_ONLY)
-static unsigned long long latest_window_edge[2][3]; //first index is in {TCP,LEDBAT}, 
-					 //second index is in {ACK_TRIG,DATA_TRIG, DONT_CARE}
-					 //for ledbat, alway set second index = DONT_CARE
-#endif
-//</aa>
+
+
+
+
+
+
+
 
 
 #ifdef SUPPORT_IPV6
