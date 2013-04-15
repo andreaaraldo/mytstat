@@ -50,6 +50,12 @@ identification heuristic. Functions have been modified to manage this new field.
 
 #include "tstat.h"
 
+//<aa>
+#ifdef BUFFERBLOAT_ANALYSIS
+#include "bufferbloat.h"
+#endif
+//</aa>
+
 /* smooth parameter defined in RFC 2988 for srtt and rttvar estimation */
 #define ALPHA 0.125
 #define BETA 0.250
@@ -636,6 +642,7 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       bufferbloat_analysis(TCP, ACK_TRIG, (const tcp_pair_addrblock*) &(ptcb->ptp->addr_pair),
 			ack_dir, ack_dir_bufferbloat_stat, opposite_dir_bufferbloat_stat, utp_conn_id, 
 			type, pkt_size, (u_int32_t)etime_rtt, overfitting_avoided,  update_size_info);
+
       #endif //of BUFFERBLOAT_ANALYSIS
       //</aa>
   }else{

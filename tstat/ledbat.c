@@ -30,6 +30,13 @@
 /* define  if you want to see all identified pkts */
 #define LEDBAT_DEBUG
 
+//<aa>
+#ifdef BUFFERBLOAT_ANALYSIS
+#include "bufferbloat.h"
+#endif
+//</aa>
+
+
 extern FILE *fp_ledbat_logc;
 
 //<aa>

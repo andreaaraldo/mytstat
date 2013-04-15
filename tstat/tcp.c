@@ -21,6 +21,13 @@
 #include "tcpL7.h"
 #include "videoL7.h"
 
+//<aa>
+#ifdef BUFFERBLOAT_ANALYSIS
+#include "bufferbloat.h"
+#endif
+//</aa>
+
+
 /* provided globals  */
 extern FILE *fp_logc;
 extern FILE *fp_lognc;

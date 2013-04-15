@@ -67,7 +67,7 @@ am__objects_2 = compress.$(OBJEXT) etherpeek.$(OBJEXT) \
 	jabber.$(OBJEXT) ymsg.$(OBJEXT) ipp2p_tstat.$(OBJEXT) \
 	p2p.$(OBJEXT) ledbat.$(OBJEXT) tcpL7.$(OBJEXT) \
 	videoL7.$(OBJEXT) web.$(OBJEXT) dump.$(OBJEXT) \
-	inireader.$(OBJEXT)
+	bufferbloat.$(OBJEXT) inireader.$(OBJEXT)
 am_tstat_OBJECTS = $(am__objects_1) $(am__objects_2)
 tstat_OBJECTS = $(am_tstat_OBJECTS)
 am__DEPENDENCIES_1 =
@@ -442,7 +442,8 @@ HDR_FILES = \
     $(top_srcdir)/tstat/inireader.h\
     $(top_srcdir)/tstat/p2p.h\
     $(top_srcdir)/tstat/ledbat.h\
-    $(top_srcdir)/tstat/l7types.h
+    $(top_srcdir)/tstat/l7types.h\
+    $(top_srcdir)/tstat/bufferbloat.h
 
 CFILES = $(top_srcdir)/tstat/compress.c \
        $(top_srcdir)/tstat/etherpeek.c \
@@ -484,7 +485,8 @@ CFILES = $(top_srcdir)/tstat/compress.c \
        $(top_srcdir)/tstat/tcpL7.c \
        $(top_srcdir)/tstat/videoL7.c \
        $(top_srcdir)/tstat/web.c \
-	   $(top_srcdir)/tstat/dump.c\
+       $(top_srcdir)/tstat/dump.c \
+       $(top_srcdir)/tstat/bufferbloat.c\
        $(top_srcdir)/tstat/inireader.c
 
 tstat_SOURCES = ${HDR_FILES} ${CFILES}
@@ -579,6 +581,7 @@ distclean-compile:
 
 include ./$(DEPDIR)/DPMI.Po
 include ./$(DEPDIR)/addresses.Po
+include ./$(DEPDIR)/bufferbloat.Po
 include ./$(DEPDIR)/compress.Po
 include ./$(DEPDIR)/dag.Po
 include ./$(DEPDIR)/dump.Po
@@ -1214,6 +1217,20 @@ dump.obj: $(top_srcdir)/tstat/dump.c
 #	source='$(top_srcdir)/tstat/dump.c' object='dump.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dump.obj `if test -f '$(top_srcdir)/tstat/dump.c'; then $(CYGPATH_W) '$(top_srcdir)/tstat/dump.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/tstat/dump.c'; fi`
+
+bufferbloat.o: $(top_srcdir)/tstat/bufferbloat.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT bufferbloat.o -MD -MP -MF $(DEPDIR)/bufferbloat.Tpo -c -o bufferbloat.o `test -f '$(top_srcdir)/tstat/bufferbloat.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/bufferbloat.c
+	$(am__mv) $(DEPDIR)/bufferbloat.Tpo $(DEPDIR)/bufferbloat.Po
+#	source='$(top_srcdir)/tstat/bufferbloat.c' object='bufferbloat.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o bufferbloat.o `test -f '$(top_srcdir)/tstat/bufferbloat.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/bufferbloat.c
+
+bufferbloat.obj: $(top_srcdir)/tstat/bufferbloat.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT bufferbloat.obj -MD -MP -MF $(DEPDIR)/bufferbloat.Tpo -c -o bufferbloat.obj `if test -f '$(top_srcdir)/tstat/bufferbloat.c'; then $(CYGPATH_W) '$(top_srcdir)/tstat/bufferbloat.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/tstat/bufferbloat.c'; fi`
+	$(am__mv) $(DEPDIR)/bufferbloat.Tpo $(DEPDIR)/bufferbloat.Po
+#	source='$(top_srcdir)/tstat/bufferbloat.c' object='bufferbloat.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o bufferbloat.obj `if test -f '$(top_srcdir)/tstat/bufferbloat.c'; then $(CYGPATH_W) '$(top_srcdir)/tstat/bufferbloat.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/tstat/bufferbloat.c'; fi`
 
 inireader.o: $(top_srcdir)/tstat/inireader.c
 	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT inireader.o -MD -MP -MF $(DEPDIR)/inireader.Tpo -c -o inireader.o `test -f '$(top_srcdir)/tstat/inireader.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/inireader.c

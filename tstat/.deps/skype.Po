@@ -56,8 +56,8 @@ skype.o: ../tstat/skype.c ../tstat/tstat.h ../config.h \
  ../tstat/ipv6.h /usr/include/netinet/icmp6.h /usr/include/inttypes.h \
  ../tstat/param.h ../tstat/ledbat.h ../tstat/skype.h ../tstat/msn.h \
  ../tstat/ymsg.h ../tstat/jabber.h ../tstat/l7types.h ../tstat/struct.h \
- ../tstat/naivebayes.h ../tstat/histo.h ../tstat/rtp.h \
- /usr/include/sys/param.h \
+ ../tstat/bufferbloat.h ../tstat/naivebayes.h ../tstat/histo.h \
+ ../tstat/rtp.h /usr/include/sys/param.h \
  /usr/lib/gcc/i486-linux-gnu/4.4.3/include-fixed/limits.h \
  /usr/lib/gcc/i486-linux-gnu/4.4.3/include-fixed/syslimits.h \
  /usr/include/limits.h /usr/include/bits/posix1_lim.h \
@@ -320,6 +320,8 @@ skype.o: ../tstat/skype.c ../tstat/tstat.h ../config.h \
 ../tstat/l7types.h:
 
 ../tstat/struct.h:
+
+../tstat/bufferbloat.h:
 
 ../tstat/naivebayes.h:
 
