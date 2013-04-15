@@ -1224,6 +1224,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 		    u_int32_t gross_delay = 
 				previous_segment_to_ack_time + ack_to_segment_time;
 
+
 		    #ifdef SEVERE_DEBUG
 		    if (otherdir->last_ack_time.tv_sec == 0 && otherdir->last_ack_time.tv_usec == 0){
 			printf("\ntcp.c %d: ERROR: if the last ack in the opposite direction was valid, last_ack_time should not be 0\n",
