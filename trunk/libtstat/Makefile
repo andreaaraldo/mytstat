@@ -86,7 +86,7 @@ am__objects_1 = compress.lo etherpeek.lo mfiles.lo names.lo netm.lo \
 	freelists.lo rrd.lo dag.lo DPMI.lo tstat.lo skype.lo \
 	naivebayes.lo msn.lo misc.lo jabber.lo ymsg.lo ipp2p_tstat.lo \
 	p2p.lo ledbat.lo tcpL7.lo videoL7.lo web.lo dump.lo \
-	inireader.lo
+	bufferbloat.lo inireader.lo
 am_libtstat_la_OBJECTS = $(am__objects_1)
 libtstat_la_OBJECTS = $(am_libtstat_la_OBJECTS)
 libtstat_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
@@ -473,7 +473,8 @@ HDR_FILES = \
     $(top_srcdir)/tstat/inireader.h\
     $(top_srcdir)/tstat/p2p.h\
     $(top_srcdir)/tstat/ledbat.h\
-    $(top_srcdir)/tstat/l7types.h
+    $(top_srcdir)/tstat/l7types.h\
+    $(top_srcdir)/tstat/bufferbloat.h
 
 CFILES = $(top_srcdir)/tstat/compress.c \
        $(top_srcdir)/tstat/etherpeek.c \
@@ -515,7 +516,8 @@ CFILES = $(top_srcdir)/tstat/compress.c \
        $(top_srcdir)/tstat/tcpL7.c \
        $(top_srcdir)/tstat/videoL7.c \
        $(top_srcdir)/tstat/web.c \
-	   $(top_srcdir)/tstat/dump.c\
+       $(top_srcdir)/tstat/dump.c \
+       $(top_srcdir)/tstat/bufferbloat.c\
        $(top_srcdir)/tstat/inireader.c
 
 lib_LTLIBRARIES = $(lib)
@@ -602,6 +604,7 @@ distclean-compile:
 
 include ./$(DEPDIR)/DPMI.Plo
 include ./$(DEPDIR)/addresses.Plo
+include ./$(DEPDIR)/bufferbloat.Plo
 include ./$(DEPDIR)/compress.Plo
 include ./$(DEPDIR)/dag.Plo
 include ./$(DEPDIR)/dump.Plo
@@ -950,6 +953,13 @@ dump.lo: $(top_srcdir)/tstat/dump.c
 #	source='$(top_srcdir)/tstat/dump.c' object='dump.lo' libtool=yes \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dump.lo `test -f '$(top_srcdir)/tstat/dump.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/dump.c
+
+bufferbloat.lo: $(top_srcdir)/tstat/bufferbloat.c
+	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT bufferbloat.lo -MD -MP -MF $(DEPDIR)/bufferbloat.Tpo -c -o bufferbloat.lo `test -f '$(top_srcdir)/tstat/bufferbloat.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/bufferbloat.c
+	$(am__mv) $(DEPDIR)/bufferbloat.Tpo $(DEPDIR)/bufferbloat.Plo
+#	source='$(top_srcdir)/tstat/bufferbloat.c' object='bufferbloat.lo' libtool=yes \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o bufferbloat.lo `test -f '$(top_srcdir)/tstat/bufferbloat.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/bufferbloat.c
 
 inireader.lo: $(top_srcdir)/tstat/inireader.c
 	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT inireader.lo -MD -MP -MF $(DEPDIR)/inireader.Tpo -c -o inireader.lo `test -f '$(top_srcdir)/tstat/inireader.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/inireader.c
