@@ -354,6 +354,29 @@ top_srcdir = ..
 # format of the DAG tool
 #DEFINES += -DGROK_DAG
 # define GROK_LIVE_TCPDUMP for live capturing with pcap library
+# define GROK_ERF_LIVE for live capturing with Endace DAG cards
+#DEFINES += -DGROK_ERF_LIVE
+# Add the location of the include and lib files.
+#DAGAPI_LDFLAGS = -ldag 
+# define GROK_DPMI if you want tstat to understand the output
+# format of DPMI packet.
+#DEFINES += -DGROK_DPMI
+#DPMI_LDFLAGS = -LDPMI_utils/
+#DPMI_LDLIBS= -ldpmi
+
+#//<aa>
+################################################################## 
+# 
+
+#While ack triggered bufferbloat analysis is mandatory, data triggered 
+#bufferbloat analysis is optional and can be enabled by this constant.
+#DEFINES += -DDATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+
+#If it is defined, some functions will be forced to be inlined
+#(see http://www.greenend.org.uk/rjk/tech/inline.html)
+#This should lead to a faster running time but also to a larger
+#object code size. Disable it if your compiler does not support
+#call inlining
 DEFINES =  -D_BSD_SOURCE -DHAVE_ZLIB -DBUILT_USER="\"`whoami`\"" \
 	-DBUILT_HOST="\"`hostname`\"" -DBUILT_DATE="\"`date`\"" \
 	-DMSN_CLASSIFIER -DYMSG_CLASSIFIER -DXMPP_CLASSIFIER \
@@ -364,7 +387,8 @@ DEFINES =  -D_BSD_SOURCE -DHAVE_ZLIB -DBUILT_USER="\"`whoami`\"" \
 	-DWIPE_UDP_SINGLETONS -DUSE_MEMCPY -DVIDEO_DETAILS \
 	-DGUNZIP="\"gunzip\"" -DZ7Z="\"Z7z\"" -DGROK_SNOOP \
 	-DGROK_TCPDUMP -DGROK_NETM -DGROK_ETHERPEEK -DGROK_NS \
-	-DGROK_NETSCOUT -DGROK_ERF -DGROK_LIVE_TCPDUMP
+	-DGROK_NETSCOUT -DGROK_ERF -DGROK_LIVE_TCPDUMP \
+	-DBUFFERBLOAT_ANALYSIS -FORCE_CALL_INLINING
 
 ################################################################## 
 #
@@ -1453,15 +1477,32 @@ uninstall-am: uninstall-binPROGRAMS
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags uninstall uninstall-am uninstall-binPROGRAMS
 
-# define GROK_ERF_LIVE for live capturing with Endace DAG cards
-#DEFINES += -DGROK_ERF_LIVE
-# Add the location of the include and lib files.
-#DAGAPI_LDFLAGS = -ldag 
-# define GROK_DPMI if you want tstat to understand the output
-# format of DPMI packet.
-#DEFINES += -DGROK_DPMI
-#DPMI_LDFLAGS = -LDPMI_utils/
-#DPMI_LDLIBS= -ldpmi
+
+#If FILTERING is enabled, tstat will use rollover and other 
+#ledbat-inspired stuff to compute the basedelay. Otherwise, the base delay is
+#simply the minimum over all gross delays
+#DEFINES += -FILTERING
+
+################################################################## 
+# 
+#  If it is defined, a lot of redundant and overabundant checks will be performed to 
+# check for inconsistent states or data. This can be useful when you edit the code to be
+# sure that the modifications do not produce those inconcistencies</aa>
+#DEFINES += -DSEVERE_DEBUG
+
+#If it is defined, tstat will perform the calculations to check how many pkts are used
+#for bufferbloat analysis and how many must be ignored
+#DEFINES += -SAMPLES_VALIDITY
+
+#If it is defined, the logs with all the queueing delay samples will be produced
+#(in addition to the windowed logs). Otherwise, only the windowed queueing delay
+#log files will be produced;
+#DEFINES += -SAMPLE_BY_SAMPLE_LOG
+
+#If you are sure you are monitoring only one flow
+#DEFINES += -ONE_FLOW_ONLY
+
+#//</aa>
 
 clean-local:
 	list=`ls .deps` ; test -z $(list) || rm -f $(list)
