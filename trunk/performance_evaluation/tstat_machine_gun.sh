@@ -62,7 +62,8 @@ for f in `ls $FOLDER/*.$TRACE_FORMAT`; do
 	then
 		echo -e "verifying trace $I-th: $tracename"
 
-		tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f > null  2>&1
+		tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f
+		# > null  2>&1
 		exit_code=$?
 		echo "exit code:"$exit_code
 		if [ $exit_code -ne 0 ]
