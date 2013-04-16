@@ -1,5 +1,6 @@
 # Source Files
 HDR_FILES = \
+    $(top_srcdir)/tstat/bufferbloat.h\
     $(top_srcdir)/tstat/compress.h \
     $(top_srcdir)/tstat/dagtools.h \
     $(top_srcdir)/tstat/dump.h \
@@ -28,8 +29,7 @@ HDR_FILES = \
     $(top_srcdir)/tstat/inireader.h\
     $(top_srcdir)/tstat/p2p.h\
     $(top_srcdir)/tstat/ledbat.h\
-    $(top_srcdir)/tstat/l7types.h\
-    $(top_srcdir)/tstat/bufferbloat.h
+    $(top_srcdir)/tstat/l7types.h
 
 CFILES=$(top_srcdir)/tstat/compress.c \
        $(top_srcdir)/tstat/etherpeek.c \
@@ -38,6 +38,7 @@ CFILES=$(top_srcdir)/tstat/compress.c \
        $(top_srcdir)/tstat/netm.c \
        $(top_srcdir)/tstat/output.c \
        $(top_srcdir)/tstat/print.c \
+       $(top_srcdir)/tstat/bufferbloat.c\
        $(top_srcdir)/tstat/rexmit.c \
        $(top_srcdir)/tstat/snoop.c \
        $(top_srcdir)/tstat/nlanr.c \
@@ -72,5 +73,4 @@ CFILES=$(top_srcdir)/tstat/compress.c \
        $(top_srcdir)/tstat/videoL7.c \
        $(top_srcdir)/tstat/web.c \
        $(top_srcdir)/tstat/dump.c \
-       $(top_srcdir)/tstat/bufferbloat.c\
        $(top_srcdir)/tstat/inireader.c

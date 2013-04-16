@@ -1,3 +1,1 @@
-DPMI.lo: ../tstat/DPMI.c ../config.h
-
-../config.h:
+# dummy
