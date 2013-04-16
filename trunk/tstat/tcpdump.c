@@ -389,16 +389,17 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
 #else
 	    ip_buf = (char *)(buf + offset);
 #endif
-	      	//<aa>TODO: remove this check
-/*
-		pip = (struct ip*) ip_buf;
-		if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) == 0){
-			printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
-				__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
-				HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
-			exit(554);
-		}
-*/		//</aa>
+            //<aa>TODO: remove this check
+            #ifdef SEVERE_DEBUG
+            pip__ = (struct ip*) ip_buf;
+            if ( memcmp(&(pip__->ip_src), &(pip__->ip_dst), sizeof(pip__->ip_dst) ) == 0){
+            	printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
+            		__LINE__, HostName( *IPV4ADDR2ADDR(&pip__->ip_dst) ), 
+            		HostName( *IPV4ADDR2ADDR(&pip__->ip_src)) );
+            	exit(554);
+            }
+            //</aa>
+            #endif
 
             callback_plast = ip_buf + iplen - 1;
 
