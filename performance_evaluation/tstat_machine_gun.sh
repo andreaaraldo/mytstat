@@ -14,11 +14,14 @@ fi
 FOLDER=$1 #the traces are located here
 LEFT=$2
 RIGHT=$3
-OUTPUT_FOLDER=$4
+TSTAT_OUTPUT_FOLDER=$4
 
-rm -r $OUTPUT_FOLDER/*
 
-TRACE_FORMAT=gz
+TRACE_FORMAT=pcap
+TIME_RESULT_FOLDER=~/time_results
+
+rm -r $TSTAT_OUTPUT_FOLDER/*
+
 
 echo "tstat machine gun running"
 echo "folder: $FOLDER"
@@ -29,10 +32,12 @@ for f in `ls $FOLDER/*.$TRACE_FORMAT`; do
 	tracename=`basename $f`
 	if  [ $I -ge $LEFT ] && [ $I -le $RIGHT ]  
 	then
-		if [ ! -d "$OUTPUT_FOLDER/$tracename" ]; then
-			echo "processing trace $tracename"
-			mkdir $OUTPUT_FOLDER/$tracename	
-			tstat -s $OUTPUT_FOLDER/$tracename $f > null
+		if [ ! -d "$TSTAT_OUTPUT_FOLDER/$tracename" ]; then
+			echo -ne "\n\nprocessing trace $tracename"
+			mkdir $TSTAT_OUTPUT_FOLDER/$tracename
+			echo "output file= $TIME_RESULT_FOLDER/$tracename.txt"
+			time tstat -s $TSTAT_OUTPUT_FOLDER/$tracename > null $f
+#			time --output=$TIME_RESULT_FOLDER/$tracename.txt tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f
 		else
 			echo "$tracename already processed"
 		fi
