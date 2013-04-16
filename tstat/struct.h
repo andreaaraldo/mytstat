@@ -288,11 +288,16 @@ typedef struct utp_stat
         float queueing_delay_standev_w1;//<aa>standev of all qd, each qd being as above</aa>
 	// <aa>Windowed statistics: end </aa>
 
+	//<aa>
 	#ifdef SEVERE_DEBUG
 	unsigned long long last_printed_window_edge;
 	float gross_dly_measured_sum;		//(milliseconds)
 	float gross_dly_sum_until_last_window;	//(milliseconds)
+	
+	//The last qd sample that has not been inserted in any window
+	float last_unwindowed_qd_sample;	//(milliseconds)
 	#endif
+	//</aa>
 
 
 	//99 95 90 75 percentile 
