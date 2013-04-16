@@ -233,6 +233,7 @@ top_srcdir = @top_srcdir@
 # DPI classification, mainly for P2P protocols, but also DNS and UDP tunneling
 
 #BitTorrent
+#DEFINES += -DBITTORRENT_CLASSIFIER
 # Payload based video classification: it requires at least 600 bytes in 
 # the packet payload for optimal performance
 
@@ -381,8 +382,7 @@ DEFINES = @V_DEFINES@ -DBUILT_USER="\"`whoami`\"" \
 	-DBUILT_HOST="\"`hostname`\"" -DBUILT_DATE="\"`date`\"" \
 	-DMSN_CLASSIFIER -DYMSG_CLASSIFIER -DXMPP_CLASSIFIER \
 	-DRTSP_CLASSIFIER -DRTP_CLASSIFIER -DSKYPE_CLASSIFIER \
-	-DP2P_CLASSIFIER -DBITTORRENT_CLASSIFIER \
-	-DSTREAMING_CLASSIFIER -D_FILE_OFFSET_BITS=64 \
+	-DP2P_CLASSIFIER -DSTREAMING_CLASSIFIER -D_FILE_OFFSET_BITS=64 \
 	-D_LARGEFILE_SOURCE -DLOG_ALL_UDP -DWIPE_TCP_SINGLETONS \
 	-DWIPE_UDP_SINGLETONS -DUSE_MEMCPY -DVIDEO_DETAILS \
 	-DGUNZIP="\"gunzip\"" -DZ7Z="\"Z7z\"" -DGROK_SNOOP \

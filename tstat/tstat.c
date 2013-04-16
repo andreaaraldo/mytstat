@@ -278,7 +278,8 @@ FILE *fp_lognc = NULL;
 FILE *fp_rtp_logc = NULL;
 FILE *fp_skype_logc = NULL;
 FILE *fp_udp_logc = NULL;
-FILE *fp_ledbat_logc = NULL;
+
+
 
 //<aa>
 #ifdef BUFFERBLOAT_ANALYSIS
@@ -919,10 +920,6 @@ create_new_outfiles (char *filename)
 #endif 
 
 
-//<aa>TODO: why don't we wrap it in ifdef-endif?</aa>
-         reopen_logfile(&fp_ledbat_logc,basename,"log_ledbat_complete");
-
-//<aa>
 #ifdef BUFFERBLOAT_ANALYSIS
 	 #ifdef SAMPLES_BY_SAMPLES_LOG
          reopen_logfile(&fp_ledbat_qd_sample_logc,basename,"log_ledbat_qd_sample");
@@ -1002,9 +999,6 @@ void close_all_logfiles()
       if (fp_udp_logc != NULL) { gzclose(fp_udp_logc); fp_udp_logc=NULL; }
 #endif 
 
-//<aa>TODO: why don' we wrap it in ifdef-endif</aa>?
-      if (fp_ledbat_logc != NULL) { gzclose(fp_ledbat_logc); fp_ledbat_logc=NULL; }
-
 #ifdef BUFFERBLOAT_ANALYSIS
       if (fp_ledbat_windowed_qd_logc != NULL) 
 	{ gzclose(fp_ledbat_windowed_qd_logc); fp_ledbat_windowed_qd_logc=NULL; }
@@ -1075,9 +1069,6 @@ void close_all_logfiles()
       if (fp_udp_logc != NULL) { fclose(fp_udp_logc); fp_udp_logc=NULL; }
 #endif 
 
-
-//<aa>TODO: Why don't we wrap it in ifdef-endif</aa>?
-      if (fp_ledbat_logc != NULL) { fclose(fp_ledbat_logc); fp_ledbat_logc=NULL; }
 
 
 #if defined(MSN_CLASSIFIER) || defined(YMSG_CLASSIFIER) || defined(XMPP_CLASSIFIER)
