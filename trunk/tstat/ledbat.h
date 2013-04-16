@@ -1,3 +1,5 @@
+#ifdef BITTORRENT_CLASSIFIER
+
 #ifndef _LEDBAT_H_ 
 #define _LEDBAT_H_
 
@@ -50,7 +52,7 @@ struct utp_hdr
 
 #else
 #error Define one of UTP_LITTLE_ENDIAN or UTP_BIG_ENDIAN
-#endif
+#endif //of UTP_BIG_ENDIAN
   u_int16_t conn_id:16;	/* connection id */
 
 	//<aa>TODO: use us in place of ms</aa>
@@ -113,3 +115,5 @@ float PSquare(void *pdir, float q, int P);
 
 
 #endif
+
+#endif //of BITTORRENT_CLASSIFIER

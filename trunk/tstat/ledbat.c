@@ -27,30 +27,16 @@
 
 #include "tstat.h"
 
-/* define  if you want to see all identified pkts */
-#define LEDBAT_DEBUG
-
 //<aa>
 #ifdef BUFFERBLOAT_ANALYSIS
 #include "bufferbloat.h"
 #endif
 //</aa>
 
-
-extern FILE *fp_ledbat_logc;
-
-//<aa>
-#ifdef LEDBAT_WINDOW_CHECK
-extern FILE *fp_ledbat_window_logc;
-#endif
-//</aa>
-
+#ifdef BITTORRENT_CLASSIFIER
 
 extern Bool log_engine;
 extern int ledbat_window;
-
-
-
 
 static int is_utp_pkt(struct ip *pip, void *pproto, void *pdir, void *plast);
 
@@ -70,11 +56,6 @@ char b_address[IPV6_ADDR_STR_LEN];
 void
 BitTorrent_init ()
 {
-
-#ifdef LEDBAT_DEBUG
-	fprintf(fp_stdout, "\n1:ipsrc 2:portsrc 3:ipdest 4:portdest 5:uTPpkt_len 6:utP_version 7:uTP_type 8:uTP_extensions 9:uTP_connID 10:uTP_seqnum 11:uTP_acknum 12:uTP_timeMS 13:uTP_OWD 14:uTP_winsize 15:uTP_basedelay 16:uTP_queuingdelay_float[ms] 17:uTP_queuingdelay_int[ms] 18:last_update_time 19:uTP_ewma 20:qd_w1sec 21:st_dev_w1sec 22:max_qd_w1sec 23:floor(q/w)_w1sec 24:count(samples_in_w)_w1sec 25--29:w1b 30--34:w5 35:99percentile 36:95percentile 37:extensions? 38:type_ext? 39:first_word_BitTorrent_msg 40:last_pkt_time(s) 41:last_pkt_time(us) 42:current_time(s) 43:current_time(us) 44:qd_andrea\n ");
-#endif
-
 
 }
 
@@ -223,45 +204,6 @@ int is_utp_pkt(struct ip *pip, void *pproto, void *pdir, void *plast){
 
 
 
-
-/**
- * <aa>
- * It returns an estimate of the current queueing delay (in microseconds).
- * 
- * sec 3.4.2 of [ledbat_draft] says that it's reasonable to calculate the queueing_dly not simply as
- * 	queueing_dly = one_way_dly - baseline
- * but "implementing FILTER() to eliminate any outliers [...] A simple MIN filter
- * applied over a small window (much smaller than BASE_HISTORY) may also
- * provide robustness to large delay peaks, as may occur with delayed ACKs in TCP"
- * Here, we implement this MIN filter.
- * </aa>
- *//*
-u_int32_t get_queueing_delay_vecchio(ucb *thisdir) {
-	u_int32_t min;
-	min=thisdir->utp.cur_delay_hist[0];	
-	int i=1;
-	while ( i<CUR_DELAY_SIZE ){
-		if (	((thisdir->utp.cur_delay_hist[i]<min) && (thisdir->utp.cur_delay_hist[i]>0))
-			|| (min==0)  
-		)
-		min=thisdir->utp.cur_delay_hist[i];
-		i++;
-	}
-
-	//
-	// <aa> if we wanted to implement the MIN FILTER described in [ledbat_draft] we
-	// would calculate
-	//	queue_dly_est = min(last 3 owd) - baseline
-	// On the contrary, since an element of thisdir->utp.cur_delay_hist is a queueing dly, 
-	// we are calculating
-	// 	queue_dly_est = min(last 3 queue_dly) = min (last 3 owd - baseline)
-	// We verified that this does not affect the queueing delay estimation
-	// </aa>
-	//
-	return min;
-}
-*/
-
 // <aa>: trick to print the enum inspired by:
 // http://www.cs.utah.edu/~germain/PPS/Topics/C_Language/enumerated_types.html
 char* udp_type_string[] = {"UDP_UNKNOWN","FIRST_RTP","FIRST_RTCP","RTP","RTCP","SKYPE_E2E",
@@ -324,6 +266,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 
 	//<aa>
 	u_int32_t grossdelay = ntohl(putp->time_diff);
+	
 	#ifdef SEVERE_DEBUG
 
 	#ifdef BUFFERBLOAT_ANALYSIS
@@ -382,6 +325,9 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 		exit(44417899);
 
 	#ifdef BUFFERBLOAT_ANALYSIS
+	printf("ATTENZIONEEEE: VEDERE QUANDO E' IL CASO DI CHIAMARE chance_is_not_valid(...)");
+	exit(4745);
+
 	if (grossdelay > 0){
 		float windowed_qd = bufferbloat_analysis(LEDBAT, DONT_CARE_TRIG, 
 			&(pup->addr_pair), dir, bufferbloat_stat, 
@@ -412,11 +358,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	u_int8_t *extchain=NULL;
 	u_int8_t len;
 	if (putp->ext == 0) {
-	   pputp=((u_int8_t *) putp) + 20;
-	 	  	wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.a_address), 
-			ServiceName(pup->addr_pair.a_port));
-  
+	 	pputp=((u_int8_t *) putp) + 20;
 	}else{
 		extchain=((u_int8_t *) theheader) + 20;
 		len=0; 
@@ -469,8 +411,6 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
   
 
     if ((thisC2S->is_uTP) && (thisS2C->is_uTP)) {
-
-
       	  thisUdir = thisC2S;
       	  pup = thisUdir->pup;
       	  utpstat = thisUdir->utp;
@@ -479,23 +419,6 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 	  	utpstat.data_pktsize_average=utpstat.data_pktsize_sum/utpstat.pkt_type_num[UTP_DATA-1];
 	  else
 		utpstat.data_pktsize_average=0;
-
-
-#ifdef DEBUG_LEDBAT		
-// per-packet sampling introduce bias !
-// windowed statistics more robusts (TMA'13)
-// 	  if (utpstat.qd_measured_count>0) {
-// 	      utpstat.queueing_delay_average =
-// 			 utpstat.qd_measured_sum/utpstat.qd_measured_count;
-// 	      int N=utpstat.qd_measured_count;
-//  	      utpstat.queueing_delay_standev =
-// 		    Stdev(utpstat.qd_measured_sum,utpstat.qd_measured_sum2,N);		  
-// 	  }
-// 	  else {		  
-// 		utpstat.quelog_engine && fp_ledbat_logcuing_delay_average=0;
-// 		utpstat.queueing_delay_standev=0;
-// 	  }
-#endif  	
 
   	 //w=1
 	  if (utpstat.qd_samples_until_last_window>0) {
@@ -520,73 +443,9 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
 	 utpstat.P[PERC_90]=utpstat.y_P[2][PERC_90];
 	 utpstat.P[PERC_75]=utpstat.y_P[2][PERC_75];
 
-	 if (log_engine && fp_ledbat_logc!=NULL){
- 
-  		//     #   Field Meaning
-  		//    ----log_engine && fp_ledbat_logc----------------------------------
- 		//     Source Address
-		//     Source Port		
-	    	//     time of first packet seen 
- 	    	//     #pkts
-	 	//     #bytes
-	  	//     datapkt size min
-	 	//     datapkt size max
-	    	//     datapkt size ave
-	 	//     #data-pkts
-	    	//     #fin-pkts 
-	 	//     #state-ack-pkts
-	    	//     #state-sack-pkts 
-	 	//     #reset-pkts
-	    	//     #syn-pkts 
-	 	//     qd log_engine && fp_ledbat_logcmin
-	  	//     qd max
-	  	//     qd average (w=1)	
-		//     qd standard deviation (w=1)
-		//     75th percentile
-		//     90th percentile  
-		//     95th percentile
-		//     99th percentile
-	  	//     PeerID
-		//     infoHASH
-	 
-	  	wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.a_address), 
-			ServiceName(pup->addr_pair.a_port));
-	 	wfprintf(fp_ledbat_logc,"%f %d %d %d %d %f %d %d %d %d %d %d ", 
-			time2double (thisUdir->first_pkt_time)/1000.0,
-	     		utpstat.total_pkt,
-	     		utpstat.bytes,
-	     		utpstat.data_pktsize_min,
-	     		utpstat.data_pktsize_max,
-	     		utpstat.data_pktsize_average,
-  	     		utpstat.pkt_type_num[UTP_DATA-1],
-  	     		utpstat.pkt_type_num[UTP_FIN-1] ,
-  	     		utpstat.pkt_type_num[UTP_STATE_ACK-1],
-  	     		utpstat.pkt_type_num[UTP_STATE_SACK-1],
-	     		utpstat.pkt_type_num[UTP_RESET-1] ,
-	     		utpstat.pkt_type_num[UTP_SYN-1]);
-		wfprintf(fp_ledbat_logc, "%f %f %f %f %f %f %f %f ",
-  	   		utpstat.queueing_delay_min,
-	     		utpstat.queueing_delay_max,
-	    		utpstat.queueing_delay_average_w1,
-	     		utpstat.queueing_delay_standev_w1,
-			utpstat.P[PERC_75],
-			utpstat.P[PERC_90], 
-			utpstat.P[PERC_95], 
-			utpstat.P[PERC_99]);
-
-//araldo!!
-/*
-		printf(fp_ledbat_logc, " 0x%X 0x%X\n",
-		     	strlen(utpstat.peerID)>0 ? utpstat.peerID : " ---- ",    
-		     	strlen(utpstat.infoHASH)>0 ? utpstat.infoHASH : " ---- " );
-*/	}//if log_engineu
-
-
   	  thisUdir = thisS2C;
  	  pup = thisUdir->pup;
 	  utpstat = thisUdir->utp;
-
 	
 	  if (utpstat.pkt_type_num[UTP_DATA-1]>0)
 	  	utpstat.data_pktsize_average=
@@ -608,74 +467,11 @@ void print_BitTorrentUDP_conn_stats (void *thisflow, int tproto){
                 utpstat.queueing_delay_average_w1=0;
                 utpstat.queueing_delay_standev_w1=0;
           }
-
-
 		
 	 utpstat.P[PERC_99]=utpstat.y_P[2][PERC_99];
 	 utpstat.P[PERC_95]=utpstat.y_P[2][PERC_95];
 	 utpstat.P[PERC_90]=utpstat.y_P[2][PERC_90];
 	 utpstat.P[PERC_75]=utpstat.y_P[2][PERC_75];
-
-	 if (log_engine && fp_ledbat_logc!=NULL){
-
-		//     #   Field Meaning 
- 		//    --------------------------------------
- 		//     Source Address
-		//     Source Port
-	    	//     time of first packet seen 
- 	    	//     #pkts
-	 	//     #bytes
-	  	//     datapkt size min
-	 	//     datapkt size max
-	    	//     datapkt size ave
-	 	//     #data-pkts
-	    	//     #fin-pkts 
-	 	//     #state-ack-pkts
-	    	//     #state-sack-pkts 
-	 	//     #reset-pkts
-	    	//     #syn-pkts 
-	 	//     qd min
-	  	//     qd max
-	  	//     qd average (w=1)
-	  	//     qd standard deviation (w=1)
-		//     75th percentile
-		//     90th percentile  
-		//     95th percentile
-		//     99th percentile
-	  	//     PeerID
-		//     infoHASH
-	
-	  	wfprintf (fp_ledbat_logc, "%s %s ",
-			HostName(pup->addr_pair.b_address), 
-			ServiceName(pup->addr_pair.b_port));
-	 	wfprintf(fp_ledbat_logc,"%f %d %d %d %d %f %d %d %d %d %d %d ", 
-			time2double (thisUdir->first_pkt_time)/1000.0,
-	     		utpstat.total_pkt,
-	     		utpstat.bytes,
-	     		utpstat.data_pktsize_min,
-	     		utpstat.data_pktsize_max,
-	     		utpstat.data_pktsize_average,
-  	     		utpstat.pkt_type_num[UTP_DATA-1],
-  	     		utpstat.pkt_type_num[UTP_FIN-1] ,
-  	     		utpstat.pkt_type_num[UTP_STATE_ACK-1],
-  	     		utpstat.pkt_type_num[UTP_STATE_SACK-1],
-	     		utpstat.pkt_type_num[UTP_RESET-1] ,
-	     		utpstat.pkt_type_num[UTP_SYN-1]);
-		wfprintf(fp_ledbat_logc, "%f %f %f %f %f %f %f %f ",
-  	   		utpstat.queueing_delay_min,
-	     		utpstat.queueing_delay_max,
-	    		utpstat.queueing_delay_average_w1,
-	     		utpstat.queueing_delay_standev_w1,
-			utpstat.P[PERC_75],
-			utpstat.P[PERC_90], 
-			utpstat.P[PERC_95], 
-			utpstat.P[PERC_99]);
-
-		//<aa>TODO: check how to correctly print non printable strings</aa>
-		wfprintf(fp_ledbat_logc, "0x%X 0x%X ",
-	     		strlen(utpstat.peerID)>0 ? utpstat.peerID : "----",    				     	strlen(utpstat.infoHASH)>0 ? utpstat.infoHASH : "----");
-          }//if log_engine
-          wfprintf (fp_ledbat_logc,"\n");
   }
 
 
@@ -891,3 +687,5 @@ make_BitTorrent_conn_stats (void *thisflow, int tproto)
 {
 	print_BitTorrentUDP_conn_stats(thisflow, tproto);   
 }
+
+#endif //of BITTORRENT_CLASSIFIER
