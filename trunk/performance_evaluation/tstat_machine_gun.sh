@@ -1,4 +1,4 @@
-#!/bin/bash -
+#!/bin/bash
 
 if [ $# -ne 4 ]
 then
@@ -27,17 +27,28 @@ echo "tstat machine gun running"
 echo "folder: $FOLDER"
 echo "left: $LEFT"
 
+TIMEFORMAT='%3R'
+
 I=1
 for f in `ls $FOLDER/*.$TRACE_FORMAT`; do
 	tracename=`basename $f`
 	if  [ $I -ge $LEFT ] && [ $I -le $RIGHT ]  
 	then
 		if [ ! -d "$TSTAT_OUTPUT_FOLDER/$tracename" ]; then
-			echo -ne "\n\nprocessing trace $tracename"
+			echo -e "\n\n\n\nprocessing trace $I-th: $tracename"
 			mkdir $TSTAT_OUTPUT_FOLDER/$tracename
 			echo "output file= $TIME_RESULT_FOLDER/$tracename.txt"
-			time tstat -s $TSTAT_OUTPUT_FOLDER/$tracename > null $f
-#			time --output=$TIME_RESULT_FOLDER/$tracename.txt tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f
+
+			#the trick to print the time output is inspired by:
+			#http://hustoknow.blogspot.fr/2011/08/how-to-redirect-bash-time-outputs.html
+			(time tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f > null) 2> $TIME_RESULT_FOLDER/$tracename.txt
+			
+			error=0
+			error=`grep Command $TIME_RESULT_FOLDER/$tracename.txt | wc -l`
+			if [ $error -ne 0 ]
+			then
+				echo "ERROR"
+			fi
 		else
 			echo "$tracename already processed"
 		fi
@@ -45,4 +56,4 @@ for f in `ls $FOLDER/*.$TRACE_FORMAT`; do
 
 	I=`expr $I + 1`
 done
-echo "end"
+echo -ne "end"

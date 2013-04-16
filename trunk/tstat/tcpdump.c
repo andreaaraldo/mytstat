@@ -391,8 +391,8 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
 #endif
             //<aa>TODO: remove this check
             #ifdef SEVERE_DEBUG
-            pip__ = (struct ip*) ip_buf;
-            if ( memcmp(&(pip__->ip_src), &(pip__->ip_dst), sizeof(pip__->ip_dst) ) == 0){
+            struct ip* pip__ = (struct ip*) ip_buf;
+            if ( memcmp(&(pip__->ip_src), &(pip__->ip_dst), sizeof(struct in_addr) ) == 0){
             	printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
             		__LINE__, HostName( *IPV4ADDR2ADDR(&pip__->ip_dst) ), 
             		HostName( *IPV4ADDR2ADDR(&pip__->ip_src)) );
@@ -417,7 +417,7 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
 #endif
 	    	//<aa>TODO: remove this check
 /*		pip = (struct ip *) ip_buf;
-		if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) ==0 ){
+		if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(struct in_addr) ) ==0 ){
 			printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
 				__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
 				HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
@@ -462,7 +462,7 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
             callback_plast = ip_buf + iplen - 1;
 /*	    	//<aa>TODO: remove this check
 		pip = (struct ip *) ip_buf;
-		if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) ==0 ){
+		if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(struct in_addr) ) ==0 ){
 			printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
 				__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
 				HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
@@ -532,18 +532,16 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
             exit (1);
     }
 
-	//<aa>TODO: remove this check
-	/*
-	struct ip **ppip = (struct ip *) ip_buf;
-	struct ip* pip = *ppip;
-	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(pip->ip_dst) ) ){
+	#ifdef SEVERE_DEBUG
+	struct ip* pip = (struct ip *) ip_buf;
+	printf("\ntcpdump.c %d: sizeof(pip->ip_dst)=%d\n",sizeof(struct in_addr));
+	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(struct in_addr) ) ){
 		printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
 			__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
 			HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
 		exit(554);
 	}
-	*/
-	//</aa>
+	#endif
 
 
     return (0);

@@ -334,7 +334,7 @@ configure:10773: $? = 0
 configure:10788: result: 2
 configure:10809: checking for fpurge
 configure:10809: gcc -o conftest -g -O2   conftest.c  >&5
-/tmp/ccgs6sVY.o: In function `main':
+/tmp/cctqpQXj.o: In function `main':
 /home/araldo/tstat/conftest.c:66: undefined reference to `fpurge'
 collect2: ld returned 1 exit status
 configure:10809: $? = 1
