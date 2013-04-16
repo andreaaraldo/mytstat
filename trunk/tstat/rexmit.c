@@ -399,6 +399,7 @@ whichquad (seqspace * sspace, seqnum seq)
 
   /* optimize expected case, it's all set up correctly already */
   qix = qid - 1;
+
   if ((pquad = sspace->pquad[qix]) && pquad->next && pquad->prev)
     return (pquad);
 

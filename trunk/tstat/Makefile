@@ -56,18 +56,18 @@ PROGRAMS = $(bin_PROGRAMS)
 am__objects_1 =
 am__objects_2 = compress.$(OBJEXT) etherpeek.$(OBJEXT) \
 	mfiles.$(OBJEXT) names.$(OBJEXT) netm.$(OBJEXT) \
-	output.$(OBJEXT) print.$(OBJEXT) rexmit.$(OBJEXT) \
-	snoop.$(OBJEXT) nlanr.$(OBJEXT) tcpdump.$(OBJEXT) \
-	addresses.$(OBJEXT) ipv6.$(OBJEXT) tcp.$(OBJEXT) udp.$(OBJEXT) \
-	rtp.$(OBJEXT) plugin.$(OBJEXT) ns.$(OBJEXT) erf.$(OBJEXT) \
-	erf_live.$(OBJEXT) netscout.$(OBJEXT) version.$(OBJEXT) \
-	histo.$(OBJEXT) freelists.$(OBJEXT) rrd.$(OBJEXT) \
-	dag.$(OBJEXT) DPMI.$(OBJEXT) tstat.$(OBJEXT) skype.$(OBJEXT) \
-	naivebayes.$(OBJEXT) msn.$(OBJEXT) misc.$(OBJEXT) \
-	jabber.$(OBJEXT) ymsg.$(OBJEXT) ipp2p_tstat.$(OBJEXT) \
-	p2p.$(OBJEXT) ledbat.$(OBJEXT) tcpL7.$(OBJEXT) \
-	videoL7.$(OBJEXT) web.$(OBJEXT) dump.$(OBJEXT) \
-	bufferbloat.$(OBJEXT) inireader.$(OBJEXT)
+	output.$(OBJEXT) print.$(OBJEXT) bufferbloat.$(OBJEXT) \
+	rexmit.$(OBJEXT) snoop.$(OBJEXT) nlanr.$(OBJEXT) \
+	tcpdump.$(OBJEXT) addresses.$(OBJEXT) ipv6.$(OBJEXT) \
+	tcp.$(OBJEXT) udp.$(OBJEXT) rtp.$(OBJEXT) plugin.$(OBJEXT) \
+	ns.$(OBJEXT) erf.$(OBJEXT) erf_live.$(OBJEXT) \
+	netscout.$(OBJEXT) version.$(OBJEXT) histo.$(OBJEXT) \
+	freelists.$(OBJEXT) rrd.$(OBJEXT) dag.$(OBJEXT) DPMI.$(OBJEXT) \
+	tstat.$(OBJEXT) skype.$(OBJEXT) naivebayes.$(OBJEXT) \
+	msn.$(OBJEXT) misc.$(OBJEXT) jabber.$(OBJEXT) ymsg.$(OBJEXT) \
+	ipp2p_tstat.$(OBJEXT) p2p.$(OBJEXT) ledbat.$(OBJEXT) \
+	tcpL7.$(OBJEXT) videoL7.$(OBJEXT) web.$(OBJEXT) dump.$(OBJEXT) \
+	inireader.$(OBJEXT)
 am_tstat_OBJECTS = $(am__objects_1) $(am__objects_2)
 tstat_OBJECTS = $(am_tstat_OBJECTS)
 am__DEPENDENCIES_1 =
@@ -388,7 +388,7 @@ DEFINES =  -D_BSD_SOURCE -DHAVE_ZLIB -DBUILT_USER="\"`whoami`\"" \
 	-DGUNZIP="\"gunzip\"" -DZ7Z="\"Z7z\"" -DGROK_SNOOP \
 	-DGROK_TCPDUMP -DGROK_NETM -DGROK_ETHERPEEK -DGROK_NS \
 	-DGROK_NETSCOUT -DGROK_ERF -DGROK_LIVE_TCPDUMP \
-	-DBUFFERBLOAT_ANALYSIS -FORCE_CALL_INLINING
+	-DBUFFERBLOAT_ANALYSIS -DFORCE_CALL_INLINING
 
 ################################################################## 
 #
@@ -438,6 +438,7 @@ AM_LDFLAGS = ${PCAP_LDFLAG} ${DAGAPI_LDFLAGS} ${DPMI_LDFLAGS}
 
 # Source Files
 HDR_FILES = \
+    $(top_srcdir)/tstat/bufferbloat.h\
     $(top_srcdir)/tstat/compress.h \
     $(top_srcdir)/tstat/dagtools.h \
     $(top_srcdir)/tstat/dump.h \
@@ -466,8 +467,7 @@ HDR_FILES = \
     $(top_srcdir)/tstat/inireader.h\
     $(top_srcdir)/tstat/p2p.h\
     $(top_srcdir)/tstat/ledbat.h\
-    $(top_srcdir)/tstat/l7types.h\
-    $(top_srcdir)/tstat/bufferbloat.h
+    $(top_srcdir)/tstat/l7types.h
 
 CFILES = $(top_srcdir)/tstat/compress.c \
        $(top_srcdir)/tstat/etherpeek.c \
@@ -476,6 +476,7 @@ CFILES = $(top_srcdir)/tstat/compress.c \
        $(top_srcdir)/tstat/netm.c \
        $(top_srcdir)/tstat/output.c \
        $(top_srcdir)/tstat/print.c \
+       $(top_srcdir)/tstat/bufferbloat.c\
        $(top_srcdir)/tstat/rexmit.c \
        $(top_srcdir)/tstat/snoop.c \
        $(top_srcdir)/tstat/nlanr.c \
@@ -510,7 +511,6 @@ CFILES = $(top_srcdir)/tstat/compress.c \
        $(top_srcdir)/tstat/videoL7.c \
        $(top_srcdir)/tstat/web.c \
        $(top_srcdir)/tstat/dump.c \
-       $(top_srcdir)/tstat/bufferbloat.c\
        $(top_srcdir)/tstat/inireader.c
 
 tstat_SOURCES = ${HDR_FILES} ${CFILES}
@@ -765,6 +765,20 @@ print.obj: $(top_srcdir)/tstat/print.c
 #	source='$(top_srcdir)/tstat/print.c' object='print.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o print.obj `if test -f '$(top_srcdir)/tstat/print.c'; then $(CYGPATH_W) '$(top_srcdir)/tstat/print.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/tstat/print.c'; fi`
+
+bufferbloat.o: $(top_srcdir)/tstat/bufferbloat.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT bufferbloat.o -MD -MP -MF $(DEPDIR)/bufferbloat.Tpo -c -o bufferbloat.o `test -f '$(top_srcdir)/tstat/bufferbloat.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/bufferbloat.c
+	$(am__mv) $(DEPDIR)/bufferbloat.Tpo $(DEPDIR)/bufferbloat.Po
+#	source='$(top_srcdir)/tstat/bufferbloat.c' object='bufferbloat.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o bufferbloat.o `test -f '$(top_srcdir)/tstat/bufferbloat.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/bufferbloat.c
+
+bufferbloat.obj: $(top_srcdir)/tstat/bufferbloat.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT bufferbloat.obj -MD -MP -MF $(DEPDIR)/bufferbloat.Tpo -c -o bufferbloat.obj `if test -f '$(top_srcdir)/tstat/bufferbloat.c'; then $(CYGPATH_W) '$(top_srcdir)/tstat/bufferbloat.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/tstat/bufferbloat.c'; fi`
+	$(am__mv) $(DEPDIR)/bufferbloat.Tpo $(DEPDIR)/bufferbloat.Po
+#	source='$(top_srcdir)/tstat/bufferbloat.c' object='bufferbloat.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o bufferbloat.obj `if test -f '$(top_srcdir)/tstat/bufferbloat.c'; then $(CYGPATH_W) '$(top_srcdir)/tstat/bufferbloat.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/tstat/bufferbloat.c'; fi`
 
 rexmit.o: $(top_srcdir)/tstat/rexmit.c
 	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT rexmit.o -MD -MP -MF $(DEPDIR)/rexmit.Tpo -c -o rexmit.o `test -f '$(top_srcdir)/tstat/rexmit.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/rexmit.c
@@ -1242,20 +1256,6 @@ dump.obj: $(top_srcdir)/tstat/dump.c
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dump.obj `if test -f '$(top_srcdir)/tstat/dump.c'; then $(CYGPATH_W) '$(top_srcdir)/tstat/dump.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/tstat/dump.c'; fi`
 
-bufferbloat.o: $(top_srcdir)/tstat/bufferbloat.c
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT bufferbloat.o -MD -MP -MF $(DEPDIR)/bufferbloat.Tpo -c -o bufferbloat.o `test -f '$(top_srcdir)/tstat/bufferbloat.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/bufferbloat.c
-	$(am__mv) $(DEPDIR)/bufferbloat.Tpo $(DEPDIR)/bufferbloat.Po
-#	source='$(top_srcdir)/tstat/bufferbloat.c' object='bufferbloat.o' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o bufferbloat.o `test -f '$(top_srcdir)/tstat/bufferbloat.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/bufferbloat.c
-
-bufferbloat.obj: $(top_srcdir)/tstat/bufferbloat.c
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT bufferbloat.obj -MD -MP -MF $(DEPDIR)/bufferbloat.Tpo -c -o bufferbloat.obj `if test -f '$(top_srcdir)/tstat/bufferbloat.c'; then $(CYGPATH_W) '$(top_srcdir)/tstat/bufferbloat.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/tstat/bufferbloat.c'; fi`
-	$(am__mv) $(DEPDIR)/bufferbloat.Tpo $(DEPDIR)/bufferbloat.Po
-#	source='$(top_srcdir)/tstat/bufferbloat.c' object='bufferbloat.obj' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o bufferbloat.obj `if test -f '$(top_srcdir)/tstat/bufferbloat.c'; then $(CYGPATH_W) '$(top_srcdir)/tstat/bufferbloat.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/tstat/bufferbloat.c'; fi`
-
 inireader.o: $(top_srcdir)/tstat/inireader.c
 	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT inireader.o -MD -MP -MF $(DEPDIR)/inireader.Tpo -c -o inireader.o `test -f '$(top_srcdir)/tstat/inireader.c' || echo '$(srcdir)/'`$(top_srcdir)/tstat/inireader.c
 	$(am__mv) $(DEPDIR)/inireader.Tpo $(DEPDIR)/inireader.Po
@@ -1481,7 +1481,7 @@ uninstall-am: uninstall-binPROGRAMS
 #If FILTERING is enabled, tstat will use rollover and other 
 #ledbat-inspired stuff to compute the basedelay. Otherwise, the base delay is
 #simply the minimum over all gross delays
-#DEFINES += -FILTERING
+#DEFINES += -DFILTERING
 
 ################################################################## 
 # 
@@ -1492,15 +1492,15 @@ uninstall-am: uninstall-binPROGRAMS
 
 #If it is defined, tstat will perform the calculations to check how many pkts are used
 #for bufferbloat analysis and how many must be ignored
-#DEFINES += -SAMPLES_VALIDITY
+#DEFINES += -DSAMPLES_VALIDITY
 
 #If it is defined, the logs with all the queueing delay samples will be produced
 #(in addition to the windowed logs). Otherwise, only the windowed queueing delay
 #log files will be produced;
-#DEFINES += -SAMPLE_BY_SAMPLE_LOG
+#DEFINES += -DSAMPLE_BY_SAMPLE_LOG
 
 #If you are sure you are monitoring only one flow
-#DEFINES += -ONE_FLOW_ONLY
+#DEFINES += -DONE_FLOW_ONLY
 
 #//</aa>
 

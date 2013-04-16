@@ -334,7 +334,7 @@ configure:10773: $? = 0
 configure:10788: result: 2
 configure:10809: checking for fpurge
 configure:10809: gcc -o conftest -g -O2   conftest.c  >&5
-/tmp/ccSo7g5P.o: In function `main':
+/tmp/ccUcwIBu.o: In function `main':
 /home/araldo/tstat/conftest.c:66: undefined reference to `fpurge'
 collect2: ld returned 1 exit status
 configure:10809: $? = 1
@@ -670,7 +670,6 @@ config.status:1092: creating libtstat-demo/Makefile
 config.status:1092: creating README
 config.status:1092: creating NEWS
 config.status:1092: creating config.h
-config.status:1264: config.h is unchanged
 config.status:1312: executing depfiles commands
 config.status:1312: executing libtool commands
 
