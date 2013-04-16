@@ -534,11 +534,12 @@ callback (char *user, struct pcap_pkthdr *phdr, unsigned char *buf)
 
 	#ifdef SEVERE_DEBUG
 	struct ip* pip = (struct ip *) ip_buf;
-	printf("\ntcpdump.c %d: sizeof(pip->ip_dst)=%d\n",sizeof(struct in_addr));
-	if ( memcmp(&(pip->ip_src), &(pip->ip_dst), sizeof(struct in_addr) ) ){
-		printf("tcpdump.c %d: ERROR: ip_dst(%s) == ip_src((%s))\n",
-			__LINE__, HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ), 
-			HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
+	if ( memcmp( &(pip->ip_src), &(pip->ip_dst), sizeof(struct in_addr)==0 ) )
+	{	printf("tcpdump.c %d: ERROR: ip_dst == ip_src\n",__LINE__);
+
+		printf("ip_dst = %s\n", HostName( *IPV4ADDR2ADDR(&pip->ip_dst) ));
+
+		printf("ip_src = %s\n", HostName( *IPV4ADDR2ADDR(&pip->ip_src)) );
 		exit(554);
 	}
 	#endif

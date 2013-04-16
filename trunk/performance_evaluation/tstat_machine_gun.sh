@@ -37,18 +37,15 @@ for f in `ls $FOLDER/*.$TRACE_FORMAT`; do
 		if [ ! -d "$TSTAT_OUTPUT_FOLDER/$tracename" ]; then
 			echo -e "\n\n\n\nprocessing trace $I-th: $tracename"
 			mkdir $TSTAT_OUTPUT_FOLDER/$tracename
-			echo "output file= $TIME_RESULT_FOLDER/$tracename.txt"
+			echo "timing results in $TIME_RESULT_FOLDER/$tracename.txt"
 
+			#Get the time required to run
 			#the trick to print the time output is inspired by:
 			#http://hustoknow.blogspot.fr/2011/08/how-to-redirect-bash-time-outputs.html
-			(time tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f > null) 2> $TIME_RESULT_FOLDER/$tracename.txt
+			(time tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f > null 2>&1) 2> $TIME_RESULT_FOLDER/$tracename.txt
 			
-			error=0
-			error=`grep Command $TIME_RESULT_FOLDER/$tracename.txt | wc -l`
-			if [ $error -ne 0 ]
-			then
-				echo "ERROR"
-			fi
+			#Compute the space required in the disk
+			echo `du --bytes --total $TSTAT_OUTPUT_FOLDER/$tracename | cut -f1 | tail -n1` >> $TIME_RESULT_FOLDER/$tracename.txt
 		else
 			echo "$tracename already processed"
 		fi
@@ -56,4 +53,27 @@ for f in `ls $FOLDER/*.$TRACE_FORMAT`; do
 
 	I=`expr $I + 1`
 done
-echo -ne "end"
+
+echo -e "\n\n\n############ CHECK FOR ERRORS IN PROCESSING #######"
+I=1
+for f in `ls $FOLDER/*.$TRACE_FORMAT`; do
+	tracename=`basename $f`
+	if  [ $I -ge $LEFT ] && [ $I -le $RIGHT ]  
+	then
+		echo -e "verifying trace $I-th: $tracename"
+
+		tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f > null  2>&1
+		exit_code=$?
+		echo "exit code:"$exit_code
+		if [ $exit_code -ne 0 ]
+		then
+			echo "ERROR: exit code "$exit_code
+		fi
+	fi
+
+	I=`expr $I + 1`
+done
+
+
+
+echo -e "end\n"
