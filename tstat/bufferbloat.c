@@ -1631,45 +1631,39 @@ void update_bufferbloat_windowed_values(utp_stat* bufferbloat_stat, delay_t wind
 	int qd_samples_in_win)
 {	
 	#ifdef SEVERE_DEBUG
-	sample_qd_sum_until_last_window_old = 
+	delay_t sample_qd_sum_until_last_window_old = 
 		bufferbloat_stat->sample_qd_sum_until_last_window;
-	qd_measured_sum_old=
+	delay_t qd_measured_sum_old=
 		bufferbloat_stat->qd_measured_sum;
-	qd_samples_until_last_window_old = 
+	int qd_samples_until_last_window_old = 
 		bufferbloat_stat->qd_samples_until_last_window;
-	qd_measured_count_old =
+	int qd_measured_count_old =
 		bufferbloat_stat->qd_measured_count;
-	sample_qd_sum2_until_last_window_old = 
+	delay_t sample_qd_sum2_until_last_window_old = 
 		bufferbloat_stat->sample_qd_sum2_until_last_window;
-	qd_measured_sum2_old =
+	delay_t qd_measured_sum2_old =
 		bufferbloat_stat->qd_measured_sum2;
-	gross_dly_sum_until_last_window_old =
+	delay_t gross_dly_sum_until_last_window_old =
 		bufferbloat_stat->gross_dly_sum_until_last_window;
-	gross_dly_measured_sum_old = 
-		bufferbloat_stat->gross_dly_measured_sum)
+	delay_t gross_dly_measured_sum_old = 
+		bufferbloat_stat->gross_dly_measured_sum;
 
 	#ifdef SAMPLES_VALIDITY
-	qd_calculation_chances_until_last_window_old = 
+	int qd_calculation_chances_until_last_window_old = 
 		bufferbloat_stat->qd_calculation_chances_until_last_window;
-	qd_calculation_chances_old =
+	int qd_calculation_chances_old =
 		bufferbloat_stat->qd_calculation_chances;
 	#endif	
 
 	#endif
 
 	if(qd_samples_in_win != 0)
-	{	//<aa>TODO: maybe it's also correct to do (it's verified in the following SEVERE_DEBUG block):
-		// bufferbloat_stat->sample_qd_sum_until_last_window = bufferbloat_stat->qd_measured_sum
-		//The same holds for the other variables too
-		bufferbloat_stat->sample_qd_sum_until_last_window += 
-			bufferbloat_stat->qd_measured_sum - 
-			bufferbloat_stat->sample_qd_sum_until_last_window;
-		bufferbloat_stat->qd_samples_until_last_window += 
-			bufferbloat_stat->qd_measured_count - 
-			bufferbloat_stat->qd_samples_until_last_window;
-		bufferbloat_stat->sample_qd_sum2_until_last_window += 
-			bufferbloat_stat->qd_measured_sum2 - 
-			bufferbloat_stat->sample_qd_sum2_until_last_window;
+	{	bufferbloat_stat->sample_qd_sum_until_last_window = 
+			bufferbloat_stat->qd_measured_sum;
+		bufferbloat_stat->qd_samples_until_last_window = 
+			bufferbloat_stat->qd_measured_count;
+		bufferbloat_stat->sample_qd_sum2_until_last_window = 
+			bufferbloat_stat->qd_measured_sum2;
 
 		//stqd_max_w1atistics
 		bufferbloat_stat->not_void_windows++;
@@ -1677,39 +1671,49 @@ void update_bufferbloat_windowed_values(utp_stat* bufferbloat_stat, delay_t wind
 		bufferbloat_stat->windowed_qd_sum2 += ((window_qd)*(window_qd));
 
 		#ifdef SAMPLES_VALIDITY
-		bufferbloat_stat->qd_calculation_chances_until_last_window += 
-			bufferbloat_stat->qd_calculation_chances - 
-			bufferbloat_stat->qd_calculation_chances_until_last_window;
+		bufferbloat_stat->qd_calculation_chances_until_last_window = 
+			bufferbloat_stat->qd_calculation_chances;
 		#endif
 
 		#ifdef SEVERE_DEBUG
-		bufferbloat_stat->gross_dly_sum_until_last_window +=
-			bufferbloat_stat->gross_dly_measured_sum -
-			bufferbloat_stat->gross_dly_sum_until_last_window;
+		bufferbloat_stat->gross_dly_sum_until_last_window =
+			bufferbloat_stat->gross_dly_measured_sum;
 		#endif
 	}
 
 	#ifdef SEVERE_DEBUG
+	sample_qd_sum_until_last_window_old += 
+		qd_measured_sum_old - sample_qd_sum_until_last_window_old;
+	qd_samples_until_last_window_old += 
+		qd_measured_count_old - qd_samples_until_last_window_old;
+	sample_qd_sum2_until_last_window_old += 
+		qd_measured_sum2_old - sample_qd_sum2_until_last_window_old;
+	gross_dly_sum_until_last_window_old += 
+		gross_dly_measured_sum_old - gross_dly_sum_until_last_window_old;
+		
 	if(	bufferbloat_stat->sample_qd_sum_until_last_window !=
-		bufferbloat_stat->qd_measured_sum)
-	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+		sample_qd_sum_until_last_window_old
+	){	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
 
 	if(	bufferbloat_stat->qd_samples_until_last_window !=
-		bufferbloat_stat->qd_measured_count)
-	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+		qd_samples_until_last_window_old
+	){	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
 
 	if(	bufferbloat_stat->sample_qd_sum2_until_last_window !=
-		bufferbloat_stat->qd_measured_sum2)
-	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+		sample_qd_sum2_until_last_window_old
+	){	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
 	
 	if(	bufferbloat_stat->gross_dly_sum_until_last_window !=
-		bufferbloat_stat->gross_dly_measured_sum)
-	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+		gross_dly_sum_until_last_window_old
+	){	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
 
 	#ifdef SAMPLES_VALIDITY
+	qd_calculation_chances_until_last_window_old += 
+		qd_calculation_chances_old - qd_calculation_chances_until_last_window_old;
+
 	if(	bufferbloat_stat->qd_calculation_chances_until_last_window !=
-		bufferbloat_stat->qd_calculation_chances)
-	{	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+		qd_calculation_chances_until_last_window_old
+	){	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
 	#endif	
 
 	if(qd_samples_in_win==0 && window_qd!=-1)
