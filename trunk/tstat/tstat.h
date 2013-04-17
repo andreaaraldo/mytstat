@@ -826,25 +826,7 @@ enum gross_dly_filtering{
 };
 
 /**
- * Update the delay_base, bufferbloat_stat_p->cur_gross_delay_hist and 
- * bufferbloat_stat_p->delay_base_hist. It does not update the aggregated values
- * - gross_delay: in microseconds
- */
-void update_gross_delay_related_stuff(u_int32_t gross_delay, utp_stat* bufferbloat_stat_p);
-
-/**
- * returns an estimation of the queueing delay in microseconds.
- * After a new gross_delay arrives, call update_gross_delay_related_stuff
- * before calling this one
- */
-u_int32_t get_queueing_delay(const utp_stat* bufferbloat_stat_p);
-
-/**
  * <aa> It returns 1 if lhs<rhs, 0 otherwise</aa>
  */
-int wrapping_compare_less(u_int32_t lhs, u_int32_t rhs); //libutp
-
-/**
- * It returns the baseline, i.e. the minimum of the last DELAY_BASE_HISTORY gross delays
- */
-u_int32_t min_delay_base(utp_stat* bufferbloat_stat_p);
+//int wrapping_compare_less(u_int32_t lhs, u_int32_t rhs); //libutp
+//<aa>I don't want to use this function</aa>

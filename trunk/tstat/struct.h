@@ -67,6 +67,11 @@ typedef struct ipaddr
 }
 ipaddr;
 
+//<aa> It will be used for queueing delays or round trip time, ...
+//For the sake of simplicity, it's good to have all these values in
+//milliseconds
+typedef long delay_t;
+//</aa>
 
 /* type for a timestamp */
 typedef struct timeval timeval;
@@ -265,10 +270,11 @@ typedef struct utp_stat
 	//</aa>
 	#endif
 
-	float queueing_delay_min, queueing_delay_max; //<aa> min, max of the estimated queueing
-							//dlys of all the packets</aa>
-	float qd_measured_sum;  // <aa>sum qd of all packets (in milliseconds)</aa>
-        float qd_measured_sum2; // <aa>ssum qd^2 of all packets (in milliseconds^2)</aa>
+	//<aa> min, max of the estimated queueing dlys of all the packets
+	//(milliseconds)</aa>
+	delay_t queueing_delay_min, queueing_delay_max; 
+	delay_t qd_measured_sum;  // <aa>sum qd of all packets (in milliseconds)</aa>
+        delay_t qd_measured_sum2; // <aa>ssum qd^2 of all packets (in milliseconds^2)</aa>
         // <aa> STATISTICS ON A PER-PKT BASIS: end </aa>
 
 	// <aa> Windowed statistics
@@ -278,24 +284,24 @@ typedef struct utp_stat
 	// <aa>number of not void windows (windows with at most 1 sample)</aa>
         int not_void_windows;
 
-	float windowed_qd_sum; // <aa>sum of all windowed qd, each windowed qd being the 
+	delay_t windowed_qd_sum; // <aa>sum of all windowed qd, each windowed qd being the 
 				// average of the 
 				  // estimated queueind dlys of the packets in a window 
 				  // (milliseconds)</aa>
 	
-	float windowed_qd_sum2;//<aa>sum of all qd^2, each qd being as above(milliseconds^2)</aa>
-        float queueing_delay_average_w1;//<aa>mean of all qd, each qd being as above</aa>
-        float queueing_delay_standev_w1;//<aa>standev of all qd, each qd being as above</aa>
+	delay_t windowed_qd_sum2;//<aa>sum of all qd^2, each qd being as above(milliseconds^2)</aa>
+        delay_t queueing_delay_average_w1;//<aa>mean of all qd, each qd being as above</aa>
+        delay_t queueing_delay_standev_w1;//<aa>standev of all qd, each qd being as above</aa>
 	// <aa>Windowed statistics: end </aa>
 
 	//<aa>
 	#ifdef SEVERE_DEBUG
 	unsigned long long last_printed_window_edge;
-	float gross_dly_measured_sum;		//(milliseconds)
-	float gross_dly_sum_until_last_window;	//(milliseconds)
+	delay_t gross_dly_measured_sum;		//(milliseconds)
+	delay_t gross_dly_sum_until_last_window;	//(milliseconds)
 	
 	//The last qd sample that has not been inserted in any window
-	float last_unwindowed_qd_sample;	//(milliseconds)
+	delay_t last_unwindowed_qd_sample;	//(milliseconds)
 	#endif
 	//</aa>
 
@@ -323,9 +329,9 @@ typedef struct utp_stat
 	// At the end of the current minute, the window moves---the earliest
 	// minimum is dropped and the latest minimum is added."
 	// </aa>
-        u_int32_t delay_base_hist[DELAY_BASE_HISTORY]; //delay base list<aa>(microseconds)</aa>
+        delay_t delay_base_hist[DELAY_BASE_HISTORY]; //delay base list(milliseconds)
 
-        u_int32_t delay_base; //<aa>(microseconds)</aa>
+        delay_t delay_base; //<aa>(microseconds)</aa>
 
 	// <aa>cur_delay_hist is a circular list to collect the last one-way delays
 	// (see [ledbat_draft] section 3.4.2). The position of the last added element 
@@ -338,7 +344,7 @@ typedef struct utp_stat
 	//<aa>TODO: remove this or cur_delay_hist
 	//Gross delays are one one-way  delays in the case of ledbat bufferbloat analysis. 
 	//They are round trip delays in the case of tcp ledbat analysis
-	u_int32_t cur_gross_delay_hist[CUR_DELAY_SIZE];
+	delay_t cur_gross_delay_hist[CUR_DELAY_SIZE]; //milliseconds
 	//</aa>
 
         size_t cur_delay_idx;
@@ -363,10 +369,8 @@ typedef struct utp_stat
 	// </aa>
 
 	// <aa>the max of the queueing delays collected in the last window (in milliseconds)
-	// (not microseconds) </aa>
-        float qd_max_w1;
-
-
+	// </aa>
+        delay_t qd_max_w1;
 
 	// <aa> Stored values:
 	// These values do not concern only the last window, but they concern all the flow,
@@ -381,10 +385,10 @@ typedef struct utp_stat
 	int qd_calculation_chances_until_last_window; //<aa>See the meaning of qd_calculation_chances</aa>
 	#endif
 	
-        float sample_qd_sum_until_last_window; // <aa>the sum of all the above queueing 
+        delay_t sample_qd_sum_until_last_window; // <aa>the sum of all the above queueing 
 						//delays (milliseconds) </aa>
 
-        float sample_qd_sum2_until_last_window; // <aa>sum of the square queue dly calculated as above
+        delay_t sample_qd_sum2_until_last_window; // <aa>sum of the square queue dly calculated as above
 	// <aa> Stored values: end </aa>
 
 	//<aa>TODO: maybe not used anymore</aa>
