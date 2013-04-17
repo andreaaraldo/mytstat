@@ -265,21 +265,21 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	u_int16_t putplen=(ntohs(pudp->uh_ulen) -8); //payload udp len -> utp packet lenght
 
 	//<aa>
-	u_int32_t grossdelay = ntohl(putp->time_diff);
+	u_int32_t grossdelay_microsecs = ntohl(putp->time_diff);
 	
 	#ifdef SEVERE_DEBUG
 
 	#ifdef BUFFERBLOAT_ANALYSIS
 	check_direction_consistency(LEDBAT, DONT_CARE_TRIG, (void*)thisdir, __LINE__);
 
-	if (grossdelay > 1000*1000000){
+	if (grossdelay_microsecs > 1000*1000000){
 		printf("\nledbat.c %d: ATTTTTTTEEEEENNNNNNZZZZZIONNNNNEEEEEEE: ERROR: time_diff is %u, more than a quarter of hour\n",
-			__LINE__, grossdelay);
+			__LINE__, grossdelay_microsecs);
 		printf("putp->time_diff=%X\n",putp->time_diff);
 		exit(213254);
 		//<aa>TODO: reactivate exit</aa>
 	}
-	if (grossdelay==0){
+	if (grossdelay_microsecs==0){
 		printf("ledbat.c %d: ATTTTTENZZIONNNEEE: gross delay = 0\n", __LINE__); 
 	}
 	#endif //of BUFFERBLOAT_ANALYSIS
@@ -308,7 +308,7 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	if (	( 	(type_utp==UTP_STATE_ACK) || (type_utp==UTP_STATE_SACK) )
 	      ||( 
 			(type_utp==UTP_DATA) && 
-			(grossdelay != bufferbloat_stat->last_measured_time_diff) 
+			(grossdelay_microsecs != bufferbloat_stat->last_measured_time_diff) 
 		)
 	)
 		overfitting_avoided = TRUE;
@@ -328,10 +328,11 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 	printf("ATTENZIONEEEE: VEDERE QUANDO E' IL CASO DI CHIAMARE chance_is_not_valid(...)");
 	exit(4745);
 
-	if (grossdelay > 0){
-		float windowed_qd = bufferbloat_analysis(LEDBAT, DONT_CARE_TRIG, 
+	if (grossdelay_microsecs > 0){
+		delay_t windowed_qd = bufferbloat_analysis(LEDBAT, DONT_CARE_TRIG, 
 			&(pup->addr_pair), dir, bufferbloat_stat, 
-			&(otherdir->utp), conn_id, type, putplen, grossdelay,overfitting_avoided,
+			&(otherdir->utp), conn_id, type, putplen, 
+			grossdelay_microsecs/1000, overfitting_avoided,
 			it_is_a_data_pkt);
 
 		float estimated_99P;

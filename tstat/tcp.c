@@ -1221,7 +1221,7 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 		    u_int32_t ack_to_segment_time =  //RTT(d,s)
 			(u_int32_t) elapsed(otherdir->last_ack_time, current_time);
 
-		    u_int32_t gross_delay = 
+		    u_int32_t grossdelay_microsecs = 
 				previous_segment_to_ack_time + ack_to_segment_time;
 
 
@@ -1240,9 +1240,9 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 				__LINE__, elapsed(otherdir->last_ack_time, current_time)); 
 			exit(99999);
 		    }
-		    if (gross_delay == 0){
-			printf("tcp.c %d: gross_delay=%u\n",
-				__LINE__, gross_delay);
+		    if (grossdelay_microsecs == 0){
+			printf("tcp.c %d: grossdelay_microsecs=%u\n",
+				__LINE__, grossdelay_microsecs);
 			exit(87934);
 		    }
 		    #endif //of SEVERE_DEBUG
@@ -1255,7 +1255,8 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 				(const int) *dir, &(thisdir->bufferbloat_stat_data_triggered),
 				&(otherdir->bufferbloat_stat_data_triggered),
 				utp_conn_id, type, tcp_data_length, 
-				gross_delay, overfitting_avoided, update_size_info);
+				grossdelay_microsecs/1000, overfitting_avoided, 
+				update_size_info);
 	
 	      }
 	      #ifdef SAMPLES_VALIDITY
