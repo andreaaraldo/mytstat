@@ -10,7 +10,7 @@ CROSS_TRAFFIC_PORT=5012
 #ssh root@netbook 'ntpdate ntp.ubuntu.com'
 
 killall tstat; killall ping; killall iperf; killall iperf; killall iperf; killall iperf; 
-ssh -n -f root@netbook "killall gnuplot; killall tstat; killall ping; killall iperf; killall iperf; killall iperf; killall iperf; nohup ./whatever > /dev/null 2>&1 &"
+ssh -n -f root@netbook "killall tstat; killall gnuplot; killall ping; killall iperf; killall iperf; killall iperf; killall iperf; nohup ./whatever > /dev/null 2>&1 &"
 
 ethtool -s eth0 autoneg off
 ethtool -s eth0 speed 10 duplex full
