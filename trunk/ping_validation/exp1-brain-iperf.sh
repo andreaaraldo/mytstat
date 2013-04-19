@@ -9,7 +9,7 @@ DESKTOP_LOG_FOLDER=$DESKTOP_TSTAT_FOLDER/ping_validation/logs
 #ssh root@netbook 'ntpdate ntp.ubuntu.com'
 
 killall tstat; killall ping; killall iperf; killall iperf; 
-ssh -n -f root@netbook "killall tstat; killall ping; killall iperf; killall iperf; nohup ./whatever > /dev/null 2>&1 &"
+ssh -n -f root@netbook "killall gnuplot; killall tstat; killall ping; killall iperf; killall iperf; nohup ./whatever > /dev/null 2>&1 &"
 
 ethtool -s eth0 autoneg off
 ethtool -s eth0 speed 10 duplex full
