@@ -168,9 +168,7 @@ void update_gross_delay_related_stuff(delay_t gross_delay,utp_stat* bufferbloat_
 			bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]=gross_delay;
 	
 		}else{ //update the tail
-			if (	wrapping_compare_less(	gross_delay, 
-					bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1])
-			)  
+			if (	gross_delay < bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1])
 				bufferbloat_stat_p->delay_base_hist[DELAY_BASE_HISTORY-1]=gross_delay;
 				//<aa>according to the draft, we calculate the one-way delay minima over a
 				//one-minute interval</aa>
@@ -1595,7 +1593,6 @@ delay_t close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigg
 				__LINE__, qd_window, qd_samples_in_win, last_window_qd_sum,
 				precise_window_qd);
 		}
-		#endif
 
 		if(	(precise_window_qd == 0 || qd_samples_in_win == 0) &&
 			bufferbloat_stat->last_unwindowed_qd_sample!= 0
@@ -1612,6 +1609,7 @@ delay_t close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigg
 			printf("precise_window_qd = %f\n", precise_window_qd);
 			exit(41774);
 		}
+		#endif //of SEVERE_DEBUG
 	}
 
 	//milliseconds
