@@ -634,10 +634,16 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
 			&(ptcb->ptp->s2c.bufferbloat_stat_ack_triggered) : 
 			&(ptcb->ptp->c2s.bufferbloat_stat_ack_triggered) ;
 	  if(ack_dir_bufferbloat_stat_test != ack_dir_bufferbloat_stat)
-	  {	printf("\nline %d: ERROR\n",__LINE__); exit(234);}
+	  {	printf("\nrexmit.c %d: ERROR\n",__LINE__); exit(234);}
       
       check_direction_consistency_light( 
       		ack_dir_bufferbloat_stat, opposite_dir_bufferbloat_stat, __LINE__);
+      if(etime_rtt==0)
+      {	printf("\nrexmit.c %d: ERROR\n",__LINE__); exit(234);}
+      else if(etime_rtt<1000)
+      {	printf("\nrexmit.c %d: Warning gross_delay is very very small: etime_rtt=%fus\n",
+      		__LINE__,etime_rtt);
+      }
       #endif //of SEVERE_DEBUG
       
       bufferbloat_analysis(TCP, ACK_TRIG, (const tcp_pair_addrblock*) &(ptcb->ptp->addr_pair),

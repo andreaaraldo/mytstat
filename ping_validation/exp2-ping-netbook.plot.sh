@@ -5,6 +5,7 @@
 
 TSTAT_OUT_FOLDER=/tmp/tstat_out
 TSTAT_LOG=/tmp/tstat.log
+IPERF_LOG=/tmp/iperf.log
 TARGET=desktop
 DEV=eth0
 TSTAT_FOLDER=/home/andrea/tstat
@@ -28,9 +29,7 @@ echo "port $PORT_TO_SNIFF" > $FILTER_FILE
 nohup tstat  -i $DEV -l -f $FILTER_FILE -s $TSTAT_OUT_FOLDER > $TSTAT_LOG 2>&1 &
 
 sleep 2
-#ITGSend -T TCP -a desktop -t 1000000 -rp 5001 -O 10  > $LOG_FOLDER/ITGSend.log &
-iperf -t 2000000 -c desktop -s $TSTAT_OUT_FOLDER --port $PORT_TO_SNIFF> $TSTAT_LOG 2>&1 &
-#sh $TSTAT_FOLDER/ping_validation/traffic_generator.sh &
+iperf -t 2000000 -c desktop -s $TSTAT_OUT_FOLDER --port $PORT_TO_SNIFF> $IPERF_LOG 2>&1 &
 
 sleep 5
 sh $TSTAT_FOLDER/ping_validation/build_gnuplot_script.sh $TSTAT_OUT_FOLDER $PING_SCRIPT
