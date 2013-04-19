@@ -71,6 +71,7 @@ ipaddr;
 //For the sake of simplicity, it's good to have all these values in
 //milliseconds
 typedef long delay_t;
+#define DELAY_T_FORMAT_SPECIFIER " %ld"
 //</aa>
 
 /* type for a timestamp */
@@ -370,25 +371,25 @@ typedef struct utp_stat
 
 	// <aa>the max of the queueing delays collected in the last window (in milliseconds)
 	// </aa>
-        delay_t qd_max_w1;
+	delay_t qd_max_w1;
 
 	// <aa> Stored values:
 	// These values do not concern only the last window, but they concern all the flow,
 	// from the beginning to the last closed window
 	// </aa>
 	// <aa>TODO: do we really need them?</aa>
-        int qd_samples_until_last_window; // <aa> no. of qd samples calculated from the 
-		// beginning of the flow to the last closed window (not considering
-		// the queueing dlys of the open windows </aa>
+	int qd_samples_until_last_window; // <aa> no. of qd samples calculated from the 
+	// beginning of the flow to the last closed window (not considering
+	// the queueing dlys of the open windows </aa>
 
 	#ifdef SAMPLES_VALIDITY
 	int qd_calculation_chances_until_last_window; //<aa>See the meaning of qd_calculation_chances</aa>
 	#endif
 	
-        delay_t sample_qd_sum_until_last_window; // <aa>the sum of all the above queueing 
+	delay_t sample_qd_sum_until_last_window; // <aa>the sum of all the above queueing 
 						//delays (milliseconds) </aa>
 
-        delay_t sample_qd_sum2_until_last_window; // <aa>sum of the square queue dly calculated as above
+	delay_t sample_qd_sum2_until_last_window; // <aa>sum of the square queue dly calculated as above
 	// <aa> Stored values: end </aa>
 
 	//<aa>TODO: maybe not used anymore</aa>

@@ -114,7 +114,7 @@ extern inline
 void update_gross_delay_related_stuff(delay_t gross_delay,utp_stat* bufferbloat_stat_p){
 	#ifdef SEVERE_DEBUG
 	if (gross_delay==0){
-		printf("Error: gross delay = 0\n"); exit(541);
+		fprintf(stderr,"bufferbloat.c %d: WARNING: gross delay = 0\n",__LINE__);
 	}
 
 	#ifndef FILTERING
@@ -296,9 +296,9 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 	);
 
 	wfprintf (fp_qd, "- "); 			//10.flowtype
-	wfprintf (fp_qd, "%u ", pkt_size); 		//11.pkt_size
-	wfprintf (fp_qd, "%u ", last_grossdelay);	//12.last_grossdelay(milliseconds)
-	wfprintf (fp_qd, "%s\n", type);	 		//13.type
+	wfprintf (fp_qd, "%u", pkt_size); 		//11.pkt_size
+	wfprintf (fp_qd, DELAY_T_FORMAT_SPECIFIER, last_grossdelay);	//12.last_grossdelay(milliseconds)
+	wfprintf (fp_qd, " %s\n", type);	 		//13.type
 	fflush(fp_qd);
 }
 #endif //of SAMPLES_BY_SAMPLES_LOG
@@ -315,15 +315,6 @@ delay_t bufferbloat_analysis(enum analysis_type an_type,
 	delay_t windowed_qd = -1;
 
 	#ifdef SEVERE_DEBUG
-	check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
-		__LINE__);
-
-	if (last_grossdelay==0){
-		printf("line %d: Error: gross delay = 0\n",__LINE__); exit(541);
-	}
-	if (bufferbloat_stat == otherdir_bufferbloat_stat){
-		printf("line %d: thisdir_bufferbloat_stat == otherdir_bufferbloat_stat\n",__LINE__); exit(11);
-	}
 	char* an_details;
 	if(an_type == TCP && trig == ACK_TRIG) 
 		an_details = "TCP-ACK_TRIG";
@@ -334,8 +325,17 @@ delay_t bufferbloat_analysis(enum analysis_type an_type,
 	else if(an_type == LEDBAT) 
 		an_details = "LEDBAT";
 	else	an_details = "ERROR";
-//	printf("line %d: antype=%s\n",__LINE__,an_details);
+	check_direction_consistency_light(bufferbloat_stat, otherdir_bufferbloat_stat,
+		__LINE__);
 
+	if (last_grossdelay==0){
+		printf("bufferbloat.c %d: an_details:%s WARNING: gross delay = 0ms\n",
+			__LINE__, an_details);
+	}
+	if (bufferbloat_stat == otherdir_bufferbloat_stat){
+		printf("line %d: thisdir_bufferbloat_stat == otherdir_bufferbloat_stat\n",__LINE__); exit(11);
+	}
+	
 	if(	bufferbloat_stat->not_void_windows != 0
 		&&
 		otherdir_bufferbloat_stat->not_void_windows != 0
@@ -388,7 +388,7 @@ delay_t bufferbloat_analysis(enum analysis_type an_type,
 				bufferbloat_stat->sample_qd_sum_until_last_window;
 	if(	last_window_qd_sum_for_debug <= 0 &&
 		bufferbloat_stat->last_unwindowed_qd_sample != 0
-	){	printf("\nbufferbloat.c %d: last_window_qd_sum_for_debug=%f, last_unwindowed_qd_sample=%f\n",
+	){	printf("\nbufferbloat.c %d: ERROR: last_window_qd_sum_for_debug=%f, last_unwindowed_qd_sample=%f\n",
 			__LINE__, (float)last_window_qd_sum_for_debug, 
 			(float)bufferbloat_stat->last_unwindowed_qd_sample);
 		printf("\nqd_measured_sum=%f, sample_qd_sum_until_last_window=%f\
@@ -446,7 +446,7 @@ delay_t bufferbloat_analysis(enum analysis_type an_type,
 
 		//Before updating the bufferbloat info of this flow, see if a window can be 
 		//closed (not including the present pkt)
-        	windowed_qd = windowed_queueing_delay(an_type, trig, addr_pair, 
+        windowed_qd = windowed_queueing_delay(an_type, trig, addr_pair, 
 			bufferbloat_stat, otherdir_bufferbloat_stat, dir, type,
 			utp_conn_id);
 
@@ -494,7 +494,7 @@ delay_t bufferbloat_analysis(enum analysis_type an_type,
 
 		float ewma; //Exponentially-Weighted Moving Average
 
-       		if (bufferbloat_stat->ewma > 0) {
+       	if (bufferbloat_stat->ewma > 0) {
                    ewma = bufferbloat_stat->ewma;
                    bufferbloat_stat->ewma = 
 			EWMA_ALPHA * (estimated_qd) + (1-EWMA_ALPHA) * ewma;
@@ -562,9 +562,27 @@ delay_t bufferbloat_analysis(enum analysis_type an_type,
 			__LINE__, an_details);
 		exit(1275);
 	}
+	
+	last_window_qd_sum_for_debug = bufferbloat_stat->qd_measured_sum -
+				bufferbloat_stat->sample_qd_sum_until_last_window;
+	if(	last_window_qd_sum_for_debug <= 0 &&
+		bufferbloat_stat->last_unwindowed_qd_sample != 0
+	){	printf("\nbufferbloat.c %d: ERROR: last_window_qd_sum_for_debug=%f, last_unwindowed_qd_sample=%f\n",
+			__LINE__, (float)last_window_qd_sum_for_debug, 
+			(float)bufferbloat_stat->last_unwindowed_qd_sample);
+		printf("\nqd_measured_sum=%f, sample_qd_sum_until_last_window=%f\
+			not_void_windows=%d, qd_measured_count=%d\n",
+			(float)bufferbloat_stat->qd_measured_sum, 
+			(float)bufferbloat_stat->sample_qd_sum_until_last_window,
+			bufferbloat_stat->not_void_windows, 
+			bufferbloat_stat->qd_measured_count);
+			
+		exit(177746);
+	}
+	
 	#endif //of SEVERE_DEBUG
 
-      	return windowed_qd;
+    return windowed_qd;
 }
 
 #ifdef SAMPLES_VALIDITY
@@ -587,6 +605,13 @@ void chance_is_not_valid(enum analysis_type an_type,
 	#else
 	sprintf(an_descr, "%s-%s", (an_type==TCP)? "TCP":"LEDBAT","DATA_TRIG" );	
 	#endif
+	
+	#ifdef SAMPLES_VALIDITY
+	//The last queueing delay sample has been absorbed in the window that we
+	//have just closed
+	thisdir_bufferbloat_stat->last_unwindowed_qd_sample = 0;
+	#endif
+	
 	#endif //of SEVERE_DEBUG
 }
 #endif
@@ -777,7 +802,7 @@ void print_last_window_directional(enum analysis_type an_type,
 	if (qd_window == BUFFEBLOAT_NOSAMPLES)
 		wfprintf(fp_logc, " - -");
 	else
-		wfprintf(fp_logc, " %f %f", 
+		wfprintf(fp_logc, " %d %d", 
 			qd_window,						//7-20
 			window_error					//8-21
 		);
@@ -802,16 +827,15 @@ void print_last_window_directional(enum analysis_type an_type,
 			__LINE__, (float)windowed_gross_dly, (float)qd_window);
 		exit(441);
 	}
-	#endif
+	#endif //SEVERE_DEBUG
 
-	wfprintf(fp_logc," %f",
+	wfprintf(fp_logc,DELAY_T_FORMAT_SPECIFIER,
 		bufferbloat_stat->qd_max_w1		//9-22 milliseconds
 	);
 
-
 	#ifdef SAMPLES_VALIDITY
 	wfprintf(fp_logc," %d",chances_in_win);
-							//10-23: chances
+										//10-23: chances
 	#else
 	wfprintf(fp_logc," -");				//10-23
 	#endif
@@ -820,17 +844,29 @@ void print_last_window_directional(enum analysis_type an_type,
 	if(windowed_gross_dly == -1)
 		wfprintf(fp_logc, " -");		//11-24
 	else
-		wfprintf(fp_logc, " %f",windowed_gross_dly);
-							//11-24 milliseconds
+		wfprintf(fp_logc, DELAY_T_FORMAT_SPECIFIER,windowed_gross_dly);
+										//11-24 milliseconds
 	
-	wfprintf(fp_logc," %d %d %d %f %f %f %u",
+	wfprintf(fp_logc," %d %d %d",  // %f %f %f %u
 		conn_id,						//12-25
 		samples_in_win,					//13-26: no_of_qd_samples_in_windows
-		bufferbloat_stat->not_void_windows,	//14-27: no of not void windows
-		bufferbloat_stat->qd_measured_sum,	//15-28 milliseconds
-		bufferbloat_stat->windowed_qd_sum,	//16-29 milliseconds
-		bufferbloat_stat->sample_qd_sum_until_last_window,		
+		bufferbloat_stat->not_void_windows	//14-27: no of not void windows
+	);	
+	
+	wfprintf(fp_logc, DELAY_T_FORMAT_SPECIFIER,
+		bufferbloat_stat->qd_measured_sum	//15-28 milliseconds
+	);
+	
+	wfprintf(fp_logc, DELAY_T_FORMAT_SPECIFIER,
+		bufferbloat_stat->windowed_qd_sum	//16-29 milliseconds
+	);
+	
+	wfprintf(fp_logc, DELAY_T_FORMAT_SPECIFIER,
+		bufferbloat_stat->sample_qd_sum_until_last_window
 							//17-30 milliseconds
+	);
+	
+	wfprintf(fp_logc, DELAY_T_FORMAT_SPECIFIER,
 		bufferbloat_stat->delay_base		//18-31 (milliseconds)
 	);
 }
@@ -845,7 +881,7 @@ void print_void_window(enum analysis_type an_type,
 	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type)
 {
 	#ifdef SEVERE_DEBUG
-	printf("\nline %d: printing edge %u\n",__LINE__,(unsigned)old_last_left_edge);
+	printf("\nbufferbloat.c %d: printing edge %u\n",__LINE__,(unsigned)old_last_left_edge);
 	const utp_stat* bufferbloat_stat_p = thisdir_bufferbloat_stat;
 	if(current_time.tv_sec <= old_last_left_edge){
 		printf("line %d: Error in print_void_window(..)\n",__LINE__);
@@ -1106,7 +1142,8 @@ delay_t windowed_queueing_delay(enum analysis_type an_type,
 				(const utp_stat*) otherdir_bufferbloat_stat, 
 				conn_id, type);
 
-			#ifdef SEVERE_DEBUG //Taking care of window edge
+			#ifdef SEVERE_DEBUG 
+			//Taking care of window edge
 			thisdir_bufferbloat_stat->last_printed_window_edge =old_last_left_edge;
 			otherdir_bufferbloat_stat->last_printed_window_edge=old_last_left_edge;
 			#endif
@@ -1267,7 +1304,14 @@ void check_direction_consistency_light(const utp_stat* this_bufferbloat_stat,
 	){	
 		printf("\ncheck_direction_consistency light called in line %d\n", 
 			caller_line);
-		printf("line %d:ERROR \n",__LINE__); exit(227);
+		printf("bufferbloat.c %d:ERROR: chances_until_last_window must be less or equal to qd_calculation_chances\n",
+			__LINE__);
+		printf("thisdir_chances_until_last_window=%d, thisdir_chances=%d, otherdir_chances_until_last_window=%d, otherdir_chances=%d\n",
+			this_bufferbloat_stat->qd_calculation_chances_until_last_window, 
+			this_bufferbloat_stat->qd_calculation_chances,
+			other_bufferbloat_stat->qd_calculation_chances_until_last_window,
+			other_bufferbloat_stat->qd_calculation_chances); 
+		exit(227);
 	}
 	
 	if(	!
@@ -1538,23 +1582,34 @@ delay_t close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigg
 		#endif
 
 		qd_window= last_window_qd_sum/qd_samples_in_win;
+		
+		#ifdef SEVERE_DEBUG
+		//Precise queueing delay (not rounded)
+		float precise_window_qd = 
+				(float)(bufferbloat_stat->qd_measured_sum - 
+				bufferbloat_stat->sample_qd_sum_until_last_window)/
+				qd_samples_in_win;
+				
+		if(qd_window < 1)
+		{	printf("\nbufferbloat.c %d: WARNING qd_window=%ld, qd_samples_in_win=%d, last_window_qd_sum=%ld, precise_window_qd=%f\n",
+				__LINE__, qd_window, qd_samples_in_win, last_window_qd_sum,
+				precise_window_qd);
+		}
+		#endif
 
-		if(	(qd_window == 0 || qd_samples_in_win == 0) &&
+		if(	(precise_window_qd == 0 || qd_samples_in_win == 0) &&
 			bufferbloat_stat->last_unwindowed_qd_sample!= 0
-		){	printf("\nERROR: if the windowed queueing delay is 0, all the queueing \n\
+		){	printf("\nbufferbloat.c %d\n", __LINE__);
+			printf("ERROR: if the windowed queueing delay is 0, all the queueing \n\
 				delay samples must be 0. Therefore the last qd sample of the window\n\
 				must be 0. If there are no samples in the window, it means that all \n\
 				the queueing delay samples have been inserted in previous windows. \
 				Last_unwindowed_qd_sample must be 0\n");
-			printf("line %d: qd_samples_in_win=%d, window_qd=%f, last_unwindowed_qd_sample=%f, last_window_qd_sum=%f\n",
-				__LINE__, qd_samples_in_win, (float)qd_window, 
+			printf("qd_samples_in_win=%d, window_qd=%f, last_unwindowed_qd_sample=%f, last_window_qd_sum=%f\n",
+				qd_samples_in_win, (float)qd_window, 
 				(float)bufferbloat_stat->last_unwindowed_qd_sample, 
 				(float)last_window_qd_sum);
-			printf("recalculated window_qd = %f\n", 
-				(float)(bufferbloat_stat->qd_measured_sum - 
-				bufferbloat_stat->sample_qd_sum_until_last_window)/
-				qd_samples_in_win
-			);
+			printf("precise_window_qd = %f\n", precise_window_qd);
 			exit(41774);
 		}
 	}
@@ -1597,22 +1652,24 @@ delay_t close_window(enum analysis_type an_type, enum bufferbloat_analysis_trigg
 		exit(440);
 	}
 
-	delay_t windowed_gross_dly = 	
-		last_window_gross_dly_sum /	(delay_t)qd_samples_in_win;
-	windowed_gross_dly = floor(windowed_gross_dly);
-	if( floor( windowed_gross_dly - qd_window ) < 0 ){
-		//We use here the floor function because of some issues with floating 
-		//point numbers (in the case that delay_t is float ot double)
-		printf("line %d:ERROR in close_window: windowed_gross_dly=%f; qd_window=%f, difference=%f, last_window_gross_dly_sum=%f, last_window_qd_sum=%f, qd_samples_in_win=%f, \n",
-			__LINE__, (float)windowed_gross_dly, (float)qd_window, 
-			(float)windowed_gross_dly-qd_window,
-			(float)last_window_gross_dly_sum, (float)last_window_qd_sum, 
-			(float)qd_samples_in_win);
-		printf("Calculating again: windowed_gross_dly=%f, qd_window=%f\n",
-				last_window_gross_dly_sum/(float)qd_samples_in_win, last_window_qd_sum/(float)qd_samples_in_win);
-		printf("last_window_gross_dly_sum == last_window_qd_sum ? %d\n",
-			(last_window_gross_dly_sum == last_window_qd_sum) ? 1:0);
-		exit(441);
+	if(qd_samples_in_win != 0)
+	{	delay_t windowed_gross_dly = 	
+			last_window_gross_dly_sum /	(delay_t)qd_samples_in_win;
+		windowed_gross_dly = floor(windowed_gross_dly);
+		if( floor( windowed_gross_dly - qd_window ) < 0 ){
+			//We use here the floor function because of some issues with floating 
+			//point numbers (in the case that delay_t is float ot double)
+			printf("line %d:ERROR in close_window: windowed_gross_dly=%f; qd_window=%f, difference=%f, last_window_gross_dly_sum=%f, last_window_qd_sum=%f, qd_samples_in_win=%f, \n",
+				__LINE__, (float)windowed_gross_dly, (float)qd_window, 
+				(float)windowed_gross_dly-qd_window,
+				(float)last_window_gross_dly_sum, (float)last_window_qd_sum, 
+				(float)qd_samples_in_win);
+			printf("Calculating again: windowed_gross_dly=%f, qd_window=%f\n",
+					last_window_gross_dly_sum/(float)qd_samples_in_win, last_window_qd_sum/(float)qd_samples_in_win);
+			printf("last_window_gross_dly_sum == last_window_qd_sum ? %d\n",
+				(last_window_gross_dly_sum == last_window_qd_sum) ? 1:0);
+			exit(441);
+		}
 	}
 	#endif //of SEVERE_DEBUG
 
@@ -1655,6 +1712,25 @@ void update_bufferbloat_windowed_values(utp_stat* bufferbloat_stat, delay_t wind
 		bufferbloat_stat->qd_calculation_chances;
 	#endif	
 
+
+	if(qd_samples_in_win == 0)
+	{	//All window values should remain unchanged
+		if(	!
+			(bufferbloat_stat->sample_qd_sum_until_last_window ==
+			 bufferbloat_stat->qd_measured_sum
+			 &&
+			 bufferbloat_stat->qd_samples_until_last_window ==
+			 bufferbloat_stat->qd_measured_count
+			 &&
+			 bufferbloat_stat->sample_qd_sum2_until_last_window ==
+			 bufferbloat_stat->qd_measured_sum2
+			 &&
+			 bufferbloat_stat->gross_dly_sum_until_last_window ==
+			 bufferbloat_stat->gross_dly_measured_sum
+			)
+		){	printf("bufferbloat.c %d: ERROR", __LINE__); exit(654);}
+	
+	}
 	#endif
 
 	if(qd_samples_in_win != 0)
@@ -1670,16 +1746,21 @@ void update_bufferbloat_windowed_values(utp_stat* bufferbloat_stat, delay_t wind
 		bufferbloat_stat->windowed_qd_sum += window_qd;
 		bufferbloat_stat->windowed_qd_sum2 += ((window_qd)*(window_qd));
 
-		#ifdef SAMPLES_VALIDITY
-		bufferbloat_stat->qd_calculation_chances_until_last_window = 
-			bufferbloat_stat->qd_calculation_chances;
-		#endif
-
 		#ifdef SEVERE_DEBUG
 		bufferbloat_stat->gross_dly_sum_until_last_window =
 			bufferbloat_stat->gross_dly_measured_sum;
 		#endif
 	}
+	
+	#ifdef SAMPLES_VALIDITY
+	bufferbloat_stat->qd_calculation_chances_until_last_window = 
+	bufferbloat_stat->qd_calculation_chances;
+	
+	#ifdef SEVERE_DEBUG
+	if(bufferbloat_stat->qd_calculation_chances_until_last_window>1000000)
+	{	printf("bufferbloat.c %d: ERROR",__LINE__);exit(6553);}
+	#endif
+	#endif //of SAMPLES_VALIDITY
 
 	#ifdef SEVERE_DEBUG
 	sample_qd_sum_until_last_window_old += 
@@ -1713,7 +1794,13 @@ void update_bufferbloat_windowed_values(utp_stat* bufferbloat_stat, delay_t wind
 
 	if(	bufferbloat_stat->qd_calculation_chances_until_last_window !=
 		qd_calculation_chances_until_last_window_old
-	){	printf("line %d: ERROR in close_window(..)\n",__LINE__); exit(5487); }
+	){	printf("bufferbloat %d: ERROR in close_window(...)\n",__LINE__);
+	 	printf("After the window values are updated, calculation_chances_until_last_window should be equal to calculation_chances\n");
+	 	printf("qd_calculation_chances_until_last_window_old=%d, calculation_chances_until_last_window=%d\n",
+	 		qd_calculation_chances_until_last_window_old,
+	 		bufferbloat_stat->qd_calculation_chances_until_last_window);
+	 	exit(5487); 
+	 }
 	#endif	
 
 	if(qd_samples_in_win==0 && window_qd!=-1)
