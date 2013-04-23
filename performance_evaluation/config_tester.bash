@@ -1,6 +1,12 @@
 #!/bin/bash
 
 ### DO NOT INVOKE THIS SCRIPT WITH sh <scriptname>. INSTEAD INVOKE ./<scriptname>
+### This is related to the time issue described here:
+### 	http://unix.stackexchange.com/questions/27920/why-bash-time-is-more-precise-then-gnu-time
+
+# This script will test a configuration. The configuration must be described in the file whose name is
+# CONFIG_TO_TEST; This file must be in the same format of tstat/Makefile.conf.
+
 
 if [ $# -ne 5 ]
 then
@@ -20,7 +26,7 @@ TSTAT_OUTPUT_FOLDER=$4
 CONFIG_TO_TEST=$5
 
 
-TRACE_FORMAT=pcap
+TRACE_FORMAT=gz
 RESULT_FOLDER=~/time_results
 TEMP_FILE=~/temp.txt
 TSTAT_PATH=~/tstat
@@ -62,6 +68,7 @@ for f in `ls $FOLDER/*.$TRACE_FORMAT`; do
 			#Get the time required to run
 			#the trick to print the time output is inspired by:
 			#http://hustoknow.blogspot.fr/2011/08/how-to-redirect-bash-time-outputs.html
+
 			(time tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f > null 2>&1) 2>> $TEMP_FILE
 			
 			#Compute the space required in the disk
