@@ -276,7 +276,7 @@ void print_queueing_dly_sample(enum analysis_type an_type,
        	           ServiceName (addr_pair->b_port));	//5.port_2
 
 
-	wfprintf (fp_qd, "%d ", dir); 		//6.dir
+	wfprintf (fp_qd, "%d ", dir); 			//6.dir
 	
 	switch(an_type){
 		case (LEDBAT):	wfprintf (fp_qd, "%d ", utp_conn_id); 

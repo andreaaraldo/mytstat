@@ -382,6 +382,13 @@ top_srcdir = @top_srcdir@
 #If FILTERING is enabled, tstat will use rollover and other 
 #ledbat-inspired stuff to compute the basedelay. Otherwise, the base delay is
 #simply the minimum over all gross delays
+#DEFINES += -DFILTERING
+
+################################################################## 
+# 
+#  If it is defined, a lot of redundant and overabundant checks will be performed to 
+# check for inconsistent states or data. This can be useful when you edit the code to be
+# sure that the modifications do not produce those inconcistencies</aa>
 DEFINES = @V_DEFINES@ -DBUILT_USER="\"`whoami`\"" \
 	-DBUILT_HOST="\"`hostname`\"" -DBUILT_DATE="\"`date`\"" \
 	-DMSN_CLASSIFIER -DYMSG_CLASSIFIER -DXMPP_CLASSIFIER \
@@ -392,7 +399,7 @@ DEFINES = @V_DEFINES@ -DBUILT_USER="\"`whoami`\"" \
 	-DGUNZIP="\"gunzip\"" -DZ7Z="\"Z7z\"" -DGROK_SNOOP \
 	-DGROK_TCPDUMP -DGROK_NETM -DGROK_ETHERPEEK -DGROK_NS \
 	-DGROK_NETSCOUT -DGROK_ERF -DGROK_LIVE_TCPDUMP \
-	-DBUFFERBLOAT_ANALYSIS -DFORCE_CALL_INLINING -DFILTERING
+	-DBUFFERBLOAT_ANALYSIS -DFORCE_CALL_INLINING -DSEVERE_DEBUG
 
 ################################################################## 
 #
@@ -1481,13 +1488,6 @@ uninstall-am: uninstall-binPROGRAMS
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags uninstall uninstall-am uninstall-binPROGRAMS
 
-
-################################################################## 
-# 
-#  If it is defined, a lot of redundant and overabundant checks will be performed to 
-# check for inconsistent states or data. This can be useful when you edit the code to be
-# sure that the modifications do not produce those inconcistencies</aa>
-#DEFINES += -DSEVERE_DEBUG
 
 #If it is defined, tstat will perform the calculations to check how many pkts are used
 #for bufferbloat analysis and how many must be ignored
