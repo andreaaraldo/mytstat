@@ -18,7 +18,6 @@ then
 	exit 1; 
 fi
 
-#Folder containing the traces
 FOLDER=$1 #the traces are located here
 LEFT=$2
 RIGHT=$3

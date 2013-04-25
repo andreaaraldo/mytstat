@@ -192,7 +192,7 @@ DEFINES += -DFORCE_CALL_INLINING
 #If FILTERING is enabled, tstat will use rollover and other 
 #ledbat-inspired stuff to compute the basedelay. Otherwise, the base delay is
 #simply the minimum over all gross delays
-#DEFINES += -DFILTERING
+DEFINES += -DFILTERING
 
 ################################################################## 
 ## Bufferbloat analysis: debug options
@@ -200,7 +200,7 @@ DEFINES += -DFORCE_CALL_INLINING
 #  If it is defined, a lot of redundant and overabundant checks will be performed to 
 # check for inconsistent states or data. This can be useful when you edit the code to be
 # sure that the modifications do not produce those inconcistencies</aa>
-DEFINES += -DSEVERE_DEBUG
+#DEFINES += -DSEVERE_DEBUG
 
 #If it is defined, tstat will perform the calculations to check how many pkts are used
 #for bufferbloat analysis and how many must be ignored
