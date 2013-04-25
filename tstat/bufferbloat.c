@@ -801,7 +801,7 @@ void print_last_window_directional(enum analysis_type an_type,
 		wfprintf(fp_logc, " - -");
 	else
 		wfprintf(fp_logc, " %d %d", 
-			qd_window,						//7-20
+			qd_window,					//7-20
 			window_error					//8-21
 		);
 
