@@ -269,6 +269,38 @@ process_logfile <- function(filename)
     return(result)
 }
 
+get_host_proto_association <- function(windows)
+{
+    ####### SEVERE DEBUG: begin
+    if ( length(windows[windows$type_C2S != windows$type_S2C,1]) 
+         != 0)
+        stop("protocols must be the same in both directions")
+    ####### SEVERE DEBUG: end
+    
+    protocol_column <- 
+        sapply(strsplit(as.character(windows$type_C2S),":"), "[[", 1)
+    
+    windows$protocol_column <- protocol_column
+    
+    host_proto_association_A <- windows[,c("ipaddr1", "protocol_column")]
+    colnames(host_proto_association_A) <- c("ipaddr", "protocol_column")
+    host_proto_association_B <- windows[,c("ipaddr2", "protocol_column")]
+    colnames(host_proto_association_B) <- c("ipaddr", "protocol_column")
+    host_proto_association_ <- rbind(host_proto_association_A, host_proto_association_B)
+    
+    # Purge the duplicates
+    host_proto_association <- 
+        host_proto_association_[!duplicated(host_proto_association_[,]),]
+    stop("Controllare che veramente i duplicati non ci sono")
+    
+    return(host_proto_association)
+}
+
+
+
+
+
+
 filelist <- list.files(path = "/home/araldo/analysis_outputs/", 
            pattern = "*log_tcp_windowed_qd_acktrig", all.files = FALSE,
            full.names = TRUE, recursive = TRUE,
@@ -296,3 +328,82 @@ load(percentiles_savefile)
 plot_percentiles(percentiles)
 load(qd_of_flows_to_study_savefile)
 plot_qd(qd_of_flows_to_study)
+print(quantile(qd_of_flows_to_study,c(.90,.95,.99)))
+
+
+
+
+filename <- filelist[1]
+windows_ <-load_window_log(filename)
+host_proto_association <- get_host_proto_association(windows_)
+
+####### Find all the protocols that affect each window
+# Definition: an host H is affected by a protocol P, if there exists
+#   a flow F*, in which H is involved, that carries P
+# Definition: a flow F is affected by a protocol P, if at least one of the two
+#   hosts involved in F is affected by P
+# Definition: a window W is affected by a protocol, if it is part
+#   of a flow F affected by that protocol
+
+# For each windowed_qd, in windows_temp1 there will be a row
+# for each protocol that affects ipaddr1
+# Note: a single windowed_qd could lead to many rows in 
+#       windows_temp1.
+colnames(host_proto_association) <- c("ipaddr1","protocol1")
+windows_temp1 <- merge(windows_, host_proto_association, all=TRUE)
+
+# The same as above. Here, ipaddr2 is used
+colnames(host_proto_association) <- c("ipaddr2","protocol2")
+protocol_annotated_windows <- merge(windows_temp1, host_proto_association, all=TRUE)
+
+head(protocol_annotated_windows[order(protocol_annotated_windows$edge),])
+
+# Now, for each window, we want a set of rows such that the set of protocols
+# that they represent is the union between the protocols that affect ipaddr1
+# and the protocols that affect ipaddr2
+
+# For each window in C2S dir, find the protocols that affect
+# ipaddr1
+point_C2S_1 <- 
+    protocol_annotated_windows[
+        protocol_annotated_windows$qd_samples_C2S>0,
+        c("edge", "ipaddr1","port1","ipaddr2","port2",
+          "windowed_qd_C2S","protocol1")]
+
+# For each window in C2S dir, find the protocols that affect
+# ipaddr2
+point_C2S_2 <- 
+    protocol_annotated_windows[
+        protocol_annotated_windows$qd_samples_C2S>0,
+        c("edge", "ipaddr1","port1","ipaddr2","port2",
+          "windowed_qd_C2S","protocol2")]
+
+#Useful constants
+point_colnames <- 
+    c("edge", "ipaddr1","port1","ipaddr2","port2",
+      "windowed_qd","protocol")
+
+# For each window in C2S, unify the protocols that affect ipaddr1
+# and the protocols that affect ipaddr2
+
+
+colnames(point_C2S_1) <- point_colnames
+colnames(point_C2S_2) <- point_colnames
+point_C2S_ <- rbind(point_C2S_1, point_C2S_1 )
+# Purge duplicates
+point_C2S_[!duplicated(point_C2S_[,]),]
+stop("controllare che veramente i duplicati non ci sono")
+ciao
+
+# Do the same for the S2C direction
+
+point_C2S_2 <- 
+    protocol_annotated_windows[
+        protocol_annotated_windows$qd_samples_C2S>0,
+        c("edge", "ipaddr1","port1","ipaddr2","port2",
+          "windowed_qd_C2S","protocol2")]
+
+
+length(host_proto_association$protocol_column[
+    !duplicated(host_proto_association$protocol_column)])
+length(host_proto_association$protocol_column)
