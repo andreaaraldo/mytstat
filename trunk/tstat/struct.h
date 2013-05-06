@@ -903,7 +903,7 @@ struct stcp_pair
   tcb s2c;
 
   /*streaming information (Topix) */
-  u_int32_t con_type;
+  u_int32_t con_type;		//<aa>See protocol.h for con_type examples</aa>
   enum state_type state;
   u_int32_t p2p_type;
   u_int32_t p2p_sig_count;

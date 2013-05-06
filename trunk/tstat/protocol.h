@@ -20,6 +20,10 @@
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
+//<aa> 
+//All these protocols will be assigned to stcp_pair.con_type (defined in struct.h)
+//</aa>
+
 /* Transport layer protocol */
 #define PROTOCOL_TCP  1
 #define PROTOCOL_UDP  2

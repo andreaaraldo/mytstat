@@ -296,7 +296,7 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 	wfprintf (fp_qd, "- "); 			//10.flowtype
 	wfprintf (fp_qd, "%u", pkt_size); 		//11.pkt_size
 	wfprintf (fp_qd, DELAY_T_FORMAT_SPECIFIER, last_grossdelay);	//12.last_grossdelay(milliseconds)
-	wfprintf (fp_qd, " %s\n", type);	 		//13.type
+	wfprintf (fp_qd, " %s\n", type);	 		//13.<con_type>:<p2p_type>
 	fflush(fp_qd);
 }
 #endif //of SAMPLES_BY_SAMPLES_LOG
@@ -795,7 +795,8 @@ void print_last_window_directional(enum analysis_type an_type,
 	
 	#endif //of SEVERE_DEBUG
 
-	wfprintf(fp_logc, " %s",type);			//6-19:type
+	wfprintf(fp_logc, " %s",type);			//6-19:<con_type>:<p2p_type>
+	// See struct.h for the meaning of con_type
 
 	if (qd_window == BUFFEBLOAT_NOSAMPLES)
 		wfprintf(fp_logc, " - -");
