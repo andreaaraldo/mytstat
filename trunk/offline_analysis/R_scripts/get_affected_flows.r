@@ -292,7 +292,7 @@ get_host_proto_association <- function(windows)
     host_proto_association <- 
         host_proto_association_[!duplicated(host_proto_association_[,]),]
     
-    print( head(host_proto_association_) )
+    print( head(host_proto_association_[order(host_proto_association_$ipaddr), ]) )
     
     stop("Controllare che veramente i duplicati non ci sono")
     
