@@ -264,7 +264,7 @@ process_logfile <- function(filename)
     result <- process_windows(
         windows=windows_[,], 
         qd_threshold=chosen_qd_threshold, 
-        flow_length_threshold=flow_length_threshold)
+        flow_length_threshold=chosen_flow_length_threshold)
 
     return(result)
 }
@@ -291,6 +291,9 @@ get_host_proto_association <- function(windows)
     # Purge the duplicates
     host_proto_association <- 
         host_proto_association_[!duplicated(host_proto_association_[,]),]
+    
+    print( head(host_proto_association_) )
+    
     stop("Controllare che veramente i duplicati non ci sono")
     
     return(host_proto_association)
@@ -344,6 +347,9 @@ host_proto_association <- get_host_proto_association(windows_)
 #   hosts involved in F is affected by P
 # Definition: a window W is affected by a protocol, if it is part
 #   of a flow F affected by that protocol
+# Goal: we want to build a dataframe point, in which every window is
+#   represented by a set of rows, being each row representative of one
+#   of the protocol that affect that window W
 
 # For each windowed_qd, in windows_temp1 there will be a row
 # for each protocol that affects ipaddr1
@@ -355,8 +361,6 @@ windows_temp1 <- merge(windows_, host_proto_association, all=TRUE)
 # The same as above. Here, ipaddr2 is used
 colnames(host_proto_association) <- c("ipaddr2","protocol2")
 protocol_annotated_windows <- merge(windows_temp1, host_proto_association, all=TRUE)
-
-head(protocol_annotated_windows[order(protocol_annotated_windows$edge),])
 
 # Now, for each window, we want a set of rows such that the set of protocols
 # that they represent is the union between the protocols that affect ipaddr1
@@ -385,25 +389,39 @@ point_colnames <-
 
 # For each window in C2S, unify the protocols that affect ipaddr1
 # and the protocols that affect ipaddr2
-
-
 colnames(point_C2S_1) <- point_colnames
 colnames(point_C2S_2) <- point_colnames
 point_C2S_ <- rbind(point_C2S_1, point_C2S_1 )
 # Purge duplicates
-point_C2S_[!duplicated(point_C2S_[,]),]
-stop("controllare che veramente i duplicati non ci sono")
-ciao
+point_C2S <- point_C2S_[!duplicated(point_C2S_[,]),]
+
+
+
 
 # Do the same for the S2C direction
-
-point_C2S_2 <- 
+point_S2C_1 <- 
     protocol_annotated_windows[
-        protocol_annotated_windows$qd_samples_C2S>0,
+        protocol_annotated_windows$qd_samples_S2C>0,
         c("edge", "ipaddr1","port1","ipaddr2","port2",
-          "windowed_qd_C2S","protocol2")]
+          "windowed_qd_S2C","protocol1")]
 
+point_S2C_2 <- 
+    protocol_annotated_windows[
+        protocol_annotated_windows$qd_samples_S2C>0,
+        c("edge", "ipaddr1","port1","ipaddr2","port2",
+          "windowed_qd_S2C","protocol2")]
 
-length(host_proto_association$protocol_column[
-    !duplicated(host_proto_association$protocol_column)])
-length(host_proto_association$protocol_column)
+colnames(point_S2C_1) <- point_colnames
+colnames(point_S2C_2) <- point_colnames
+point_S2C_ <- rbind(point_S2C_1, point_S2C_1 )
+# Purge duplicates
+point_S2C <- point_S2C_[!duplicated(point_S2C_[,]),]
+
+point <- rbind(point_C2S, point_S2C)
+
+####### SEVERE DEBUG
+if( length(point[,1]) != 
+    length(point_C2S[,1]) + length(point_S2C[,1]))
+    stop("Error: length of point is not correct")
+####### SEVERE DEBUG
+
