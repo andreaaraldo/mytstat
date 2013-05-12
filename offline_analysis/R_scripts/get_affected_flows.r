@@ -154,7 +154,7 @@ process_windows <- function(windows, qd_threshold,
               percentile_95 = quantile( windowed_qd_S2C, c(.95)), 
               percentile_99 = quantile( windowed_qd_S2C, c(.99))
         )
-
+    
     
     # Unify percentiles
     percentile_names <- c("percentile_90","percentile_95","percentile_99")
@@ -223,7 +223,7 @@ plot_qd <- function(qd_of_flows_to_study)
     
     zoom <- c(0,1000)
     hist(qd_of_flows_to_study, breaks=bins, xlim=zoom, 
-             plot=TRUE)
+         plot=TRUE)
     dev.off()
 }
 
@@ -249,12 +249,12 @@ load_window_log <- function(filename)
                    "delay_base_S2C")
     
     windows <- read.table(filename,
-                           sep=" ", 
-                           col.names=field_names, 
-                           na.strings = "-",
-                           fill=FALSE, 
-                           strip.white=TRUE)
-
+                          sep=" ", 
+                          col.names=field_names, 
+                          na.strings = "-",
+                          fill=FALSE, 
+                          strip.white=TRUE)
+    
     return(windows)
 }
 
@@ -266,7 +266,7 @@ process_logfile <- function(filename)
         windows=windows_[,], 
         qd_threshold=chosen_qd_threshold, 
         flow_length_threshold=chosen_flow_length_threshold)
-
+    
     return(result)
 }
 
@@ -298,6 +298,25 @@ get_host_proto_association <- function(windows)
 
 get_point <- function(windows)
 {
+    #Useful constants
+    point_colnames <- 
+        c("edge", "ipaddr1","port1","ipaddr2","port2",
+          "windowed_qd","protocol")
+    
+    proto_name <- as.character( c(
+    "UNKNOWN", "HTTP", "RTSP", "RTP", "ICY", "RTCP", "MSN", "YMSG",
+    "XMPP", "P2P", "SKYPE", "SMTP", "POP3", "IMAP", "SSL", "OBF",
+    "SSH", "RTMP", "MSE"
+    ) )
+    
+    protocol <- c(
+        0, 1, 2, 4, 8, 16, 32, 64,
+        128, 256, 512, 1024, 2048, 4096, 8192, 16384,
+        32768, 65536, 131072
+    )
+    
+    protocol_df <- data.frame(protocol, proto_name)
+    
     host_proto_association <- get_host_proto_association(windows)
     
     ####### Find all the protocols that affect each window
@@ -343,11 +362,6 @@ get_point <- function(windows)
             c("edge", "ipaddr1","port1","ipaddr2","port2",
               "windowed_qd_C2S","protocol2")]
     
-    #Useful constants
-    point_colnames <- 
-        c("edge", "ipaddr1","port1","ipaddr2","port2",
-          "windowed_qd","protocol")
-    
     # For each window in C2S, unify the protocols that affect ipaddr1
     # and the protocols that affect ipaddr2
     colnames(point_C2S_1) <- point_colnames
@@ -377,9 +391,15 @@ get_point <- function(windows)
     
     point_ <- rbind(point_C2S, point_S2C)
     # Purge duplicates
-    point <- point_[ !duplicated( point_[,] ), ]
+    point1 <- point_[ !duplicated( point_[,] ), ]
+    point <- merge(point1, protocol_df, all.x=TRUE)
     
     ####### SEVERE DEBUG
+#     y <- na.omit(point)
+#     if( length(y[,1])!=length(point[,1]) )
+#         stop("There are NA in point")
+    
+    
     x <- na.omit(host_proto_association)
     if( length(x[,1])!=length(host_proto_association[,1]) )
         stop("There are NA in host_proto_association")
@@ -397,9 +417,17 @@ get_point <- function(windows)
 
 
 filelist <- list.files(path = log_file_folder, 
-           pattern = "*log_tcp_windowed_qd_acktrig", all.files = FALSE,
-           full.names = TRUE, recursive = TRUE,
-           ignore.case = FALSE, include.dirs = FALSE)
+                       pattern = "*log_tcp_windowed_qd_acktrig", all.files = FALSE,
+                       full.names = TRUE, recursive = TRUE,
+                       ignore.case = FALSE, include.dirs = FALSE)
+
+filename <- filelist[1]
+windows_ <-load_window_log(filename)
+
+point <- get_point(windows_)
+jpeg("~/temp/scatter.jpg")
+plot(point$windowed_qd, point$proto_name, log="x")
+dev.off()
 
 result <- process_logfile(filelist[1])
 percentiles <- result$percentiles
@@ -426,7 +454,3 @@ load(qd_of_flows_to_study_savefile)
 plot_qd(qd_of_flows_to_study)
 print(quantile(qd_of_flows_to_study,c(.90,.95,.99)))
 
-filename <- filelist[1]
-windows_ <-load_window_log(filename)
-
-point <- get_point(windows_)
