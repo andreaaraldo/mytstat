@@ -1,16 +1,25 @@
+sink("~/temp/R.log")
 library(plyr)
 
 
 ####### CONSTANTS
-log_file_folder <- "/home/andrea/dati/Dropbox/Universita in fieri/stage-bufferbloat/pers/14.Analysis_of_2006"
+log_file_folder <- "/home/araldo/analysis_outputs"
 percentiles_cdf_plot <- "/home/araldo/temp/percentiles_cdf.jpg"
 qd_pdf_plot <- "/home/araldo/temp/qd_pdf.jpg"
+proto_scatterplot_file <- "~/temp/scatter.jpg"
 percentiles_savefile <- "/home/araldo/temp/percentiles.R.save"
+point_savefile <- "/home/araldo/temp/point.R.save"
 qd_of_flows_to_study_savefile <- 
     "/home/araldo/temp/qd_flows_to_study.R.save"
 chosen_qd_threshold <- 0
 chosen_flow_length_threshold <- 0
 
+handle_error <- function(error_message)
+{
+    print("ERROR")
+    print(error_message)
+    stop(error_message)
+}
 
 # We will consider only flows in which we observe at least flow_length_threshold
 # non  empty windows and that have experienced at least one time a 
@@ -168,7 +177,7 @@ process_windows <- function(windows, qd_threshold,
     # should be possible to compute the windowed qd. Therefore, NA value
     # are impossibile
     if( length( qd_of_flows_to_study[is.na(qd_of_flows_to_study)]) != 0)
-        stop("ERROR: NA value are forbidden in qd_of_flows_to_study")
+        handle_error("ERROR: NA value are forbidden in qd_of_flows_to_study")
     
     if(
         length (
@@ -179,7 +188,7 @@ process_windows <- function(windows, qd_threshold,
                 long_flows_S2C[duplicated(long_flows_S2C[, flow_id_vector ] ) ] 
             ) != 0 
     )
-        stop("ERROR: duplicates in long_flows")
+        handle_error("ERROR: duplicates in long_flows")
     
     #SEVERE_DEBUG: end
     
@@ -270,12 +279,41 @@ process_logfile <- function(filename)
     return(result)
 }
 
+calculate_global_stats <- function(filelist)
+{
+    result <- process_logfile(filelist[1])
+    percentiles <- result$percentiles
+    qd_of_flows_to_study <- result$qd_of_flows_to_study
+    
+    for (filename in filelist[2:length(filelist)])
+    {
+        print("Processing another file")
+        result <- process_logfile(filename)
+        percentiles <- rbind(percentiles, result$percentiles)
+        
+        qd_of_flows_to_study <- 
+            c(qd_of_flows_to_study, result$qd_of_flows_to_study)
+    }
+    
+    save(percentiles, file=percentiles_savefile)
+    save(qd_of_flows_to_study, file=qd_of_flows_to_study_savefile)    
+}
+
+get_global_stats <- function()
+{
+    load(percentiles_savefile)
+    plot_percentiles(percentiles)
+    load(qd_of_flows_to_study_savefile)
+    plot_qd(qd_of_flows_to_study)
+    print(quantile(qd_of_flows_to_study,c(.90,.95,.99)))
+}
+
 get_host_proto_association <- function(windows)
 {
     ####### SEVERE DEBUG: begin
     if ( length(windows[windows$type_C2S != windows$type_S2C,1]) 
          != 0)
-        stop("protocols must be the same in both directions")
+        handle_error("protocols must be the same in both directions")
     ####### SEVERE DEBUG: end
     
     protocol_column <- 
@@ -315,7 +353,13 @@ get_point <- function(windows)
         32768, 65536, 131072
     )
     
-    protocol_df <- data.frame(protocol, proto_name)
+    proto_id <- c(
+        0, 1, 2, 3, 4, 5, 6, 7,
+        8, 9, 10, 11, 12, 13, 14, 15,
+        16, 17, 18
+    )
+    
+    protocol_df <- data.frame(protocol, proto_name, proto_id)
     
     host_proto_association <- get_host_proto_association(windows)
     
@@ -397,23 +441,30 @@ get_point <- function(windows)
     ####### SEVERE DEBUG
 #     y <- na.omit(point)
 #     if( length(y[,1])!=length(point[,1]) )
-#         stop("There are NA in point")
+#         handle_error("There are NA in point")
     
     
     x <- na.omit(host_proto_association)
     if( length(x[,1])!=length(host_proto_association[,1]) )
-        stop("There are NA in host_proto_association")
+        handle_error("There are NA in host_proto_association")
     
     if (length( point_C2S[duplicated(point_C2S[,]),1] ) != 0
         | length( point_S2C[duplicated(point_S2C[,]),1] ) != 0 )
-        stop("There are dulpicates in point_C2S or in point_S2C")
+        handle_error("There are dulpicates in point_C2S or in point_S2C")
     
     ####### SEVERE DEBUG
     
     return(point)
 }
 
-
+build_protocol_scatterplot <- function(point, plot_file)
+{
+    jpeg(plot_file)
+    qds <- point$windowed_qd
+    qds[qds==0] <- 0.1
+    plot(qds, point$proto_name, log="x")
+    dev.off()    
+}
 
 
 filelist <- list.files(path = log_file_folder, 
@@ -421,36 +472,29 @@ filelist <- list.files(path = log_file_folder,
                        full.names = TRUE, recursive = TRUE,
                        ignore.case = FALSE, include.dirs = FALSE)
 
+# To unify the qd and the percentiles of all traces
+#calculate_global_stats(filelist)
+#get_global_stats()
+
 filename <- filelist[1]
+print("Processing file:")
+print(filename)
 windows_ <-load_window_log(filename)
-
 point <- get_point(windows_)
-jpeg("~/temp/scatter.jpg")
-plot(point$windowed_qd, point$proto_name, log="x")
-dev.off()
-
-result <- process_logfile(filelist[1])
-percentiles <- result$percentiles
-qd_of_flows_to_study <- result$qd_of_flows_to_study
 
 for (filename in filelist[2:length(filelist)])
 {
-    print("Processing another file")
-    result <- process_logfile(filename)
-    percentiles <- rbind(percentiles, result$percentiles)
-    
-    qd_of_flows_to_study <- 
-        c(qd_of_flows_to_study, result$qd_of_flows_to_study)
+    print("Processing file:")
+    print(filename)
+    windows_ <- load_window_log(filename)
+    point <- rbind(point, get_point(windows_))
 }
 
+print("Saving point")
+save(point, file=point_savefile)
+print("Loading point")
+load(point_savefile)
+print("Building the plot")
+build_protocol_scatterplot(point, proto_scatterplot_file)
 
-save(percentiles, file=percentiles_savefile)
-save(qd_of_flows_to_study, file=qd_of_flows_to_study_savefile)
-
-
-load(percentiles_savefile)
-plot_percentiles(percentiles)
-load(qd_of_flows_to_study_savefile)
-plot_qd(qd_of_flows_to_study)
-print(quantile(qd_of_flows_to_study,c(.90,.95,.99)))
 
