@@ -6,7 +6,7 @@ library(plyr)
 log_file_folder <- "/home/araldo/analysis_outputs"
 percentiles_cdf_plot <- "/home/araldo/temp/percentiles_cdf.jpg"
 qd_pdf_plot <- "/home/araldo/temp/qd_pdf.jpg"
-proto_scatterplot_file <- "~/temp/scatter.jpg"
+proto_scatterplot_file <- "~/temp/scatter.png"
 percentiles_savefile <- "/home/araldo/temp/percentiles.R.save"
 point_savefile <- "/home/araldo/temp/point.R.save"
 qd_of_flows_to_study_savefile <- 
@@ -457,13 +457,51 @@ get_point <- function(windows)
     return(point)
 }
 
-build_protocol_scatterplot <- function(point, plot_file)
+build_logarithmic_protocol_scatterplot <- function(point, plot_file)
 {
-    jpeg(plot_file)
-    qds <- point$windowed_qd
-    qds[qds==0] <- 0.1
-    plot(qds, point$proto_name, log="x")
+    png(plot_file, width = 700, height = 700)
+    qds <- jitter(point$windowed_qd, amount=10)
+    qds[qds<=1] <- 1
+    plot(qds, jitter(x=point$proto_id, amount=0.3), log="x",
+        lty="solid", cex=.4,
+        col=rgb(0,0,0,alpha=2,maxColorValue=255), 
+        pch=16)
     dev.off()    
+}
+
+build_non_logarithmic_protocol_scatterplot <- function(point, plot_file)
+{
+    png(plot_file, width = 700, height = 700)
+    qds <- jitter(point$windowed_qd, amount=10)
+    plot(qds, jitter(x=point$proto_id, amount=0.3),
+         lty="solid", cex=.4,xlim=c(1, 800),
+         col=rgb(0,0,0,alpha=2,maxColorValue=255), 
+         pch=16)
+    dev.off()    
+}
+
+calculate_point_df <- function(filelist)
+{
+    # To unify the qd and the percentiles of all traces
+    #calculate_global_stats(filelist)
+    #get_global_stats()
+    
+    filename <- filelist[1]
+    print("Processing file:")
+    print(filename)
+    windows_ <-load_window_log(filename)
+    point <- get_point(windows_)
+    
+    for (filename in filelist[2:length(filelist)])
+    {
+        print("Processing file:")
+        print(filename)
+        windows_ <- load_window_log(filename)
+        point <- rbind(point, get_point(windows_))
+    }
+    
+    print("Saving point")
+    save(point, file=point_savefile)
 }
 
 
@@ -472,29 +510,10 @@ filelist <- list.files(path = log_file_folder,
                        full.names = TRUE, recursive = TRUE,
                        ignore.case = FALSE, include.dirs = FALSE)
 
-# To unify the qd and the percentiles of all traces
-#calculate_global_stats(filelist)
-#get_global_stats()
 
-filename <- filelist[1]
-print("Processing file:")
-print(filename)
-windows_ <-load_window_log(filename)
-point <- get_point(windows_)
-
-for (filename in filelist[2:length(filelist)])
-{
-    print("Processing file:")
-    print(filename)
-    windows_ <- load_window_log(filename)
-    point <- rbind(point, get_point(windows_))
-}
-
-print("Saving point")
-save(point, file=point_savefile)
 print("Loading point")
 load(point_savefile)
 print("Building the plot")
-build_protocol_scatterplot(point, proto_scatterplot_file)
+build_non_logarithmic_protocol_scatterplot(point, proto_scatterplot_file)
 
 
