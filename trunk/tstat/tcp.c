@@ -1326,6 +1326,18 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
 		printf("tcp.c %d: ERROR\n",__LINE__); exit(111238);
       }else
 		++ (ack_type_counter[(int)ack_type]);
+
+      //check if con_type is a valid value. In protocol.h you can see that a
+      //valid con_type is 0 or certain powers of 2. If con_type is neither 0
+      //nor a power of 2, it is wrong, for sure
+      if( (thisdir->ptp)->con_type != 0 &&  
+	  (thisdir->ptp)->con_type & ( (thisdir->ptp)->con_type-1 )!= 0
+      )
+      {	printf("\ntcp.c %d: ERROR: con_type %u not valid\n",
+		__LINE__, thisdir->ptp->con_type); 
+       	exit(231);
+      }
+
       #endif
 
       #ifdef BUFFERBLOAT_ANALYSIS
@@ -1343,15 +1355,15 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
       utp_stat* otherdir_bufferbloat_stat = &(otherdir->bufferbloat_stat_ack_triggered);
       const int utp_conn_id = NO_MATTER; //not meaningful in tcp contest
 
-	  #ifdef SAMPLES_VALIDITY
+      #ifdef SAMPLES_VALIDITY
       if(ack_type != NORMAL)
 		chance_is_not_valid(TCP, ACK_TRIG, 
 				(const tcp_pair_addrblock*) &(thisdir->ptp->addr_pair),
 				(const int) *dir, (const char*) type, 
 				thisdir_bufferbloat_stat, otherdir_bufferbloat_stat, 
 				utp_conn_id		);
-	  #endif //of SAMPLES_VALIDITY
-	  //else bufferbloat_analysis(..) is called inside ack_in(..)
+      #endif //of SAMPLES_VALIDITY
+      //else bufferbloat_analysis(..) is called inside ack_in(..)
 
       #endif //of BUFFERBLOAT_ANALYSIS
 

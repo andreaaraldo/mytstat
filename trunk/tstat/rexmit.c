@@ -630,11 +630,22 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       Bool overfitting_avoided = TRUE;
       Bool update_size_info = TRUE;
       #ifdef SEVERE_DEBUG
+      //check if con_type is a valid value. In protocol.h you can see that a
+      //valid con_type is 0 or certain powers of 2. If con_type is neither 0
+      //nor a power of 2, it is wrong, for sure
+      if( ptcb->ptp->con_type != 0 &&  
+	  ptcb->ptp->con_type & (ptcb->ptp->con_type-1 )!= 0
+      )
+      {	printf("\nrexmit.c %d: ERROR: con_type %u not valid\n",
+		__LINE__, ptcb->ptp->con_type); 
+       	exit(231);
+      }
+
       utp_stat* ack_dir_bufferbloat_stat_test = (ptcb == &(ptcb->ptp->c2s) )?
 			&(ptcb->ptp->s2c.bufferbloat_stat_ack_triggered) : 
 			&(ptcb->ptp->c2s.bufferbloat_stat_ack_triggered) ;
-	  if(ack_dir_bufferbloat_stat_test != ack_dir_bufferbloat_stat)
-	  {	printf("\nrexmit.c %d: ERROR\n",__LINE__); exit(234);}
+      if(ack_dir_bufferbloat_stat_test != ack_dir_bufferbloat_stat)
+      {	printf("\nrexmit.c %d: ERROR\n",__LINE__); exit(234);}
       
       check_direction_consistency_light( 
       		ack_dir_bufferbloat_stat, opposite_dir_bufferbloat_stat, __LINE__);

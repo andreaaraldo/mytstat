@@ -17,7 +17,7 @@ for f in `ls $FOLDER/*.$TRACE_FORMAT`; do
 	then
 		echo "verifying trace $I-th: $tracename"
 		echo "launching tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f"
-		tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f > null  2>&1
+		tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f  2>&1
 		exit_code=$?
 		echo "exit code:"$exit_code
 		if [ $exit_code -ne 0 ]

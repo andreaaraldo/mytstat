@@ -4,15 +4,39 @@ library(plyr)
 
 ####### CONSTANTS
 log_file_folder <- "/home/araldo/analysis_outputs"
-percentiles_cdf_plot <- "/home/araldo/temp/percentiles_cdf.jpg"
-qd_pdf_plot <- "/home/araldo/temp/qd_pdf.jpg"
-proto_scatterplot_file <- "~/temp/scatter.png"
-percentiles_savefile <- "/home/araldo/temp/percentiles.R.save"
-point_savefile <- "/home/araldo/temp/point.R.save"
+save_folder <- "/home/araldo/temp/r_out"
+percentiles_cdf_plot <- paste(save_folder,"percentiles_cdf.jpg",sep="/")
+qd_pdf_plot <- paste(save_folder,"qd_pdf.jpg",sep="/")
+proto_scatterplot_file <- paste(save_folder,"scatter.png",sep="/")
+percentiles_savefile <- paste(save_folder,"percentiles.R.save",sep="/")
+point_savefile <- paste(save_folder,"point.R.save",sep="/")
 qd_of_flows_to_study_savefile <- 
-    "/home/araldo/temp/qd_flows_to_study.R.save"
+    paste(save_folder,"qd_flows_to_study.R.save",sep="/")
 chosen_qd_threshold <- 0
 chosen_flow_length_threshold <- 0
+
+proto_name <- as.character( c(
+    "UNKNOWN", "HTTP", "RTSP", "RTP", "ICY", "RTCP", "MSN", "YMSG",
+    "XMPP", "P2P", "SKYPE", "SMTP", "POP3", "IMAP", "SSL", "OBF",
+    "SSH", "RTMP", "MSE"
+) )
+
+# These are the values associated to the protocols by tstat/protocol.h
+protocol <- c(
+    0, 1, 2, 4, 8, 16, 32, 64,
+    128, 256, 512, 1024, 2048, 4096, 8192, 16384,
+    32768, 65536, 131072
+)
+
+proto_id <- c(
+    0, 1, 2, 3, 4, 5, 6, 7,
+    8, 9, 10, 11, 12, 13, 14, 15,
+    16, 17, 18
+)
+
+protocol_df <- data.frame(protocol, proto_name, proto_id)
+
+
 
 handle_error <- function(error_message)
 {
@@ -340,27 +364,7 @@ get_point <- function(windows)
     point_colnames <- 
         c("edge", "ipaddr1","port1","ipaddr2","port2",
           "windowed_qd","protocol")
-    
-    proto_name <- as.character( c(
-    "UNKNOWN", "HTTP", "RTSP", "RTP", "ICY", "RTCP", "MSN", "YMSG",
-    "XMPP", "P2P", "SKYPE", "SMTP", "POP3", "IMAP", "SSL", "OBF",
-    "SSH", "RTMP", "MSE"
-    ) )
-    
-    protocol <- c(
-        0, 1, 2, 4, 8, 16, 32, 64,
-        128, 256, 512, 1024, 2048, 4096, 8192, 16384,
-        32768, 65536, 131072
-    )
-    
-    proto_id <- c(
-        0, 1, 2, 3, 4, 5, 6, 7,
-        8, 9, 10, 11, 12, 13, 14, 15,
-        16, 17, 18
-    )
-    
-    protocol_df <- data.frame(protocol, proto_name, proto_id)
-    
+        
     host_proto_association <- get_host_proto_association(windows)
     
     ####### Find all the protocols that affect each window
@@ -480,6 +484,9 @@ build_non_logarithmic_protocol_scatterplot <- function(point, plot_file)
     dev.off()    
 }
 
+# Build the point_df unifying all the point dataframes of the single
+# tracks (each of which was obtained with get_point(windows), where windows
+# are the windows of a single tracks)
 calculate_point_df <- function(filelist)
 {
     # To unify the qd and the percentiles of all traces
@@ -516,4 +523,20 @@ load(point_savefile)
 print("Building the plot")
 build_non_logarithmic_protocol_scatterplot(point, proto_scatterplot_file)
 
+for(protocol_id in protocol_df$proto_id[])
+{
+    filtered_point <- point[ !is.na(point$proto_id) & 
+                            point$proto_id == protocol_id, ]
+    protocol_name <- as.character(
+        protocol_df[protocol_df$proto_id == protocol_id, c("proto_name")])
+    cat(length(filtered_point[,1]), "points found for protocol ", 
+        protocol_name, "\n")
+    if(length(filtered_point[,1]) > 0)
+    {
+        plot_name_nonlog <- paste(proto_scatterplot_file,protocol_name,"nonlog","png",sep=".")
+        plot_name_log <- paste(proto_scatterplot_file,protocol_name,"log","png",sep=".")
+        build_non_logarithmic_protocol_scatterplot(filtered_point, plot_name_nonlog)
+        build_logarithmic_protocol_scatterplot(filtered_point, plot_name_log)    
+    }
+}
 
