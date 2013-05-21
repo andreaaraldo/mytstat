@@ -1,5 +1,6 @@
 sink("~/temp/R.log")
 library(plyr)
+require(ggplot2)
 
 
 ####### CONSTANTS
@@ -29,16 +30,6 @@ protocol <- c(
     32768, 65536, 131072, 147456, 16640, 257,
     33, 6, 16416
 )
-
-proto_id <- c(
-    0, 1, 2, 3, 4, 5, 6, 7,
-    8, 9, 10, 11, 12, 13, 14, 15,
-    16, 17, 18, 19, 20, 21,
-    22, 23, 24
-)
-
-protocol_df <- data.frame(protocol, proto_name, proto_id)
-
 
 
 handle_error <- function(error_message)
@@ -442,8 +433,7 @@ get_point <- function(windows)
     
     point_ <- rbind(point_C2S, point_S2C)
     # Purge duplicates
-    point1 <- point_[ !duplicated( point_[,] ), ]
-    point <- merge(point1, protocol_df, all.x=TRUE)
+    point <- point_[ !duplicated( point_[,] ), ]
     
     ####### SEVERE DEBUG
      y <- na.omit(point)
@@ -461,7 +451,7 @@ get_point <- function(windows)
     
     ####### SEVERE DEBUG
     
-    return(point)
+    return(point[,c("edge","windowed_qd","protocol")])
 }
 
 build_logarithmic_protocol_scatterplot <- function(point, plot_file)
@@ -469,7 +459,7 @@ build_logarithmic_protocol_scatterplot <- function(point, plot_file)
     png(plot_file, width = 700, height = 700)
     qds <- jitter(point$windowed_qd, amount=10)
     qds[qds<=1] <- 1
-    plot(qds, jitter(x=point$proto_id, amount=0.3), log="x",
+    plot(qds, jitter( x =as.numeric(factor(point$protocol) ) , amount=0.3), log="x",
         lty="solid", cex=.4,
         col=rgb(0,0,0,alpha=2,maxColorValue=255), 
         pch=16)
@@ -480,7 +470,7 @@ build_non_logarithmic_protocol_scatterplot <- function(point, plot_file)
 {
     png(plot_file, width = 700, height = 700)
     qds <- jitter(point$windowed_qd, amount=10)
-    plot(qds, jitter(x=point$proto_id, amount=0.3),
+    plot(qds, jitter( x =as.numeric(factor(point$protocol) ) , amount=0.3),
          lty="solid", cex=.4,xlim=c(1, 800),
          col=rgb(0,0,0,alpha=2,maxColorValue=255), 
          pch=16)
@@ -512,7 +502,23 @@ calculate_point_df <- function(filelist)
     }
     
     print("Saving point")
+    point$protocol <- factor(point$protocol)
     save(point, file=point_savefile)
+}
+
+# left_date and right_date must be in the form: yyyy-mm-dd hh:mm:ss
+# In dataframe a column called "edge" must exist
+extract_time_window <- function(dataframe, left_date, right_date)
+{
+    left_edge <- as.numeric(
+        strptime(left_date, format="%Y-%m-%d %H:%M:%S")
+    )
+    
+    right_edge <- as.numeric(
+        strptime(right_date, format="%Y-%m-%d %H:%M:%S")
+    )
+    return ( dataframe[dataframe$edge >= left_edge &
+                           dataframe$edge <= right_edge,] )
 }
 
 
@@ -527,20 +533,14 @@ load(point_savefile)
 print("Building the plot")
 build_non_logarithmic_protocol_scatterplot(point, proto_scatterplot_file)
 
-for(protocol_id in protocol_df$proto_id[])
-{
-    filtered_point <- point[ !is.na(point$proto_id) & 
-                            point$proto_id == protocol_id, ]
-    protocol_name <- as.character(
-        protocol_df[protocol_df$proto_id == protocol_id, c("proto_name")])
-    cat(length(filtered_point[,1]), "points found for protocol ", 
-        protocol_name, "\n")
-    if(length(filtered_point[,1]) > 0)
-    {
-        plot_name_nonlog <- paste(proto_scatterplot_file,protocol_name,"nonlog","png",sep=".")
-        plot_name_log <- paste(proto_scatterplot_file,protocol_name,"log","png",sep=".")
-        build_non_logarithmic_protocol_scatterplot(filtered_point, plot_name_nonlog)
-        build_logarithmic_protocol_scatterplot(filtered_point, plot_name_log)    
-    }
-}
 
+
+png("~/temp/prova-scatter.png", width = 700, height = 700)
+qplot(point$windowed_qd, point$protocol, alpha=I(1/50), log="x", geom="jitter")
+dev.off()
+
+png("~/temp/prova-density.png", width = 700, height = 700)
+point1 <- point
+point1[point1$windowed_qd<=1, c("windowed_qd")] <- 1
+qplot(windowed_qd, data=point1, geom="density",xlim=c(0,1000), color=protocol )
+dev.off()
