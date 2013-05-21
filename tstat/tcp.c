@@ -1327,17 +1327,6 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
       }else
 		++ (ack_type_counter[(int)ack_type]);
 
-      //check if con_type is a valid value. In protocol.h you can see that a
-      //valid con_type is 0 or certain powers of 2. If con_type is neither 0
-      //nor a power of 2, it is wrong, for sure
-      if( (thisdir->ptp)->con_type != 0 &&  
-	  (thisdir->ptp)->con_type & ( (thisdir->ptp)->con_type-1 )!= 0
-      )
-      {	printf("\ntcp.c %d: ERROR: con_type %u not valid\n",
-		__LINE__, thisdir->ptp->con_type); 
-       	exit(231);
-      }
-
       #endif
 
       #ifdef BUFFERBLOAT_ANALYSIS
