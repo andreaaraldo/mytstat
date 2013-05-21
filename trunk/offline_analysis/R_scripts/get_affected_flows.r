@@ -18,20 +18,23 @@ chosen_flow_length_threshold <- 0
 proto_name <- as.character( c(
     "UNKNOWN", "HTTP", "RTSP", "RTP", "ICY", "RTCP", "MSN", "YMSG",
     "XMPP", "P2P", "SKYPE", "SMTP", "POP3", "IMAP", "SSL", "OBF",
-    "SSH", "RTMP", "MSE"
+    "SSH", "RTMP", "MSE", "MSE+OBF", "P2P+OBF", "P2P+HTTP",
+    "MSN+HTTP", "RTP+RTSP", "MSN+OBF"
 ) )
 
 # These are the values associated to the protocols by tstat/protocol.h
 protocol <- c(
     0, 1, 2, 4, 8, 16, 32, 64,
     128, 256, 512, 1024, 2048, 4096, 8192, 16384,
-    32768, 65536, 131072
+    32768, 65536, 131072, 147456, 16640, 257,
+    33, 6, 16416
 )
 
 proto_id <- c(
     0, 1, 2, 3, 4, 5, 6, 7,
     8, 9, 10, 11, 12, 13, 14, 15,
-    16, 17, 18
+    16, 17, 18, 19, 20, 21,
+    22, 23, 24
 )
 
 protocol_df <- data.frame(protocol, proto_name, proto_id)
@@ -443,9 +446,9 @@ get_point <- function(windows)
     point <- merge(point1, protocol_df, all.x=TRUE)
     
     ####### SEVERE DEBUG
-#     y <- na.omit(point)
-#     if( length(y[,1])!=length(point[,1]) )
-#         handle_error("There are NA in point")
+     y <- na.omit(point)
+     if( length(y[,1])!=length(point[,1]) )
+         handle_error("There are NA in point")
     
     
     x <- na.omit(host_proto_association)
@@ -486,7 +489,8 @@ build_non_logarithmic_protocol_scatterplot <- function(point, plot_file)
 
 # Build the point_df unifying all the point dataframes of the single
 # tracks (each of which was obtained with get_point(windows), where windows
-# are the windows of a single tracks)
+# are the windows of a single tracks). It saves point_df in the file
+# point_savefile
 calculate_point_df <- function(filelist)
 {
     # To unify the qd and the percentiles of all traces
