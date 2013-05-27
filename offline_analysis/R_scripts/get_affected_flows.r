@@ -1,20 +1,26 @@
-sink("~/temp/R.log")
-library(plyr)
-require(ggplot2)
-
-
 ####### CONSTANTS
 log_file_folder <- "/home/araldo/analysis_outputs"
 save_folder <- "/home/araldo/temp/r_out"
+r_logfile <- paste(save_folder,"r.log",sep="/")
 percentiles_cdf_plot <- paste(save_folder,"percentiles_cdf.jpg",sep="/")
 qd_pdf_plot <- paste(save_folder,"qd_pdf.jpg",sep="/")
 proto_scatterplot_file <- paste(save_folder,"scatter.png",sep="/")
 percentiles_savefile <- paste(save_folder,"percentiles.R.save",sep="/")
 point_savefile <- paste(save_folder,"point.R.save",sep="/")
+window_savefile <- paste(save_folder,"windows.R.save",sep="/")
 qd_of_flows_to_study_savefile <- 
     paste(save_folder,"qd_flows_to_study.R.save",sep="/")
 chosen_qd_threshold <- 0
 chosen_flow_length_threshold <- 0
+
+con <- file(r_logfile)
+sink(con, append=TRUE)
+sink(con, append=TRUE, type="message")
+
+library(plyr)
+require(ggplot2)
+require(ff)
+require(ffbase)
 
 proto_name <- as.character( c(
     "UNKNOWN", "HTTP", "RTSP", "RTP", "ICY", "RTCP", "MSN", "YMSG",
@@ -337,7 +343,7 @@ get_host_proto_association <- function(windows)
     protocol_column <- 
         sapply(strsplit(as.character(windows$type_C2S),":"), "[[", 1)
     
-    windows$protocol_column <- protocol_column
+    windows$protocol_column <- as.numeric(protocol_column)
     
     host_proto_association_A <- windows[,c("ipaddr1", "protocol_column")]
     colnames(host_proto_association_A) <- c("ipaddr", "protocol_column")
@@ -483,43 +489,137 @@ build_non_logarithmic_protocol_scatterplot <- function(point, plot_file)
 # point_savefile
 calculate_point_df <- function(filelist)
 {
-    # To unify the qd and the percentiles of all traces
-    #calculate_global_stats(filelist)
-    #get_global_stats()
-    
     filename <- filelist[1]
-    print("Processing file:")
+    print("Extracting points from file:")
     print(filename)
     windows_ <-load_window_log(filename)
-    point <- get_point(windows_)
+    point_ <- get_point(windows_)
+    print(length(point_[,1]))
+    pointff <- ffdf(edge=ff(point_$edge), windowed_qd=ff(point_$windowed_qd), 
+                    protocol=ff( point_$protocol) )
     
     for (filename in filelist[2:length(filelist)])
     {
-        print("Processing file:")
+        print("Extracting points from file:")
         print(filename)
         windows_ <- load_window_log(filename)
-        point <- rbind(point, get_point(windows_))
+        point_ <- get_point(windows_)
+        print(length(point_[,1]))
+        pointff_ <- ffdf(edge=ff(point_$edge), windowed_qd=ff(point_$windowed_qd), 
+                         protocol=ff( point_$protocol) )
+        pointff <- ffdfappend( pointff, pointff_, adjustvmode=F)
     }
     
-    print("Saving point")
-    point$protocol <- factor(point$protocol)
-    save(point, file=point_savefile)
+    print("total length")
+    print(length(as.data.frame(pointff)[,1] ) )
+    
+    print("Saving pointff")
+    ffsave(pointff, file=point_savefile)
 }
 
-# left_date and right_date must be in the form: yyyy-mm-dd hh:mm:ss
-# In dataframe a column called "edge" must exist
-extract_time_window <- function(dataframe, left_date, right_date)
+prova_wrapper <- function(windows_)
 {
-    left_edge <- as.numeric(
-        strptime(left_date, format="%Y-%m-%d %H:%M:%S")
-    )
-    
-    right_edge <- as.numeric(
-        strptime(right_date, format="%Y-%m-%d %H:%M:%S")
-    )
-    return ( dataframe[dataframe$edge >= left_edge &
-                           dataframe$edge <= right_edge,] )
+    convert_to_windows_ff(windows_)
+    print("dopo conver dentro wrapper")
 }
+
+convert_to_windows_ff <- function(windows_)
+{
+    protocol_C2S <- as.numeric(
+        sapply(strsplit(as.character(windows_$type_C2S),":"), "[[", 1) )
+    protocol_S2C <- as.numeric(
+        sapply(strsplit(as.character(windows_$type_S2C),":"), "[[", 1) )
+    
+    windows_ff <- 
+        ffdf(edge=ff(windows_$edge), ipaddr1=ff(windows_$ipaddr1),
+             port1=ff(windows_$port1), ipaddr2=ff(windows_$ipaddr2),
+             port2=ff(windows_$port2), 
+             protocol_C2S = ff(protocol_C2S),
+             windowed_qd_C2S=ff(windows_$windowed_qd_C2S), 
+             qd_samples_C2S=ff(windows_$qd_samples_C2S),
+             protocol_S2C = ff(protocol_S2C),
+             windowed_qd_S2C=ff(windows_$windowed_qd_S2C), 
+             qd_samples_S2C=ff(windows_$qd_samples_S2C)
+        )
+    
+    ####### SEVERE DEBUG: begin
+    if(length( windows_[is.na(windows_$edge) | is.na(windows_$qd_samples_C2S) |
+                            is.na(windows_$qd_samples_S2C) ,] ) )
+        exit("There are forbidden NA in windows_")
+    ####### SEVERE DEBUG: end
+    
+    return(windows_ff)
+}
+
+calculate_window_df <- function(filelist)
+{
+    filename <- filelist[1]
+    print("Extracting windows from file:")
+    print(filename)
+    windows_ <-load_window_log(filename)
+    print("Number of windows found:")
+    print(length(windows_[,1]))
+    
+    prova_wrapper(winwdows_)
+    windows_ff <- convert_to_windows_ff(windows_)
+    
+    ####### SEVERE DEBUG: begin
+    print("Trying to save")
+    ffsave(windows_ff, file=window_savefile)
+    print("Trying to load")
+    ffload(file=window_savefile)
+    print("loaded")
+    ####### SEVERE DEBUG: end
+    
+    #length(filelist)
+    for (filename in filelist[2:2])
+    {
+        print("Extracting points from file:")
+        print(filename)
+        windows_ <- load_window_log(filename)
+        print("Number of windows found:")
+        print(length(windows_[,1]))
+        windows_ff_ <- convert_to_windows_ff(windows_)
+        
+        windows_ff <- ffdfappend( windows_ff, windows_ff_, adjustvmode=F)
+    }
+    
+    print("Saving windows_ff")
+    ffsave(windows_ff, file=window_savefile)
+    
+    print("The length of windows_ff is ")
+    length(windows_ff[,1])
+}
+
+# Params
+#   - dataframe should be of type ffdf (see ff package info)
+#   - left_edge: timestamp in seconds
+#   - length: the length of the time window (in minutes) you want to extract
+# Returns:
+#   - a normal dataframe
+# 
+# In dataframe a column called "edge" must exist
+extract_time_window <- function(dataframeff, left_edge, length)
+{
+    right_edge <- left_edge + length*60
+    print(paste("class(dataframeff):",class(dataframeff)))
+    print(paste("class(dataframeff$edge):",class(dataframeff$edge)))
+    print(paste("dataframeff$edge[1] >= left_edge[1]:",dataframeff$edge[1] >= left_edge[1] ))
+    
+    appoggio <- as.numeric(dataframeff$edge)
+    print("dopo appoggio")
+    
+    # See http://stackoverflow.com/q/14875070/2110769
+    returndf_ff <- dataframeff[as.numeric(dataframeff$edge) >= left_edge &
+                                   as.numeric(dataframeff$edge) <= right_edge,]
+    
+    print("dopo dataframe")
+    
+    #    subset.ffdf ( dataframeff, dataframeff$edge >= left_edge &
+    #                                 dataframeff$edge <= right_edge)
+    return(as.data.frame(returndf_ff) )
+}
+
 
 
 filelist <- list.files(path = log_file_folder, 
@@ -527,20 +627,74 @@ filelist <- list.files(path = log_file_folder,
                        full.names = TRUE, recursive = TRUE,
                        ignore.case = FALSE, include.dirs = FALSE)
 
+print("Calculating windows_ff")
+calculate_window_df(filelist)
+print(paste("windows_ff saved in file ",window_savefile,sep=" ") )
 
-print("Loading point")
-load(point_savefile)
-print("Building the plot")
-build_non_logarithmic_protocol_scatterplot(point, proto_scatterplot_file)
+print("Loading windows_ff")
+# (windows_ff has been created by calculate_window_df(filelist) )
+ffload(file=window_savefile)
+
+# Now, the variable windows_ff is available
+print("The length of windows_ff is ")
+length(windows_ff[,1])
 
 
+step <- 120 #(minutes)
+left_date <- "2007-06-20 23:21:09"
+right_date <- "2007-06-21 23:32:32"
 
-png("~/temp/prova-scatter.png", width = 700, height = 700)
-qplot(point$windowed_qd, point$protocol, alpha=I(1/50), log="x", geom="jitter")
-dev.off()
+left_edge <- as.numeric(
+    strptime(left_date, format="%Y-%m-%d %H:%M:%S") )
+right_edge <- as.numeric(
+    strptime(right_date, format="%Y-%m-%d %H:%M:%S") )
 
-png("~/temp/prova-density.png", width = 700, height = 700)
-point1 <- point
-point1[point1$windowed_qd<=1, c("windowed_qd")] <- 1
-qplot(windowed_qd, data=point1, geom="density",xlim=c(0,1000), color=protocol )
-dev.off()
+while(left_edge <= right_edge)
+{
+    extracted_windows <- extract_time_window(windows_ff, left_edge, step)
+    #print(paste("Number of windows extracted from",left_edge,"and",right_edge,sep=" "))
+    #print(length(extracted_windows[,1]))
+    #left_edge <- left_edge+step
+}
+
+
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# print("Loading point")
+# load(point_savefile)
+# print("Building the plot")
+# build_non_logarithmic_protocol_scatterplot(point, proto_scatterplot_file)
+# 
+# 
+# 
+# png("~/temp/prova-scatter.png", width = 700, height = 700)
+# qplot(point$windowed_qd, point$protocol, alpha=I(1/50), log="x", geom="jitter")
+# dev.off()
+# 
+# png("~/temp/prova-density.png", width = 700, height = 700)
+# point1 <- point
+# point1[point1$windowed_qd<=1, c("windowed_qd")] <- 1
+# qplot(windowed_qd, data=point1, geom="density",xlim=c(0,1000), color=protocol )
+# dev.off()
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
