@@ -517,78 +517,83 @@ calculate_point_df <- function(filelist)
     ffsave(pointff, file=point_savefile)
 }
 
-prova_wrapper <- function(windows_)
-{
-    convert_to_windows_ff(windows_)
-    print("dopo conver dentro wrapper")
-}
-
 convert_to_windows_ff <- function(windows_)
 {
-    protocol_C2S <- as.numeric(
-        sapply(strsplit(as.character(windows_$type_C2S),":"), "[[", 1) )
-    protocol_S2C <- as.numeric(
-        sapply(strsplit(as.character(windows_$type_S2C),":"), "[[", 1) )
-    
-    windows_ff <- 
-        ffdf(edge=ff(windows_$edge), ipaddr1=ff(windows_$ipaddr1),
-             port1=ff(windows_$port1), ipaddr2=ff(windows_$ipaddr2),
-             port2=ff(windows_$port2), 
-             protocol_C2S = ff(protocol_C2S),
-             windowed_qd_C2S=ff(windows_$windowed_qd_C2S), 
-             qd_samples_C2S=ff(windows_$qd_samples_C2S),
-             protocol_S2C = ff(protocol_S2C),
-             windowed_qd_S2C=ff(windows_$windowed_qd_S2C), 
-             qd_samples_S2C=ff(windows_$qd_samples_S2C)
-        )
-    
-    ####### SEVERE DEBUG: begin
-    if(length( windows_[is.na(windows_$edge) | is.na(windows_$qd_samples_C2S) |
-                            is.na(windows_$qd_samples_S2C) ,] ) )
-        exit("There are forbidden NA in windows_")
-    ####### SEVERE DEBUG: end
-    
-    return(windows_ff)
+    tryCatch({
+        protocol_C2S <- as.numeric(
+            sapply(strsplit(as.character(windows_$type_C2S),":"), "[[", 1) )
+        protocol_S2C <- as.numeric(
+            sapply(strsplit(as.character(windows_$type_S2C),":"), "[[", 1) )
+        
+        windows_ff <- 
+            ffdf(edge=ff(windows_$edge), ipaddr1=ff(windows_$ipaddr1),
+                 port1=ff(windows_$port1), ipaddr2=ff(windows_$ipaddr2),
+                 port2=ff(windows_$port2), 
+                 protocol_C2S = ff(protocol_C2S),
+                 windowed_qd_C2S=ff(windows_$windowed_qd_C2S), 
+                 qd_samples_C2S=ff(windows_$qd_samples_C2S),
+                 protocol_S2C = ff(protocol_S2C),
+                 windowed_qd_S2C=ff(windows_$windowed_qd_S2C), 
+                 qd_samples_S2C=ff(windows_$qd_samples_S2C)
+            )
+        
+        ####### SEVERE DEBUG: begin
+        if(length( windows_[is.na(windows_$edge) | is.na(windows_$qd_samples_C2S) |
+                                is.na(windows_$qd_samples_S2C) ,] ) )
+            stop("There are forbidden NA in windows_")
+        ####### SEVERE DEBUG: end
+        
+        return(windows_ff)
+    }, 
+             warning = function(w){print(warnings())},
+             error = function(e) {stop(e)}
+             
+    )
 }
 
 calculate_window_df <- function(filelist)
 {
-    filename <- filelist[1]
-    print("Extracting windows from file:")
-    print(filename)
-    windows_ <-load_window_log(filename)
-    print("Number of windows found:")
-    print(length(windows_[,1]))
-    
-    prova_wrapper(winwdows_)
-    windows_ff <- convert_to_windows_ff(windows_)
-    
-    ####### SEVERE DEBUG: begin
-    print("Trying to save")
-    ffsave(windows_ff, file=window_savefile)
-    print("Trying to load")
-    ffload(file=window_savefile)
-    print("loaded")
-    ####### SEVERE DEBUG: end
-    
-    #length(filelist)
-    for (filename in filelist[2:2])
-    {
-        print("Extracting points from file:")
+    tryCatch({
+        filename <- filelist[1]
+        print("Extracting windows from file:")
         print(filename)
-        windows_ <- load_window_log(filename)
+        windows_ <-load_window_log(filename)
+        print(head(windows_))
         print("Number of windows found:")
         print(length(windows_[,1]))
-        windows_ff_ <- convert_to_windows_ff(windows_)
+        windows_ff <- convert_to_windows_ff(windows_)
         
-        windows_ff <- ffdfappend( windows_ff, windows_ff_, adjustvmode=F)
-    }
-    
-    print("Saving windows_ff")
-    ffsave(windows_ff, file=window_savefile)
-    
-    print("The length of windows_ff is ")
-    length(windows_ff[,1])
+        ####### SEVERE DEBUG: begin
+        print("Trying to save")
+        ffsave(windows_ff, file=window_savefile)
+        print("Trying to load")
+        ffload(file=window_savefile)
+        print("loaded")
+        ####### SEVERE DEBUG: end
+        
+        #length(filelist)
+        for (filename in filelist[2:2])
+        {
+            print("Extracting points from file:")
+            print(filename)
+            windows_ <- load_window_log(filename)
+            print("Number of windows found:")
+            print(length(windows_[,1]))
+            windows_ff_ <- convert_to_windows_ff(windows_)
+            
+            windows_ff <- ffdfappend( windows_ff, windows_ff_, adjustvmode=F)
+        }
+        
+        print("Saving windows_ff")
+        ffsave(windows_ff, file=window_savefile)
+        
+        print("The length of windows_ff is ")
+        length(windows_ff[,1])
+        
+    },
+             warning = function(w){print( warnings() )},
+             error = function(e){stop(e)}
+    ) 
 }
 
 # Params
@@ -601,61 +606,76 @@ calculate_window_df <- function(filelist)
 # In dataframe a column called "edge" must exist
 extract_time_window <- function(dataframeff, left_edge, length)
 {
-    right_edge <- left_edge + length*60
-    print(paste("class(dataframeff):",class(dataframeff)))
-    print(paste("class(dataframeff$edge):",class(dataframeff$edge)))
-    print(paste("dataframeff$edge[1] >= left_edge[1]:",dataframeff$edge[1] >= left_edge[1] ))
+    tryCatch({
+        right_edge <- left_edge + length*60
+        print(paste("class(dataframeff):",class(dataframeff)))
+        print(paste("class(dataframeff$edge):",class(dataframeff$edge)))
+        print(paste("dataframeff$edge[1] >= left_edge[1]:",dataframeff$edge[1] >= left_edge[1] ))
+        
+        appoggio <- as.numeric(dataframeff$edge)
+        print("dopo appoggio")
+        
+        # See http://stackoverflow.com/q/14875070/2110769
+        returndf_ff <- dataframeff[as.numeric(dataframeff$edge) >= left_edge &
+                                       as.numeric(dataframeff$edge) <= right_edge,]
+        
+        print("dopo dataframe")
+        
+        #    subset.ffdf ( dataframeff, dataframeff$edge >= left_edge &
+        #                                 dataframeff$edge <= right_edge)
+        return(as.data.frame(returndf_ff) )
+    },
+             warning = function(w){print(warnings())},
+             error = function(e){stop(e)}
+    )
     
-    appoggio <- as.numeric(dataframeff$edge)
-    print("dopo appoggio")
-    
-    # See http://stackoverflow.com/q/14875070/2110769
-    returndf_ff <- dataframeff[as.numeric(dataframeff$edge) >= left_edge &
-                                   as.numeric(dataframeff$edge) <= right_edge,]
-    
-    print("dopo dataframe")
-    
-    #    subset.ffdf ( dataframeff, dataframeff$edge >= left_edge &
-    #                                 dataframeff$edge <= right_edge)
-    return(as.data.frame(returndf_ff) )
 }
 
 
 
-filelist <- list.files(path = log_file_folder, 
-                       pattern = "*log_tcp_windowed_qd_acktrig", all.files = FALSE,
-                       full.names = TRUE, recursive = TRUE,
-                       ignore.case = FALSE, include.dirs = FALSE)
 
-print("Calculating windows_ff")
-calculate_window_df(filelist)
-print(paste("windows_ff saved in file ",window_savefile,sep=" ") )
+tryCatch({
+    filelist <- list.files(path = log_file_folder, 
+                           pattern = "*log_tcp_windowed_qd_acktrig", all.files = FALSE,
+                           full.names = TRUE, recursive = TRUE,
+                           ignore.case = FALSE, include.dirs = FALSE)
+    
+    print("Calculating windows_ff")
+    calculate_window_df(filelist)
+    print(paste("windows_ff saved in file ",window_savefile,sep=" ") )
+    
+    print("Loading windows_ff")
+    # (windows_ff has been created by calculate_window_df(filelist) )
+    ffload(file=window_savefile)
+    
+    # Now, the variable windows_ff is available
+    print("The length of windows_ff is ")
+    length(windows_ff[,1])
+    
+    
+    step <- 120 #(minutes)
+    left_date <- "2007-06-20 23:21:09"
+    right_date <- "2007-06-21 23:32:32"
+    
+    left_edge <- as.numeric(
+        strptime(left_date, format="%Y-%m-%d %H:%M:%S") )
+    right_edge <- as.numeric(
+        strptime(right_date, format="%Y-%m-%d %H:%M:%S") )
+    
+    while(left_edge <= right_edge)
+    {
+        extracted_windows <- extract_time_window(windows_ff, left_edge, step)
+        #print(paste("Number of windows extracted from",left_edge,"and",right_edge,sep=" "))
+        #print(length(extracted_windows[,1]))
+        #left_edge <- left_edge+step
+    }
+    
+},
+         warning = function(w){print( warning() )},
+         error = function(e){stop(e)}
+)
 
-print("Loading windows_ff")
-# (windows_ff has been created by calculate_window_df(filelist) )
-ffload(file=window_savefile)
 
-# Now, the variable windows_ff is available
-print("The length of windows_ff is ")
-length(windows_ff[,1])
-
-
-step <- 120 #(minutes)
-left_date <- "2007-06-20 23:21:09"
-right_date <- "2007-06-21 23:32:32"
-
-left_edge <- as.numeric(
-    strptime(left_date, format="%Y-%m-%d %H:%M:%S") )
-right_edge <- as.numeric(
-    strptime(right_date, format="%Y-%m-%d %H:%M:%S") )
-
-while(left_edge <= right_edge)
-{
-    extracted_windows <- extract_time_window(windows_ff, left_edge, step)
-    #print(paste("Number of windows extracted from",left_edge,"and",right_edge,sep=" "))
-    #print(length(extracted_windows[,1]))
-    #left_edge <- left_edge+step
-}
 
 
 # 
