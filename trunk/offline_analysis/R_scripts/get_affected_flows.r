@@ -17,26 +17,36 @@ con <- file(r_logfile)
 sink(con, append=TRUE)
 sink(con, append=TRUE, type="message")
 
-library(plyr)
-require(ggplot2)
-require(ff)
-require(ffbase)
-
-proto_name <- as.character( c(
-    "UNKNOWN", "HTTP", "RTSP", "RTP", "ICY", "RTCP", "MSN", "YMSG",
-    "XMPP", "P2P", "SKYPE", "SMTP", "POP3", "IMAP", "SSL", "OBF",
-    "SSH", "RTMP", "MSE", "MSE+OBF", "P2P+OBF", "P2P+HTTP",
-    "MSN+HTTP", "RTP+RTSP", "MSN+OBF"
-) )
-
-# These are the values associated to the protocols by tstat/protocol.h
-protocol <- c(
-    0, 1, 2, 4, 8, 16, 32, 64,
-    128, 256, 512, 1024, 2048, 4096, 8192, 16384,
-    32768, 65536, 131072, 147456, 16640, 257,
-    33, 6, 16416
+tryCatch({
+    library(plyr)
+    require(ggplot2)
+    require(ff)
+    require(ffbase)
+    
+    proto_name <- as.character( c(
+        "UNKNOWN", "HTTP", "RTSP", "RTP", "ICY", "RTCP", "MSN", "YMSG",
+        "XMPP", "P2P", "SKYPE", "SMTP", "POP3", "IMAP", "SSL", "OBF",
+        "SSH", "RTMP", "MSE", "MSE+OBF", "P2P+OBF", "P2P+HTTP",
+        "MSN+HTTP", "RTP+RTSP", "MSN+OBF"
+    ) )
+    
+    # These are the values associated to the protocols by tstat/protocol.h
+    protocol <- c(
+        0, 1, 2, 4, 8, 16, 32, 64,
+        128, 256, 512, 1024, 2048, 4096, 8192, 16384,
+        32768, 65536, 131072, 147456, 16640, 257,
+        33, 6, 16416
+    )
+    
+}
+         ,warning=function(w){handle_warning(w)}
+         ,error=function(e){stop(e)}
 )
 
+handle_warning <- function(w)
+{
+    warning(w)
+}
 
 handle_error <- function(error_message)
 {
@@ -538,14 +548,21 @@ convert_to_windows_ff <- function(windows_)
             )
         
         ####### SEVERE DEBUG: begin
-        if(length( windows_[is.na(windows_$edge) | is.na(windows_$qd_samples_C2S) |
-                                is.na(windows_$qd_samples_S2C) ,] ) )
-            stop("There are forbidden NA in windows_")
+        print("convert to windows_ff(..): windows_ff")
+        print(windows_ff[1:5,])
+        
+        num_of_na_rows <- length( windows_[is.na(windows_$edge) | is.na(windows_$qd_samples_C2S) |
+                                               is.na(windows_$qd_samples_S2C) ,1] )
+        if(num_of_na_rows != 0)
+        {
+            print(paste("convert_to_windows_ff(..): num_of_na_rows=",num_of_na_rows))
+            stop("convert_to_windows_ff(..): There are forbidden NA in windows_")
+        }
         ####### SEVERE DEBUG: end
         
         return(windows_ff)
     }, 
-             warning = function(w){print(warnings())},
+             warning = function(w){handle_warning(w)},
              error = function(e) {stop(e)}
              
     )
@@ -554,44 +571,76 @@ convert_to_windows_ff <- function(windows_)
 calculate_window_df <- function(filelist)
 {
     tryCatch({
-        filename <- filelist[1]
-        print("Extracting windows from file:")
-        print(filename)
-        windows_ <-load_window_log(filename)
-        print(head(windows_))
-        print("Number of windows found:")
-        print(length(windows_[,1]))
-        windows_ff <- convert_to_windows_ff(windows_)
-        
         ####### SEVERE DEBUG: begin
-        print("Trying to save")
-        ffsave(windows_ff, file=window_savefile)
-        print("Trying to load")
-        ffload(file=window_savefile)
-        print("loaded")
-        ####### SEVERE DEBUG: end
-        
-        #length(filelist)
-        for (filename in filelist[2:2])
-        {
-            print("Extracting points from file:")
+        windows_found_until_now <- 0
+        ####### SEVERE DEBUG. end
+        filelist_size <- length(filelist)
+        if(filelist_size == 0)
+            print("calculate_window_df(..): filelist is empty")
+        else{
+            print(paste("calculate_window_df(..) Found ",filelist_size,
+                        " log files to analyze" ) )
+            filename <- filelist[1]
+            print("calculate_window_df(..): Extracting windows from file:")
             print(filename)
-            windows_ <- load_window_log(filename)
-            print("Number of windows found:")
-            print(length(windows_[,1]))
-            windows_ff_ <- convert_to_windows_ff(windows_)
+            windows_ <-load_window_log(filename)
             
-            windows_ff <- ffdfappend( windows_ff, windows_ff_, adjustvmode=F)
-        }
-        
-        print("Saving windows_ff")
-        ffsave(windows_ff, file=window_savefile)
-        
-        print("The length of windows_ff is ")
-        length(windows_ff[,1])
-        
+            ######## SEVERE DEBUG: begin
+            print(paste("calculate_window_df(..): Number of windows found ",
+                        "in the last file: ",length(windows_[,1])) )
+            windows_found_until_now <- windows_found_until_now + 
+                length(windows_[,1])
+            ######## SEVERE DEBUG: end
+            
+            windows_ff <- convert_to_windows_ff(windows_)
+            
+            ####### SEVERE DEBUG: begin
+            print("calculate_window_df(..): Trying to save")
+            ffsave(windows_ff, file=window_savefile)
+            print("calculate_window_df(..): windows_ff")
+            print(windows_ff[1:5,])
+            
+            rm(windows_ff)
+            print("calculate_window_df(..): Trying to load")
+            ffload(file=window_savefile, overwrite=TRUE)
+            print("calculate_window_df(..): loaded")
+            print("calculate_window_df(..): windows_ff")
+            print(windows_ff[1:5,])
+            
+            ####### SEVERE DEBUG: end
+            
+            #length(filelist)
+            for (filename in filelist[2:2])
+            {
+                print(paste("calculate_window_df(..): Extracting points from file:",
+                            filename) )
+                windows_ <- load_window_log(filename)
+                
+                ####### SEVERE DEBUG: begin
+                print(paste("calculate_window_df(..): Number of windows found in the last file: ",
+                            length(windows_[,1]) ) )
+                windows_found_until_now <- windows_found_until_now+length(windows_[,1])
+                ####### SEVERE DEBUG: end
+                
+                windows_ff_ <- convert_to_windows_ff(windows_)
+                
+                windows_ff <- ffdfappend( windows_ff, windows_ff_, adjustvmode=F)
+            }
+            
+            print("calculate_window_df(..): Saving windows_ff")
+            ffsave(windows_ff, file=window_savefile)
+            
+            ######## SEVERE DEBUG: begin
+            print(paste("calculate_window_df(..): The length of windows_ff is now: ",
+                        length(windows_ff[,1]) ) )
+            if(windows_found_until_now != length(windows_ff[,1]) )
+                stop("calculate_window_df(..): lengths are different")
+            ######## SEVERE DEBUG: end
+        }        
     },
-             warning = function(w){print( warnings() )},
+             warning = function(w){
+                 print("OOO, vedi che c'e' un warning, faccia di mmerda")
+                 handle_warning(w) },
              error = function(e){stop(e)}
     ) 
 }
@@ -625,13 +674,11 @@ extract_time_window <- function(dataframeff, left_edge, length)
         #                                 dataframeff$edge <= right_edge)
         return(as.data.frame(returndf_ff) )
     },
-             warning = function(w){print(warnings())},
+             warning = function(w){handle_warning(w)},
              error = function(e){stop(e)}
     )
     
 }
-
-
 
 
 tryCatch({
@@ -646,11 +693,11 @@ tryCatch({
     
     print("Loading windows_ff")
     # (windows_ff has been created by calculate_window_df(filelist) )
-    ffload(file=window_savefile)
+    ffload(file=window_savefile, overwrite=TRUE)
     
     # Now, the variable windows_ff is available
-    print("The length of windows_ff is ")
-    length(windows_ff[,1])
+    
+    
     
     
     step <- 120 #(minutes)
@@ -671,7 +718,7 @@ tryCatch({
     }
     
 },
-         warning = function(w){print( warning() )},
+         warning = function(w){handle_warning(w)},
          error = function(e){stop(e)}
 )
 
