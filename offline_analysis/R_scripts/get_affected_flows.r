@@ -657,18 +657,15 @@ extract_time_window <- function(dataframeff, left_edge, length)
 {
     tryCatch({
         right_edge <- left_edge + length*60
-        print(paste("class(dataframeff):",class(dataframeff)))
-        print(paste("class(dataframeff$edge):",class(dataframeff$edge)))
-        print(paste("dataframeff$edge[1] >= left_edge[1]:",dataframeff$edge[1] >= left_edge[1] ))
         
-        appoggio <- as.numeric(dataframeff$edge)
-        print("extract_time_window(..): dopo appoggio")
-        print(dataframeff[1:5,] )
-        # See http://stackoverflow.com/q/14875070/2110769
-        returndf_ff <- dataframeff[as.numeric(dataframeff$edge) >= left_edge &
-                                       as.numeric(dataframeff$edge) <= right_edge,]
+        idx <- ffwhich(dataframeff, edge >= left_edge & edge <= right_edge)
+        if( is.null(idx) ) {
+          idx <- as.numeric( array( dim=c(0) ) )
+        }
+        print("extract_time_window(..): idx computed")
+        returndf_ff <- dataframeff[ idx, ]
         
-        print("dopo dataframe")
+        print("extract_time_window(..): dopo dataframe")
         
         #    subset.ffdf ( dataframeff, dataframeff$edge >= left_edge &
         #                                 dataframeff$edge <= right_edge)
@@ -697,7 +694,7 @@ tryCatch({
     
     # Now, the variable windows_ff is available
     
-    step <- 120 #(minutes)
+    step = 120 #(minutes)
     left_date <- "2007-06-20 23:21:09"
     right_date <- "2007-06-21 23:32:32"
     
@@ -705,12 +702,8 @@ tryCatch({
         strptime(left_date, format="%Y-%m-%d %H:%M:%S") )
     right_edge <- as.numeric(
         strptime(right_date, format="%Y-%m-%d %H:%M:%S") )
-    print("Before extracting: Printing all windows_ff")
-    print(windows_ff)
     
-    print("Before extracting: Printing only the first 5 rows")
-    print(windows_ff[1:5, ])
-    
+
     print("Extracting windows")
     while(left_edge <= right_edge)
     {
