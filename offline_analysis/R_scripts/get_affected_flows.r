@@ -548,9 +548,6 @@ convert_to_windows_ff <- function(windows_)
             )
         
         ####### SEVERE DEBUG: begin
-        print("convert to windows_ff(..): windows_ff")
-        print(windows_ff[1:5,])
-        
         num_of_na_rows <- length( windows_[is.na(windows_$edge) | is.na(windows_$qd_samples_C2S) |
                                                is.na(windows_$qd_samples_S2C) ,1] )
         if(num_of_na_rows != 0)
@@ -662,10 +659,8 @@ extract_time_window <- function(dataframeff, left_edge, length)
         if( is.null(idx) ) {
           idx <- as.numeric( array( dim=c(0) ) )
         }
-        print("extract_time_window(..): idx computed")
+
         returndf_ff <- dataframeff[ idx, ]
-        
-        print("extract_time_window(..): dopo dataframe")
         
         #    subset.ffdf ( dataframeff, dataframeff$edge >= left_edge &
         #                                 dataframeff$edge <= right_edge)
@@ -710,7 +705,7 @@ tryCatch({
         extracted_windows <- extract_time_window(windows_ff, left_edge, step)
         #print(paste("Number of windows extracted from",left_edge,"and",right_edge,sep=" "))
         #print(length(extracted_windows[,1]))
-        #left_edge <- left_edge+step
+        left_edge <- left_edge+step
     }
     
 },
