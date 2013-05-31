@@ -303,12 +303,12 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 
 const float EWMA_ALPHA = 0.5;
 
-//<aa>TODO: verify if the compiler do the call inlining</aa>
 delay_t bufferbloat_analysis(enum analysis_type an_type,
 	enum bufferbloat_analysis_trigger trig, const tcp_pair_addrblock* addr_pair, 
 	const int dir, utp_stat* bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat, 
 	int utp_conn_id, const char* type, u_int32_t pkt_size, delay_t last_grossdelay,
-	Bool overfitting_avoided, Bool update_size_info)
+	Bool overfitting_avoided, Bool update_size_info,
+	Bool internal_src, Bool internal_dst )
 {
 	delay_t windowed_qd = -1;
 
@@ -621,7 +621,8 @@ extern inline
 void print_last_window_general(enum analysis_type an_type, 
 	enum bufferbloat_analysis_trigger trig, unsigned long long left_edge,
 	const tcp_pair_addrblock* addr_pair,
-	const utp_stat* bufferbloat_stat_p) 
+	const utp_stat* bufferbloat_stat_p, 
+	Bool internal_src, Bool internal_dst) 
 {
 	#ifdef SEVERE_DEBUG
 	///////// TAKING CARE OF WINDOW EDGE: begin
@@ -718,9 +719,12 @@ void print_last_window_general(enum analysis_type an_type,
 	wfprintf (fp_qd, "%s %s ",
       	           HostName (addr_pair->a_address),	//2.ip_addr_1
        	           ServiceName (addr_pair->a_port));	//3.port_1
-  	wfprintf (fp_qd, "%s %s",
+  	wfprintf (fp_qd, "%s %s ",
        	           HostName (addr_pair->b_address),	//4.ip_addr_2
        	           ServiceName (addr_pair->b_port));	//5.port_2
+	wfprintf (fp_qd, "%d %d",
+       	           internal_src,			//6.ip_addr_2
+       	           internal_dst);			//7.port_2
 
 }
 
@@ -730,7 +734,7 @@ extern inline
 void print_last_window_directional(enum analysis_type an_type,
 	enum bufferbloat_analysis_trigger trig,
 	const utp_stat* bufferbloat_stat, const int conn_id, const char* type,
-	const delay_t qd_window, const delay_t window_error)
+	const delay_t qd_window, const delay_t window_error )
 {
 	FILE* fp_logc=NULL;
 	switch(an_type){
@@ -795,15 +799,15 @@ void print_last_window_directional(enum analysis_type an_type,
 	
 	#endif //of SEVERE_DEBUG
 
-	wfprintf(fp_logc, " %s",type);			//6-19:<con_type>:<p2p_type>
+	wfprintf(fp_logc, " %s",type);			//8-19:<con_type>:<p2p_type>
 	// See struct.h for the meaning of con_type
 
 	if (qd_window == BUFFEBLOAT_NOSAMPLES)
 		wfprintf(fp_logc, " - -");
 	else
 		wfprintf(fp_logc, " %d %d", 
-			qd_window,					//7-20
-			window_error					//8-21
+			qd_window,					//9-22
+			window_error					//10-23
 		);
 
 	delay_t windowed_gross_dly=-1; //milliseconds
@@ -829,44 +833,44 @@ void print_last_window_directional(enum analysis_type an_type,
 	#endif //SEVERE_DEBUG
 
 	wfprintf(fp_logc,DELAY_T_FORMAT_SPECIFIER,
-		bufferbloat_stat->qd_max_w1		//9-22 milliseconds
+		bufferbloat_stat->qd_max_w1		//11-24 milliseconds
 	);
 
 	#ifdef SAMPLES_VALIDITY
 	wfprintf(fp_logc," %d",chances_in_win);
-										//10-23: chances
+							//12-25: chances
 	#else
-	wfprintf(fp_logc," -");				//10-23
+	wfprintf(fp_logc," -");				//12-25
 	#endif
 
 
 	if(windowed_gross_dly == -1)
-		wfprintf(fp_logc, " -");		//11-24
+		wfprintf(fp_logc, " -");		//13-26
 	else
 		wfprintf(fp_logc, DELAY_T_FORMAT_SPECIFIER,windowed_gross_dly);
-										//11-24 milliseconds
+							//13-26 milliseconds
 	
 	wfprintf(fp_logc," %d %d %d",  // %f %f %f %u
-		conn_id,						//12-25
-		samples_in_win,					//13-26: no_of_qd_samples_in_windows
-		bufferbloat_stat->not_void_windows	//14-27: no of not void windows
+		conn_id,				//14-27
+		samples_in_win,				//15-28: no_of_qd_samples_in_windows
+		bufferbloat_stat->not_void_windows	//16-29: no of not void windows
 	);	
 	
 	wfprintf(fp_logc, DELAY_T_FORMAT_SPECIFIER,
-		bufferbloat_stat->qd_measured_sum	//15-28 milliseconds
+		bufferbloat_stat->qd_measured_sum	//17-30 milliseconds
 	);
 	
 	wfprintf(fp_logc, DELAY_T_FORMAT_SPECIFIER,
-		bufferbloat_stat->windowed_qd_sum	//16-29 milliseconds
+		bufferbloat_stat->windowed_qd_sum	//18-31 milliseconds
 	);
 	
 	wfprintf(fp_logc, DELAY_T_FORMAT_SPECIFIER,
 		bufferbloat_stat->sample_qd_sum_until_last_window
-							//17-30 milliseconds
+							//19-32 milliseconds
 	);
 	
 	wfprintf(fp_logc, DELAY_T_FORMAT_SPECIFIER,
-		bufferbloat_stat->delay_base		//18-31 (milliseconds)
+		bufferbloat_stat->delay_base		//21-33 (milliseconds)
 	);
 }
 
@@ -877,7 +881,8 @@ extern inline
 void print_void_window(enum analysis_type an_type,  
 	enum bufferbloat_analysis_trigger trig, const unsigned long long old_last_left_edge,
 	const tcp_pair_addrblock* addr_pair, const utp_stat* thisdir_bufferbloat_stat,
-	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type)
+	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type,
+	Bool internal_src, Bool internal_dst )
 {
 	#ifdef SEVERE_DEBUG
 	printf("\nbufferbloat.c %d: printing edge %u\n",__LINE__,(unsigned)old_last_left_edge);
@@ -912,9 +917,11 @@ void print_void_window(enum analysis_type an_type,
 		thisdir_bufferbloat_stat);
 
 	print_last_window_directional(an_type, trig, thisdir_bufferbloat_stat, 
-		conn_id, type, BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES);
+		conn_id, type, BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES,
+		internal_src, internal_dst);
 	print_last_window_directional(an_type, trig, otherdir_bufferbloat_stat, 
-		conn_id, type, BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES);
+		conn_id, type, BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES,
+		internal_src, internal_dst);
 	
 	wfprintf(fp_logc,"\n"); fflush(fp_logc);
 	
@@ -1017,7 +1024,8 @@ delay_t windowed_queueing_delay(enum analysis_type an_type,
 		//window; but, at first, we have to print its values.
 		print_last_window_general(an_type, trig, 
 			thisdir_bufferbloat_stat->last_window_edge,
-			addr_pair, (const utp_stat*) thisdir_bufferbloat_stat );
+			addr_pair, (const utp_stat*) thisdir_bufferbloat_stat, 
+			internal_src, internal_dst );
 		delay_t other_qd_window; //milliseconds
 		
 		#ifdef SEVERE_DEBUG
@@ -1147,7 +1155,7 @@ delay_t windowed_queueing_delay(enum analysis_type an_type,
 			otherdir_bufferbloat_stat->last_printed_window_edge=old_last_left_edge;
 			#endif
 		}
-		#endif
+		#endif //of SAMPLES_VALIDITY
 
 		#ifdef SEVERE_DEBUG
 		//After having closed windows, the following quantities must be the same

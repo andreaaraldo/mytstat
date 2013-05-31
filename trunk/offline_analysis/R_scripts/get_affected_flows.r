@@ -1,5 +1,5 @@
 ####### CONSTANTS
-log_file_folder <- "/home/araldo/analysis_outputs"
+log_file_folder <- "/home/araldo/analysis_output" #log files produced by tstqt
 save_folder <- "/home/araldo/temp/r_out"
 r_logfile <- paste(save_folder,"r.log",sep="/")
 percentiles_cdf_plot <- paste(save_folder,"percentiles_cdf.jpg",sep="/")
@@ -13,9 +13,33 @@ qd_of_flows_to_study_savefile <-
 chosen_qd_threshold <- 0
 chosen_flow_length_threshold <- 0
 
+field_names<-c("edge", "ipaddr1","port1","ipaddr2","port2",
+               "C_internal", "S_internal",
+               
+               "type_C2S",
+               "windowed_qd_C2S","error_C2S","max_qd_C2S",
+               "chances_C2S",
+               "grossdelay_C2S","conn_id_C2S","qd_samples_C2S",
+               "not_void_windows_C2S","sample_qd_sum_C2S",
+               "window_qd_sum_C2S",
+               "sample_qd_sum_until_last_window_C2S",
+               "delay_base_C2S",
+               
+               "type_S2C",
+               "windowed_qd_S2C","error_S2C","max_qd_S2C",
+               "chances_S2C",
+               "grossdelay_S2C","conn_id_S2C","qd_samples_S2C",
+               "not_void_windows_S2C","sample_qd_sum_S2C",
+               "window_qd_sum_S2C",
+               "sample_qd_sum_until_last_window_S2C",
+               "delay_base_S2C")
+
+
+
 con <- file(r_logfile)
 sink(con, append=TRUE)
 sink(con, append=TRUE, type="message")
+
 
 tryCatch({
     library(plyr)
@@ -272,24 +296,6 @@ plot_qd <- function(qd_of_flows_to_study)
 
 load_window_log <- function(filename)
 {
-    field_names<-c("edge", "ipaddr1","port1","ipaddr2","port2",
-                   "type_C2S",
-                   "windowed_qd_C2S","error_C2S","max_qd_C2S",
-                   "chances_C2S",
-                   "grossdelay_C2S","conn_id_C2S","qd_samples_C2S",
-                   "not_void_windows_C2S","sample_qd_sum_C2S",
-                   "window_qd_sum_C2S",
-                   "sample_qd_sum_until_last_window_C2S",
-                   "delay_base_C2S",
-                   
-                   "type_S2C",
-                   "windowed_qd_S2C","error_S2C","max_qd_S2C",
-                   "chances_S2C",
-                   "grossdelay_S2C","conn_id_S2C","qd_samples_S2C",
-                   "not_void_windows_S2C","sample_qd_sum_S2C",
-                   "window_qd_sum_S2C",
-                   "sample_qd_sum_until_last_window_S2C",
-                   "delay_base_S2C")
     
     windows <- read.table(filename,
                           sep=" ", 
@@ -342,133 +348,47 @@ get_global_stats <- function()
     print(quantile(qd_of_flows_to_study,c(.90,.95,.99)))
 }
 
-get_host_proto_association <- function(windows)
+
+
+get_outgoing_windows <- function(windows)
 {
-    ####### SEVERE DEBUG: begin
-    if ( length(windows[windows$type_C2S != windows$type_S2C,1]) 
-         != 0)
-        handle_error("protocols must be the same in both directions")
-    ####### SEVERE DEBUG: end
-    
-    protocol_column <- 
-        sapply(strsplit(as.character(windows$type_C2S),":"), "[[", 1)
-    
-    windows$protocol_column <- as.numeric(protocol_column)
-    
-    host_proto_association_A <- windows[,c("ipaddr1", "protocol_column")]
-    colnames(host_proto_association_A) <- c("ipaddr", "protocol_column")
-    host_proto_association_B <- windows[,c("ipaddr2", "protocol_column")]
-    colnames(host_proto_association_B) <- c("ipaddr", "protocol_column")
-    host_proto_association_ <- rbind(host_proto_association_A, host_proto_association_B)
-    
-    # Purge the duplicates
-    host_proto_association <- 
-        host_proto_association_[!duplicated(host_proto_association_[,]),]
-    
-    return(host_proto_association)
+    tryCatch({
+        print( paste( "Extracting outgoing windows from ", 
+                      length(windows[,1] ), "windows " ) )
+        outgoing_window_colnames_temp <- 
+            c("edge", "ipaddr","port","type","windowed_qd")
+        
+        internal_client_windows <- 
+            windows[ windows$C_internal==1 & windows$S_internal==0,
+                     c("edge","ipaddr1", "port1", "type_C2S","windowed_qd_C2S")]
+        colnames(internal_client_windows) <- outgoing_window_colnames_temp
+        print( paste( "There are ", 
+                      length(internal_client_windows[,1] ), " cli windows" ) )
+        
+        
+        internal_server_windows <- 
+            windows[ windows$S_internal==1 & windows$C_internal==0,
+                     c("edge","ipaddr2", "port2", "type_S2C","windowed_qd_S2C")]
+        colnames(internal_server_windows) <- outgoing_window_colnames_temp
+        print( paste( "There are ", 
+                      length(internal_server_windows[,1]), " srv windows" ) )
+        
+        outgoing_windows <- 
+            rbind(internal_client_windows, internal_server_windows)
+        
+        protocol_column <- 
+            sapply(strsplit(as.character(outgoing_windows$type),":"), "[[", 1)
+        outgoing_windows$protocol <- as.numeric(protocol_column)
+        outgoing_windows$type <- NULL
+        return(outgoing_windows)
+    },
+        warning=function(w){handle_warning(w)},
+        error=function(e){
+            print("ERROR in get_outgoing_windows(..)")
+            stop(e)}
+            )
 }
 
-get_point <- function(windows)
-{
-    #Useful constants
-    point_colnames <- 
-        c("edge", "ipaddr1","port1","ipaddr2","port2",
-          "windowed_qd","protocol")
-        
-    host_proto_association <- get_host_proto_association(windows)
-    
-    ####### Find all the protocols that affect each window
-    # Definition: an host H is affected by a protocol P, if there exists
-    #   a flow F*, in which H is involved, that carries P
-    # Definition: a flow F is affected by a protocol P, if at least one of the two
-    #   hosts involved in F is affected by P
-    # Definition: a window W is affected by a protocol, if it is part
-    #   of a flow F affected by that protocol
-    # Goal: we want to build a dataframe point, in which every window is
-    #   represented by a set of rows, being each row representative of one
-    #   of the protocol that affect that window W
-    
-    # Taking a single windowed_qd, in windows_temp1 there will be a row
-    # for each protocol that affects ipaddr1.
-    # Note: a single windowed_qd could lead to many rows in 
-    #       windows_temp1.
-    colnames(host_proto_association) <- c("ipaddr1","protocol1")
-    windows_temp1 <- merge(windows, host_proto_association, all.x=TRUE)
-    
-    # The same as above. Here, ipaddr2 is used
-    colnames(host_proto_association) <- c("ipaddr2","protocol2")
-    protocol_annotated_windows <- 
-        merge(windows_temp1, host_proto_association, all.x=TRUE)
-    
-    # Now, for each window, we want a set of rows such that the set of protocols
-    # that they represent is the union between the protocols that affect ipaddr1
-    # and the protocols that affect ipaddr2
-    
-    # For each window in C2S dir, find the protocols that affect
-    # ipaddr1
-    point_C2S_1 <- 
-        protocol_annotated_windows[
-            protocol_annotated_windows$qd_samples_C2S>0,
-            c("edge", "ipaddr1","port1","ipaddr2","port2",
-              "windowed_qd_C2S","protocol1")]
-    
-    # For each window in C2S dir, find the protocols that affect
-    # ipaddr2
-    point_C2S_2 <- 
-        protocol_annotated_windows[
-            protocol_annotated_windows$qd_samples_C2S>0,
-            c("edge", "ipaddr1","port1","ipaddr2","port2",
-              "windowed_qd_C2S","protocol2")]
-    
-    # For each window in C2S, unify the protocols that affect ipaddr1
-    # and the protocols that affect ipaddr2
-    colnames(point_C2S_1) <- point_colnames
-    colnames(point_C2S_2) <- point_colnames
-    point_C2S_ <- rbind(point_C2S_1, point_C2S_1 )
-    # Purge duplicates
-    point_C2S <- point_C2S_[!duplicated(point_C2S_[,]),]
-    
-    # Do the same for the S2C direction
-    point_S2C_1 <- 
-        protocol_annotated_windows[
-            protocol_annotated_windows$qd_samples_S2C>0,
-            c("edge", "ipaddr1","port1","ipaddr2","port2",
-              "windowed_qd_S2C","protocol1")]
-    
-    point_S2C_2 <- 
-        protocol_annotated_windows[
-            protocol_annotated_windows$qd_samples_S2C>0,
-            c("edge", "ipaddr1","port1","ipaddr2","port2",
-              "windowed_qd_S2C","protocol2")]
-    
-    colnames(point_S2C_1) <- point_colnames
-    colnames(point_S2C_2) <- point_colnames
-    point_S2C_ <- rbind(point_S2C_1, point_S2C_1 )
-    # Purge duplicates
-    point_S2C <- point_S2C_[!duplicated(point_S2C_[,]),]
-    
-    point_ <- rbind(point_C2S, point_S2C)
-    # Purge duplicates
-    point <- point_[ !duplicated( point_[,] ), ]
-    
-    ####### SEVERE DEBUG
-     y <- na.omit(point)
-     if( length(y[,1])!=length(point[,1]) )
-         handle_error("There are NA in point")
-    
-    
-    x <- na.omit(host_proto_association)
-    if( length(x[,1])!=length(host_proto_association[,1]) )
-        handle_error("There are NA in host_proto_association")
-    
-    if (length( point_C2S[duplicated(point_C2S[,]),1] ) != 0
-        | length( point_S2C[duplicated(point_S2C[,]),1] ) != 0 )
-        handle_error("There are dulpicates in point_C2S or in point_S2C")
-    
-    ####### SEVERE DEBUG
-    
-    return(point[,c("edge","windowed_qd","protocol")])
-}
 
 build_logarithmic_protocol_scatterplot <- function(point, plot_file)
 {
@@ -500,8 +420,7 @@ build_non_logarithmic_protocol_scatterplot <- function(point, plot_file)
 calculate_point_df <- function(filelist)
 {
     filename <- filelist[1]
-    print("Extracting points from file:")
-    print(filename)
+    print(paste("Extracting points from file:",filename) )
     windows_ <-load_window_log(filename)
     point_ <- get_point(windows_)
     print(length(point_[,1]))
@@ -527,29 +446,19 @@ calculate_point_df <- function(filelist)
     ffsave(pointff, file=point_savefile)
 }
 
-convert_to_windows_ff <- function(windows_)
+convert_to_outgoing_windows_ff <- function(outgoing_windows_)
 {
     tryCatch({
-        protocol_C2S <- as.numeric(
-            sapply(strsplit(as.character(windows_$type_C2S),":"), "[[", 1) )
-        protocol_S2C <- as.numeric(
-            sapply(strsplit(as.character(windows_$type_S2C),":"), "[[", 1) )
-        
-        windows_ff <- 
-            ffdf(edge=ff(windows_$edge), ipaddr1=ff(windows_$ipaddr1),
-                 port1=ff(windows_$port1), ipaddr2=ff(windows_$ipaddr2),
-                 port2=ff(windows_$port2), 
-                 protocol_C2S = ff(protocol_C2S),
-                 windowed_qd_C2S=ff(windows_$windowed_qd_C2S), 
-                 qd_samples_C2S=ff(windows_$qd_samples_C2S),
-                 protocol_S2C = ff(protocol_S2C),
-                 windowed_qd_S2C=ff(windows_$windowed_qd_S2C), 
-                 qd_samples_S2C=ff(windows_$qd_samples_S2C)
+        outgoing_windows_ff <- 
+            ffdf(edge=ff(outgoing_windows_$edge), 
+                 ipaddr=ff(outgoing_windows_$ipaddr),
+                 port=ff(outgoing_windows_$port),
+                 protocol = ff(outgoing_windows_$protocol),
+                 windowed_qd = ff(outgoing_windows_$windowed_qd)
             )
         
         ####### SEVERE DEBUG: begin
-        num_of_na_rows <- length( windows_[is.na(windows_$edge) | is.na(windows_$qd_samples_C2S) |
-                                               is.na(windows_$qd_samples_S2C) ,1] )
+        num_of_na_rows <- length( outgoing_windows_[is.na(outgoing_windows_$edge) ,1] )
         if(num_of_na_rows != 0)
         {
             print(paste("convert_to_windows_ff(..): num_of_na_rows=",num_of_na_rows))
@@ -557,15 +466,20 @@ convert_to_windows_ff <- function(windows_)
         }
         ####### SEVERE DEBUG: end
         
-        return(windows_ff)
+        return(outgoing_windows_ff)
     }, 
              warning = function(w){handle_warning(w)},
-             error = function(e) {stop(e)}
+             error = function(e) {
+                 print("ERROR in convert_to_outgoing_windows_ff(..)")
+                 stop(e)
+             }
              
     )
 }
 
-calculate_window_df <- function(filelist)
+
+
+calculate_outgoing_windows_df <- function(filelist)
 {
     tryCatch({
         ####### SEVERE DEBUG: begin
@@ -578,69 +492,69 @@ calculate_window_df <- function(filelist)
             print(paste("calculate_window_df(..) Found ",filelist_size,
                         " log files to analyze" ) )
             filename <- filelist[1]
-            print("calculate_window_df(..): Extracting windows from file:")
-            print(filename)
+            print(paste( "calculate_window_df(..): Extracting windows from file:",
+                         filename) )
             windows_ <-load_window_log(filename)
+            outgoing_windows_ <- get_outgoing_windows(windows_)
             
             ######## SEVERE DEBUG: begin
+            len <- length(outgoing_windows_[,1] )
             print(paste("calculate_window_df(..): Number of windows found ",
-                        "in the last file: ",length(windows_[,1])) )
-            windows_found_until_now <- windows_found_until_now + 
-                length(windows_[,1])
+                        "in the last file: ",len) )
+            windows_found_until_now <- windows_found_until_now + len
             ######## SEVERE DEBUG: end
             
-            windows_ff <- convert_to_windows_ff(windows_)
+            outgoing_windows_ff <- convert_to_outgoing_windows_ff(outgoing_windows_)
             
             ####### SEVERE DEBUG: begin
             print("calculate_window_df(..): Trying to save")
-            ffsave(windows_ff, file=window_savefile)
-            print("calculate_window_df(..): windows_ff")
-            print(windows_ff[1:5,])
-            
-            rm(windows_ff)
-            print("calculate_window_df(..): Trying to load")
+            ffsave(outgoing_windows_ff, file=window_savefile)
+            rm(outgoing_windows_ff)
+            print("calculate_window_df(..): Trying to load outgoing_windows_ff")
             ffload(file=window_savefile, overwrite=TRUE)
             print("calculate_window_df(..): loaded")
-            print("calculate_window_df(..): windows_ff")
-            print(windows_ff[1:5,])
-            
             ####### SEVERE DEBUG: end
-            
-            #length(filelist)
-            for (filename in filelist[2:2])
+            upper_bound <- length(filelist)
+            for (filename in filelist[2:upper_bound])
             {
                 print(paste("calculate_window_df(..): Extracting points from file:",
                             filename) )
                 windows_ <- load_window_log(filename)
+                outgoing_windows_ <- get_outgoing_windows(windows_)
                 
                 ####### SEVERE DEBUG: begin
-                print(paste("calculate_window_df(..): Number of windows found in the last file: ",
-                            length(windows_[,1]) ) )
-                windows_found_until_now <- windows_found_until_now+length(windows_[,1])
+                len <- length(outgoing_windows_[,1] )
+                print(paste("calculate_window_df(..): Number of windows found ",
+                                          "in the last file: ",len) )
+                windows_found_until_now <- windows_found_until_now + len
                 ####### SEVERE DEBUG: end
+                outgoing_windows_ff_ <- convert_to_outgoing_windows_ff(outgoing_windows_)
                 
-                windows_ff_ <- convert_to_windows_ff(windows_)
-                
-                windows_ff <- ffdfappend( windows_ff, windows_ff_, adjustvmode=F)
+                outgoing_windows_ff <- ffdfappend( outgoing_windows_ff, 
+                                                   outgoing_windows_ff_, adjustvmode=F)
             }
             
             print("calculate_window_df(..): Saving windows_ff")
-            ffsave(windows_ff, file=window_savefile)
+            ffsave(outgoing_windows_ff, file=window_savefile)
             
             ######## SEVERE DEBUG: begin
-            print(paste("calculate_window_df(..): The length of windows_ff is now: ",
-                        length(windows_ff[,1]) ) )
-            if(windows_found_until_now != length(windows_ff[,1]) )
+            len <-length(outgoing_windows_ff[,1] )
+            print(paste("calculate_window_df(..): The length of outgoing_windows_ff is now: ",
+                        len) )
+            if(windows_found_until_now != len )
                 stop("calculate_window_df(..): lengths are different")
             ######## SEVERE DEBUG: end
         }        
     },
-             warning = function(w){
-                 print("OOO, vedi che c'e' un warning, faccia di mmerda")
-                 handle_warning(w) },
-             error = function(e){stop(e)}
+             warning = function(w){handle_warning(w) },
+             error = function(e){
+                 print("ERROR in calculate_outgoing_windows_df")
+                 stop(e)
+             }
     ) 
 }
+
+
 
 # Params
 #   - dataframe should be of type ffdf (see ff package info)
@@ -679,11 +593,11 @@ tryCatch({
                            full.names = TRUE, recursive = TRUE,
                            ignore.case = FALSE, include.dirs = FALSE)
     
-    print("Calculating windows_ff")
-    calculate_window_df(filelist)
-    print(paste("windows_ff saved in file ",window_savefile,sep=" ") )
-    
-    print("Loading windows_ff")
+    print("Calculating outgoing_windows_ff")
+    calculate_outgoing_windows_df(filelist)
+    print(paste("outgoing_windows_ff saved in file ",window_savefile) )
+
+    print("Loading outgoing_windows_ff")
     # (windows_ff has been created by calculate_window_df(filelist) )
     ffload(file=window_savefile, overwrite=TRUE)
     
@@ -716,43 +630,3 @@ tryCatch({
 
 
 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# print("Loading point")
-# load(point_savefile)
-# print("Building the plot")
-# build_non_logarithmic_protocol_scatterplot(point, proto_scatterplot_file)
-# 
-# 
-# 
-# png("~/temp/prova-scatter.png", width = 700, height = 700)
-# qplot(point$windowed_qd, point$protocol, alpha=I(1/50), log="x", geom="jitter")
-# dev.off()
-# 
-# png("~/temp/prova-density.png", width = 700, height = 700)
-# point1 <- point
-# point1[point1$windowed_qd<=1, c("windowed_qd")] <- 1
-# qplot(windowed_qd, data=point1, geom="density",xlim=c(0,1000), color=protocol )
-# dev.off()
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 

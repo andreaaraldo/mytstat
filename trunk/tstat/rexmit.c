@@ -648,7 +648,8 @@ rtt_ackin (tcb * ptcb, segment * pseg, Bool rexmit_prev)
       
       bufferbloat_analysis(TCP, ACK_TRIG, (const tcp_pair_addrblock*) &(ptcb->ptp->addr_pair),
 			ack_dir, ack_dir_bufferbloat_stat, opposite_dir_bufferbloat_stat, utp_conn_id, 
-			type, pkt_size, (delay_t)(etime_rtt/1000), overfitting_avoided,  update_size_info);
+			type, pkt_size, (delay_t)(etime_rtt/1000), overfitting_avoided,  update_size_info,
+			(ptcb->ptp)->internal_src, (ptcb->ptp)->internal_dst );
 
       #endif //of BUFFERBLOAT_ANALYSIS
       //</aa>
