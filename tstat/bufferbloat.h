@@ -46,13 +46,15 @@ void print_queueing_dly_sample(enum analysis_type an_type,
  * and print queueing delay logs. Performs windowing operations too
  * - last_gross_delay (microseconds)
  * - return windowed queueing delay (microseconds) or -1 if the window was not closed
- * 
+ * - internal_src: (search "internal_src" in struct.h)
+ * - internal_dst: as above
  */
 delay_t bufferbloat_analysis(enum analysis_type an_type,
 	enum bufferbloat_analysis_trigger trig, const tcp_pair_addrblock* addr_pair, 
 	const int dir, utp_stat* bufferbloat_stat, utp_stat* otherdir_bufferbloat_stat,
 	int utp_conn_id, const char* type, u_int32_t pkt_size, delay_t last_gross_delay,
-	Bool overfitting_avoided, Bool update_size_info);
+	Bool overfitting_avoided, Bool update_size_info,
+	Bool internal_src, Bool internal_dst );
 
 
 
@@ -114,13 +116,18 @@ void chance_is_not_valid(enum analysis_type an_type,
 
 //<aa>TODO: Try to pass the FILE* fp_logc directly, instead of passing
 //an_type and trig and calculate fp_logc inside different functions</aa>
+/*
+ * - internal_src: (search "internal_src" in struct.h)
+ * - internal_dst: as above
+ */
 #ifdef FORCE_CALL_INLINING
 extern inline
 #endif
 void print_last_window_general(enum analysis_type an_type,  
 	enum bufferbloat_analysis_trigger trig, unsigned long long left_edge,
 	const tcp_pair_addrblock* addr_pair,
-	const utp_stat* bufferbloat_stat_p)
+	const utp_stat* bufferbloat_stat_p,
+	Bool internal_src, Bool internal_dst)
 #ifdef FORCE_CALL_INLINING
 	__attribute__((always_inline))
 #endif
@@ -142,7 +149,7 @@ extern inline
 void print_last_window_directional(enum analysis_type an_type,
 	enum bufferbloat_analysis_trigger trig,
 	const utp_stat* bufferbloat_stat, const int conn_id, const char* type,
-	const delay_t qd_window, const delay_t window_error)
+	const delay_t qd_window, const delay_t window_error )
 #ifdef FORCE_CALL_INLINING
 	__attribute__((always_inline))
 #endif

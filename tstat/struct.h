@@ -891,7 +891,9 @@ struct stcp_pair
   tcp_pair_addrblock addr_pair;
 
   /* connection naming information */
-  Bool internal_src;
+  Bool internal_src; 	//<aa> This corresponds to "C internal field" (99-th field) of log_tcp_complete
+			// (see http://tstat.tlc.polito.it/measure.shtml#log_tcp_complete)
+			// It is 1 if client has internal IP, 0 otherwise</aa>
   Bool internal_dst;
 
   /* connection information */

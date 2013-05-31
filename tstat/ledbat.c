@@ -333,7 +333,8 @@ parser_BitTorrentUDP_packet (struct ip *pip, void *pproto, int tproto, void *pdi
 			&(pup->addr_pair), dir, bufferbloat_stat, 
 			&(otherdir->utp), conn_id, type, putplen, 
 			grossdelay_microsecs/1000, overfitting_avoided,
-			it_is_a_data_pkt);
+			it_is_a_data_pkt,
+			(ptcb->ptp)->internal_src, (ptcb->ptp)->internal_dst );
 
 		float estimated_99P;
 		float estimated_95P;
