@@ -46,6 +46,7 @@ tryCatch({
     require(ggplot2)
     require(ff)
     require(ffbase)
+    require(reshape)
     
     proto_name <- as.character( c(
         "UNKNOWN", "HTTP", "RTSP", "RTP", "ICY", "RTCP", "MSN", "YMSG",
@@ -569,6 +570,9 @@ extract_time_window <- function(dataframeff, left_edge, length)
     tryCatch({
         right_edge <- left_edge + length*60
         
+        print( paste( "extract_time_window(..): extracting rows with",
+                      "edge between",left_edge,"and",right_edge) )
+        
         idx <- ffwhich(dataframeff, edge >= left_edge & edge <= right_edge)
         if( is.null(idx) ) {
           idx <- as.numeric( array( dim=c(0) ) )
@@ -586,23 +590,83 @@ extract_time_window <- function(dataframeff, left_edge, length)
     
 }
 
+# It's a wrapper of calculate_outgoing_windows_df(..)
+build_outgoing_windows_df <- function()
+{
+    tryCatch({
+        filelist <- list.files(path = log_file_folder, 
+                               pattern = "*log_tcp_windowed_qd_acktrig", all.files = FALSE,
+                               full.names = TRUE, recursive = TRUE,
+                               ignore.case = FALSE, include.dirs = FALSE)
+        
+        print("Calculating outgoing_windows_ff")
+        calculate_outgoing_windows_df(filelist)
+        print(paste("outgoing_windows_ff saved in file ",window_savefile) )    
+    },
+             warning = function(w){handle_warning(w)},
+             error = function(e){
+                 print("ERROR in build_outgoing_windows_df(..)")
+                 stop(e)
+             }
+    )
+}
+
+plot_class_distinguished_frequency_plots <- function()
+{
+    tryCatch({
+        print("Loading outgoing_windows_ff")
+        # (windows_ff has been created by build_outgoing_windows_df() )
+        ffload(file=window_savefile, overwrite=TRUE)
+        # Now, the variable outgoing_windows_ff is available
+        
+        #### Interval [100,1000[
+        idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) &
+                       windowed_qd >= 100 & windowed_qd < 1000)
+        if( is.null(idx) ) {
+            idx <- as.numeric( array( dim=c(0) ) )
+        }
+        filtered_outgoing_windows <- as.data.frame( outgoing_windows_ff[idx,] )
+        head(filtered_outgoing_windows)
+        q <- qplot( factor(protocol), data=filtered_outgoing_windows, geom="bar", log="y")
+        q + opts(axis.text.x=theme_text(angle=-90))
+        
+        #### Interval [1000,+infty[
+        idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) &
+                           windowed_qd >= 1000)
+        if( is.null(idx) ) {
+            idx <- as.numeric( array( dim=c(0) ) )
+        }
+        filtered_outgoing_windows <- as.data.frame( outgoing_windows_ff[idx,] )
+        head(filtered_outgoing_windows)
+        q <- qplot( factor(protocol), data=filtered_outgoing_windows, geom="bar", log="y")
+        q + opts(axis.text.x=theme_text(angle=-90))
+        
+        #### Interval [0,100[
+        idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) &
+                           windowed_qd < 100)
+        if( is.null(idx) ) {
+            idx <- as.numeric( array( dim=c(0) ) )
+        }
+        filtered_outgoing_windows <- as.data.frame( outgoing_windows_ff[idx,] )
+        head(filtered_outgoing_windows)
+        q <- qplot( factor(protocol), data=filtered_outgoing_windows, geom="bar", log="y")
+        q + opts(axis.text.x=theme_text(angle=-90))
+    },
+             warning = function(w){handle_warning(w)},
+             error = function(e){
+                 print("ERROR in plot_class_distinguished_frequency_plots()")
+                 stop(e)
+             }
+    )
+}
 
 tryCatch({
-    filelist <- list.files(path = log_file_folder, 
-                           pattern = "*log_tcp_windowed_qd_acktrig", all.files = FALSE,
-                           full.names = TRUE, recursive = TRUE,
-                           ignore.case = FALSE, include.dirs = FALSE)
-    
-    print("Calculating outgoing_windows_ff")
-    calculate_outgoing_windows_df(filelist)
-    print(paste("outgoing_windows_ff saved in file ",window_savefile) )
-
     print("Loading outgoing_windows_ff")
-    # (windows_ff has been created by calculate_window_df(filelist) )
-    ffload(file=window_savefile, overwrite=TRUE)
+    # (windows_ff has been created by build_outgoing_windows_df() )
+    #ffload(file=window_savefile, overwrite=TRUE)
+    # Now, the variable outgoing_windows_ff is available
     
-    # Now, the variable windows_ff is available
-    
+    ## Extract time window
     step = 120 #(minutes)
     left_date <- "2007-06-20 23:21:09"
     right_date <- "2007-06-21 23:32:32"
@@ -612,21 +676,68 @@ tryCatch({
     right_edge <- as.numeric(
         strptime(right_date, format="%Y-%m-%d %H:%M:%S") )
     
-
-    print("Extracting windows")
-    while(left_edge <= right_edge)
-    {
-        extracted_windows <- extract_time_window(windows_ff, left_edge, step)
-        #print(paste("Number of windows extracted from",left_edge,"and",right_edge,sep=" "))
-        #print(length(extracted_windows[,1]))
-        left_edge <- left_edge+step
+    print( paste("The initial left_edge is", left_edge) )
+    
+    idx <- ffwhich(outgoing_windows_ff, edge >0)
+    if( is.null(idx) ) {
+        idx <- as.numeric( array( dim=c(0) ) )
     }
+    clean_outgoing_windows_ff <- outgoing_windows_ff[idx,]
+    
+    left_edge <- min(clean_outgoing_windows_ff[,1] )
+    print(paste( "The first edge is", left_edge) )
+    
+    right_edge <- left_edge + 60*60*24
+    
+    print("Extracting windows")
+    quantiles <- NULL
+    iteration <- 1
+    repeat
+    {
+        extracted_windows <- extract_time_window(
+            outgoing_windows_ff, left_edge, step)
+        print(paste("Number of windows extracted between",left_edge,"and",right_edge,sep=" "))
+        print(length(extracted_windows[,1]))
+        
+        new_quantiles <- t( quantile(extracted_windows$windowed_qd,
+                                  c(.50,.90,.95,.99), na.rm = TRUE) )
+        new_quantiles <- cbind(left_edge, new_quantiles)
+        
+        #new_quantiles$left_edge <- left_edge
+        print("new_quantiles is")
+            
+        print( head(new_quantiles) )
+        if(iteration ==1){
+            quantiles <- new_quantiles
+        }else{
+            quantiles <- rbind( quantiles, new_quantiles)
+        }
+        
+        print("Now quantiles is")
+        print(quantiles)
+        
+        
+        left_edge <- left_edge+step*60
+        iteration <- iteration+1
+        
+        if(left_edge > right_edge){
+            break
+        }
+    }
+    quantiles_df <- data.frame(quantiles)
+    quantiles_df <- na.omit(quantiles_df)
+    
+    #Inspired by: http://stackoverflow.com/a/4877936/2110769
+    quantiles_df <- melt( quantiles_df, id="left_edge", variable_name = 'quantiles')
+    ggplot(quantiles_df, aes(left_edge,value)) + geom_line(aes(colour = quantiles))
+    
+    
+    
     
 },
          warning = function(w){handle_warning(w)},
-         error = function(e){stop(e)}
+         error = function(e){
+             print("ERROR in main execution")
+             stop(e)
+         }
 )
-
-
-
-
