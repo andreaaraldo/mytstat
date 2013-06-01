@@ -34,11 +34,31 @@ field_names<-c("edge", "ipaddr1","port1","ipaddr2","port2",
                "sample_qd_sum_until_last_window_S2C",
                "delay_base_S2C")
 
-
+class_assoc <- data.frame(
+    protocol = c(0, 1, 2, 6, 8, 32, 33, 64, 128, 256, 
+               257, 1024, 2048, 4096, 8192, 16384, 16416, 16640, 24576, 
+               32768, 65536, 81920, 131072, 147456),
+    class = c("OTHER", "WEB", "VOIP", "VOIP", "CHAT", "CHAT", "CHAT", "CHAT", "CHAT", "P2P",
+               "P2P", "MAIL", "MAIL", "MAIL", "OTHER", "P2P", "OTHER", "P2P", "OTHER",
+               "SSH", "MEDIA", "OTHER", "P2P", "P2P")
+    )
 
 con <- file(r_logfile)
 sink(con, append=TRUE)
 sink(con, append=TRUE, type="message")
+
+
+handle_warning <- function(w, function_name)
+{
+    print(paste( "WARNING in ", function_name ) )
+    warning(w)
+}
+
+handle_error <- function(e, function_name)
+{
+    print(paste( "ERROR in ", function_name ) )
+    stop(e)
+}
 
 
 tryCatch({
@@ -47,221 +67,12 @@ tryCatch({
     require(ff)
     require(ffbase)
     require(reshape)
-    
-    proto_name <- as.character( c(
-        "UNKNOWN", "HTTP", "RTSP", "RTP", "ICY", "RTCP", "MSN", "YMSG",
-        "XMPP", "P2P", "SKYPE", "SMTP", "POP3", "IMAP", "SSL", "OBF",
-        "SSH", "RTMP", "MSE", "MSE+OBF", "P2P+OBF", "P2P+HTTP",
-        "MSN+HTTP", "RTP+RTSP", "MSN+OBF"
-    ) )
-    
-    # These are the values associated to the protocols by tstat/protocol.h
-    protocol <- c(
-        0, 1, 2, 4, 8, 16, 32, 64,
-        128, 256, 512, 1024, 2048, 4096, 8192, 16384,
-        32768, 65536, 131072, 147456, 16640, 257,
-        33, 6, 16416
-    )
-    
 }
-         ,warning=function(w){handle_warning(w)}
-         ,error=function(e){stop(e)}
+         ,warning=function(w){handle_warning(w,"")}
+         ,error=function(e){handle_error(e,"")}
 )
 
-handle_warning <- function(w)
-{
-    warning(w)
-}
 
-handle_error <- function(error_message)
-{
-    print("ERROR")
-    print(error_message)
-    stop(error_message)
-}
-
-# We will consider only flows in which we observe at least flow_length_threshold
-# non  empty windows and that have experienced at least one time a 
-# windowed_qd >= qd_threshold
-process_windows <- function(windows, qd_threshold, 
-                            flow_length_threshold)
-{
-    flow_id_vector <- c("ipaddr1","port1","ipaddr2","port2")
-    
-    
-    ####### all_non_empty_flows building
-    # Take all the non empty windows and project the resulting
-    # dataframe on the columns that characterize a flow
-    all_non_empty_flows_C2S_ <-windows[ windows$qd_samples_C2S>0,
-                                        flow_id_vector ]
-    
-    all_non_empty_flows_S2C_ <-windows[ windows$qd_samples_S2C>0,
-                                        flow_id_vector  ]
-    
-    # Find the flows with at least 1 non empty window. For each of them
-    # calculate how many non empty windows are observed
-    all_non_empty_flows_C2S <- 
-        ddply(all_non_empty_flows_C2S_, .(ipaddr1,port1,ipaddr2,port2), 
-              summarise, non_empty_wins_count_C2S=length(port2) 
-        )
-    
-    all_non_empty_flows_S2C <- 
-        ddply(all_non_empty_flows_S2C_, .(ipaddr1,port1,ipaddr2,port2), 
-              summarise, non_empty_wins_count_S2C=length(port2) 
-        )
-    
-    ####### Consider only the flows that are long enough
-    long_flows_C2S <- all_non_empty_flows_C2S[
-        all_non_empty_flows_C2S$non_empty_wins_count_C2S >= 
-            flow_length_threshold,
-        ]
-    
-    long_flows_S2C <- all_non_empty_flows_S2C[
-        all_non_empty_flows_S2C$non_empty_wins_count_S2C >= 
-            flow_length_threshold,
-        ]
-    
-    
-    ####### flows_to_study
-    
-    # Take all the windows with a windowed_qd_C2S >= qd_threshold
-    suspected_windows_C2S_ <- windows[
-        windows$windowed_qd_C2S >= qd_threshold &
-            windows$qd_samples_C2S > 0
-        ,
-        flow_id_vector
-        ]
-    
-    suspected_windows_S2C_ <- windows[
-        windows$windowed_qd_S2C>=qd_threshold &
-            windows$qd_samples_S2C>0
-        ,
-        flow_id_vector
-        ]
-    
-    # Among the windows calculated above,
-    # consider only the windows of the long-enough flows. In other words,
-    # ignore all the windows of too short flows.
-    # The following is like an SQL inner join (from the table on the left
-    # I want to preserve only the rows that have a corrispondence with 
-    # some rows of the table on the right)
-    flows_to_study_C2S_ <- merge(suspected_windows_C2S_, long_flows_C2S)
-    flows_to_study_S2C_ <- merge(suspected_windows_S2C_, long_flows_S2C)
-    
-    #Purge duplicated flows
-    flows_to_study_C2S <- 
-        flows_to_study_C2S_[ 
-            !duplicated( flows_to_study_C2S_[,flow_id_vector]), 
-            ]
-    
-    flows_to_study_S2C <- 
-        flows_to_study_S2C_[ 
-            !duplicated( flows_to_study_S2C_[,flow_id_vector]), 
-            ]
-    
-    
-    ####### Ratios
-    affected_ratio_over_all_flows <- 
-        ( length(flows_to_study_C2S[,1]) + 
-              length(flows_to_study_S2C[,1]) ) /
-        ( length(all_non_empty_flows_C2S[,1]) + 
-              length(all_non_empty_flows_S2C[,1]) 
-        )
-    
-    affected_ratio_over_long_enough_flows <- 
-        (   length(flows_to_study_C2S[,1]) + 
-                length(flows_to_study_S2C[,1]) ) /
-        (   length(long_flows_C2S[,1]) + 
-                length(long_flows_S2C[,1]) 
-        )
-    
-    length(flows_to_study_C2S[,1])
-    length(flows_to_study_S2C[,1])
-    length(long_flows_C2S[,1])
-    length(long_flows_S2C[,1])
-    length(all_non_empty_flows_C2S[,1])
-    length(all_non_empty_flows_S2C[,1])
-    ####### windowed qd of the affected flows
-    
-    # Take the windows of the affected flows
-    windows_to_study_C2S_ <- merge(windows, flows_to_study_C2S)
-    windows_to_study_S2C_ <- merge(windows, flows_to_study_S2C)
-    
-    # Consider only the non empty windows
-    windows_to_study_C2S <- 
-        windows_to_study_C2S_[
-            windows_to_study_C2S_$qd_samples_C2S>0,]
-    
-    windows_to_study_S2C <- 
-        windows_to_study_S2C_[
-            windows_to_study_S2C_$qd_samples_S2C>0,]
-    
-    qd_of_flows_to_study_C2S <- 
-        windows_to_study_C2S[, "windowed_qd_C2S"]
-    
-    qd_of_flows_to_study_S2C <- 
-        windows_to_study_S2C[, "windowed_qd_S2C"]
-    
-    # Unify C2S and S2C directions
-    qd_of_flows_to_study <-
-        c(qd_of_flows_to_study_C2S, qd_of_flows_to_study_S2C)
-    
-    ####### Per flow percentiles
-    percentiles_df_C2S <- 
-        ddply(windows_to_study_C2S, .(ipaddr1, port1, ipaddr2, port2), 
-              summarize, 
-              percentile_90 = quantile( windowed_qd_C2S, c(.90)),
-              percentile_95 = quantile( windowed_qd_C2S, c(.95)),
-              percentile_99 = quantile( windowed_qd_C2S, c(.99))
-        )
-    
-    percentiles_df_S2C <- 
-        ddply(windows_to_study_S2C, .(ipaddr1, port1, ipaddr2, port2), 
-              summarize, 
-              percentile_90 = quantile( windowed_qd_S2C, c(.90)), 
-              percentile_95 = quantile( windowed_qd_S2C, c(.95)), 
-              percentile_99 = quantile( windowed_qd_S2C, c(.99))
-        )
-    
-    
-    # Unify percentiles
-    percentile_names <- c("percentile_90","percentile_95","percentile_99")
-    percentiles <- rbind( percentiles_df_C2S[,percentile_names],
-                          percentiles_df_S2C[,percentile_names])
-    
-    
-    #######SEVERE_DEBUG: begin
-    
-    # For we have taken only the windows with qd_samples>0, in all windows
-    # should be possible to compute the windowed qd. Therefore, NA value
-    # are impossibile
-    if( length( qd_of_flows_to_study[is.na(qd_of_flows_to_study)]) != 0)
-        handle_error("ERROR: NA value are forbidden in qd_of_flows_to_study")
-    
-    if(
-        length (
-            long_flows_C2S[duplicated(long_flows_C2S[, flow_id_vector ] ) ] 
-        ) != 0     
-        |
-            length (
-                long_flows_S2C[duplicated(long_flows_S2C[, flow_id_vector ] ) ] 
-            ) != 0 
-    )
-        handle_error("ERROR: duplicates in long_flows")
-    
-    #SEVERE_DEBUG: end
-    
-    # Sarebbe bello printarli
-    qd_threshold
-    flow_length_threshold
-    affected_ratio_over_all_flows
-    affected_ratio_over_long_enough_flows
-    length(qd_of_flows_to_study)
-    quantile(qd_of_flows_to_study,c(.90,.95,.99))
-    
-    return(list(qd_of_flows_to_study=qd_of_flows_to_study, 
-                percentiles=percentiles) )
-}
 
 plot_percentiles <- function(percentiles)
 {
@@ -377,17 +188,23 @@ get_outgoing_windows <- function(windows)
         outgoing_windows <- 
             rbind(internal_client_windows, internal_server_windows)
         
+        ####### SEVERE DEBUG: begin
+        if( length( outgoing_windows[ is.na(outgoing_windows$ipaddr) |
+                                          outgoing_windows$edge==0, 1 ] ) != 0 ){
+            stop("invalid values in outgoing_windows")
+        }
+        ####### SEVERE DEBUG: end
+            
+        
         protocol_column <- 
             sapply(strsplit(as.character(outgoing_windows$type),":"), "[[", 1)
         outgoing_windows$protocol <- as.numeric(protocol_column)
         outgoing_windows$type <- NULL
         return(outgoing_windows)
     },
-        warning=function(w){handle_warning(w)},
-        error=function(e){
-            print("ERROR in get_outgoing_windows(..)")
-            stop(e)}
-            )
+             warning=function(w){handle_warning(w,"get_outgoing_windows(..)")},
+             error=function(e){handle_error(e,"get_outgoing_windows(..)")}
+    )
 }
 
 
@@ -455,25 +272,33 @@ convert_to_outgoing_windows_ff <- function(outgoing_windows_)
                  ipaddr=ff(outgoing_windows_$ipaddr),
                  port=ff(outgoing_windows_$port),
                  protocol = ff(outgoing_windows_$protocol),
-                 windowed_qd = ff(outgoing_windows_$windowed_qd)
+                 windowed_qd = ff(outgoing_windows_$windowed_qd),
+                 class = ff(outgoing_windows_$class)
             )
         
         ####### SEVERE DEBUG: begin
-        num_of_na_rows <- length( outgoing_windows_[is.na(outgoing_windows_$edge) ,1] )
+        num_of_na_rows <- length( 
+            outgoing_windows_[is.na(outgoing_windows_$edge) | outgoing_windows_$edge==0 |
+                                  is.na(outgoing_windows_$ipaddr) | 
+                                  is.na(outgoing_windows_$class) , 1] )
         if(num_of_na_rows != 0)
         {
             print(paste("convert_to_windows_ff(..): num_of_na_rows=",num_of_na_rows))
             stop("convert_to_windows_ff(..): There are forbidden NA in windows_")
+        } 
+        
+        idx <- ffwhich(outgoing_windows_ff, edge==0 | is.na(ipaddr))
+        len <- length( idx )
+        if( len != 0 ){
+            stop(paste( "There are",len,"invalid values in outgoing_windows") )
         }
+        
         ####### SEVERE DEBUG: end
         
         return(outgoing_windows_ff)
     }, 
-             warning = function(w){handle_warning(w)},
-             error = function(e) {
-                 print("ERROR in convert_to_outgoing_windows_ff(..)")
-                 stop(e)
-             }
+             warning = function(w){handle_warning(w, "convert_to_outgoing_windows_ff(..)")},
+             error = function(e) {handle_error(e, "convert_to_outgoing_windows_ff(..)")}
              
     )
 }
@@ -492,66 +317,71 @@ calculate_outgoing_windows_df <- function(filelist)
         else{
             print(paste("calculate_window_df(..) Found ",filelist_size,
                         " log files to analyze" ) )
-            filename <- filelist[1]
-            print(paste( "calculate_window_df(..): Extracting windows from file:",
-                         filename) )
-            windows_ <-load_window_log(filename)
-            outgoing_windows_ <- get_outgoing_windows(windows_)
             
-            ######## SEVERE DEBUG: begin
-            len <- length(outgoing_windows_[,1] )
-            print(paste("calculate_window_df(..): Number of windows found ",
-                        "in the last file: ",len) )
-            windows_found_until_now <- windows_found_until_now + len
-            ######## SEVERE DEBUG: end
-            
-            outgoing_windows_ff <- convert_to_outgoing_windows_ff(outgoing_windows_)
-            
-            ####### SEVERE DEBUG: begin
-            print("calculate_window_df(..): Trying to save")
-            ffsave(outgoing_windows_ff, file=window_savefile)
-            rm(outgoing_windows_ff)
-            print("calculate_window_df(..): Trying to load outgoing_windows_ff")
-            ffload(file=window_savefile, overwrite=TRUE)
-            print("calculate_window_df(..): loaded")
-            ####### SEVERE DEBUG: end
-            upper_bound <- length(filelist)
-            for (filename in filelist[2:upper_bound])
-            {
+            outgoing_windows_ff <- NULL
+            iteration <- 1
+            upper_bound <- filelist_size
+            repeat{
+                filename <- filelist[iteration]
                 print(paste("calculate_window_df(..): Extracting points from file:",
                             filename) )
                 windows_ <- load_window_log(filename)
-                outgoing_windows_ <- get_outgoing_windows(windows_)
+                outgoing_windows_1 <- get_outgoing_windows(windows_)
+                outgoing_windows_ <- 
+                    merge( outgoing_windows_1, traffic_classassoc, 
+                           by.x="protocol", by.y="protocol", all.x=TRUE)
                 
                 ####### SEVERE DEBUG: begin
                 len <- length(outgoing_windows_[,1] )
                 print(paste("calculate_window_df(..): Number of windows found ",
-                                          "in the last file: ",len) )
+                            "in the last file: ",len) )
                 windows_found_until_now <- windows_found_until_now + len
+                
+                if( length( outgoing_windows_[ is.na(outgoing_windows_$class), 1] )>0 ){
+                    print( head( outgoing_windows_[ is.na(outgoing_windows_$class), ] ) )
+                    stop("There are protocols associated to no class")
+                }
+                
+                # print("calculate_outgoing_windows_df(..): outgoing_windows_")
+                # print( head( outgoing_windows_[outgoing_windows_$protocol==1024,] ) )
                 ####### SEVERE DEBUG: end
+                
                 outgoing_windows_ff_ <- convert_to_outgoing_windows_ff(outgoing_windows_)
                 
-                outgoing_windows_ff <- ffdfappend( outgoing_windows_ff, 
-                                                   outgoing_windows_ff_, adjustvmode=F)
+                if( iteration==1 ){
+                    outgoing_windows_ff <- outgoing_windows_ff_
+                }else{
+                    outgoing_windows_ff <- 
+                        ffdfappend( outgoing_windows_ff, 
+                                    outgoing_windows_ff_, adjustvmode=F)
+                }
+                
+                ######## SEVERE DEBUG: begin
+                len <-length(outgoing_windows_ff[,1] )
+                print(paste("calculate_window_df(..): The length of outgoing_windows_ff is now: ",
+                            len) )
+                if(windows_found_until_now != len )
+                    stop("calculate_window_df(..): lengths are different")
+                
+                idx <- ffwhich(outgoing_windows_ff, edge==0 | is.na(ipaddr))
+                len <- length( idx )
+                if( len != 0 ){
+                    stop(paste( "There are",len,"invalid values in outgoing_windows") )
+                }
+                ######## SEVERE DEBUG: end
+                
+                iteration <- iteration + 1
+                if( iteration > upper_bound){
+                    break
+                }
             }
             
             print("calculate_window_df(..): Saving windows_ff")
             ffsave(outgoing_windows_ff, file=window_savefile)
-            
-            ######## SEVERE DEBUG: begin
-            len <-length(outgoing_windows_ff[,1] )
-            print(paste("calculate_window_df(..): The length of outgoing_windows_ff is now: ",
-                        len) )
-            if(windows_found_until_now != len )
-                stop("calculate_window_df(..): lengths are different")
-            ######## SEVERE DEBUG: end
         }        
     },
-             warning = function(w){handle_warning(w) },
-             error = function(e){
-                 print("ERROR in calculate_outgoing_windows_df")
-                 stop(e)
-             }
+             warning = function(w){handle_warning(w, "calculate_outgoing_windows_df(..)") },
+             error = function(e){handle_error(e, "calculate_outgoing_windows_df(..)")}
     ) 
 }
 
@@ -584,8 +414,8 @@ extract_time_window <- function(dataframeff, left_edge, length)
         #                                 dataframeff$edge <= right_edge)
         return(as.data.frame(returndf_ff) )
     },
-             warning = function(w){handle_warning(w)},
-             error = function(e){stop(e)}
+             warning = function(w){handle_warning(w, "extract_time_window(..)")},
+             error = function(e){handle_error(e, "extract_time_window(..)")}
     )
     
 }
@@ -595,19 +425,27 @@ build_outgoing_windows_df <- function()
 {
     tryCatch({
         filelist <- list.files(path = log_file_folder, 
-                               pattern = "*log_tcp_windowed_qd_acktrig", all.files = FALSE,
-                               full.names = TRUE, recursive = TRUE,
+                               pattern = "*log_tcp_windowed_qd_acktrig", 
+                               all.files = FALSE,full.names = TRUE, recursive = TRUE,
                                ignore.case = FALSE, include.dirs = FALSE)
         
         print("Calculating outgoing_windows_ff")
         calculate_outgoing_windows_df(filelist)
+        
         print(paste("outgoing_windows_ff saved in file ",window_savefile) )    
+        
+        ####### SEVERE DEBUG: begin
+        ffload(file=window_savefile, overwrite=TRUE)
+        
+        idx <- ffwhich(outgoing_windows_ff, edge==0 | is.na(ipaddr))
+        len <- length( idx )
+        if( len != 0 ){
+            stop(paste( "There are",len,"invalid values in outgoing_windows") )
+        }
+        ####### SEVERE DEBUG: end
     },
-             warning = function(w){handle_warning(w)},
-             error = function(e){
-                 print("ERROR in build_outgoing_windows_df(..)")
-                 stop(e)
-             }
+             warning = function(w){handle_warning(w,"build_outgoing_windows_df(..)")},
+             error = function(e){handle_error(e,"build_outgoing_windows_df(..)")}
     )
 }
 
@@ -618,6 +456,7 @@ plot_class_distinguished_frequency_plots <- function()
         # (windows_ff has been created by build_outgoing_windows_df() )
         ffload(file=window_savefile, overwrite=TRUE)
         # Now, the variable outgoing_windows_ff is available
+        
         
         #### Interval [100,1000[
         idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) &
@@ -652,19 +491,96 @@ plot_class_distinguished_frequency_plots <- function()
         q <- qplot( factor(protocol), data=filtered_outgoing_windows, geom="bar", log="y")
         q + opts(axis.text.x=theme_text(angle=-90))
     },
-             warning = function(w){handle_warning(w)},
+             warning = function(w){
+                 handle_warning(w,"plot_class_distinguished_frequency_plots()")},
              error = function(e){
-                 print("ERROR in plot_class_distinguished_frequency_plots()")
-                 stop(e)
-             }
+                 handle_error(e,"plot_class_distinguished_frequency_plots()") }
     )
+}
+
+get_class_spread_over_qd_category <- function(outgoing_windows_ff){
+    tryCatch({
+        idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) )
+        tot <- length(idx)
+        outgoing_windows_ff_clean <-outgoing_windows_ff[idx,]
+        
+        spread_over_qd_category <- NULL
+        iteration <- 1
+        for(traffic_class_ in as.character(levels( class_assoc$class) ) ){
+            
+            print( paste( "Looking for class ",traffic_class_) )
+            idx <- ffwhich(outgoing_windows_ff_clean, class==traffic_class_ )
+            if( is.null(idx) ) {
+                idx <- as.numeric( array( dim=c(0) ) )
+            }
+            tot_of_that_class <- length(idx)
+            print( paste( "Found ",tot_of_that_class,"windowed qd of class", traffic_class_ ) )
+            filtered_outgoing_windows <-outgoing_windows_ff[idx,]
+            idx <- ffwhich(filtered_outgoing_windows, windowed_qd<100 )
+            low_ <- length(idx)
+            idx <- ffwhich(filtered_outgoing_windows, windowed_qd>=100 & windowed_qd<1000)
+            mid_ <- length(idx)
+            idx <- ffwhich(filtered_outgoing_windows, windowed_qd>=1000)
+            hig_ <- length(idx)
+    
+            digits_ <- 1
+            spread_over_qd_category_ <- 
+                data.frame(traffic_class=traffic_class_, low=low_, 
+                           mid=mid_, hig=hig_, tot=tot_of_that_class,
+                           low_perc=round( (low_/tot_of_that_class)*100, digits=digits_),
+                           mid_perc=round( (mid_/tot_of_that_class)*100, digits=digits_),
+                           hig_perc=round( (hig_/tot_of_that_class)*100, digits=digits_ ),
+                           overall_perc = round( (tot_of_that_class / tot)*100 ) )
+            
+            if(iteration==1){
+                spread_over_qd_category <- spread_over_qd_category_
+            }else{
+                spread_over_qd_category <- 
+                    rbind( spread_over_qd_category, spread_over_qd_category_ )
+            }
+            
+            iteration <- iteration +1
+        }
+        
+        # Overall statistics
+        spread_over_qd_category_ <- 
+            data.frame(traffic_class="OVERALL", 
+                       low=sum(spread_over_qd_category$low), 
+                       mid=sum(spread_over_qd_category$mid),
+                       hig=sum(spread_over_qd_category$hig),
+                       tot=sum(spread_over_qd_category$tot),
+                       low_perc=( sum(spread_over_qd_category$low)/tot )*100,
+                       mid_perc=( sum(spread_over_qd_category$mid)/tot )*100,
+                       hig_perc=( sum(spread_over_qd_category$hig)/tot )*100,
+                       overall_perc= sum(spread_over_qd_category$overall_perc) )
+        
+        spread_over_qd_category <- 
+            rbind( spread_over_qd_category, spread_over_qd_category_ )
+        
+        print(spread_over_qd_category)
+    },
+             warning = function(w){
+                 handle_warning(w,"get_class_spread_over_qd_category()")},
+             error = function(e){
+                 handle_error(e,"get_class_spread_over_qd_category()") }
+    )
+    
 }
 
 tryCatch({
     print("Loading outgoing_windows_ff")
+    build_outgoing_windows_df()
     # (windows_ff has been created by build_outgoing_windows_df() )
-    #ffload(file=window_savefile, overwrite=TRUE)
+    ffload(file=window_savefile, overwrite=TRUE)
     # Now, the variable outgoing_windows_ff is available
+    ####### SEVERE DEBUG: begin
+    idx <- ffwhich(outgoing_windows_ff, edge==0 | is.na(ipaddr))
+    len <- length( idx )
+    if( len != 0 ){
+        stop(paste( "There are",len,"invalid values in outgoing_windows") )
+    }
+    ####### SEVERE DEBUG: end
+    
     
     ## Extract time window
     step = 120 #(minutes)
@@ -735,9 +651,6 @@ tryCatch({
     
     
 },
-         warning = function(w){handle_warning(w)},
-         error = function(e){
-             print("ERROR in main execution")
-             stop(e)
-         }
+         warning = function(w){handle_warning(w, ",main execution")},
+         error = function(e){handle_error(e, ",main execution")}
 )

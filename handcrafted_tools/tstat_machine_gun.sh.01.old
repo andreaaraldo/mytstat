@@ -1,0 +1,31 @@
+#Folder containing the traces
+FOLDER=$1
+
+LEFT=$2
+RIGHT=$3
+
+echo "tstat machine gun running"
+echo "folder: $FOLDER"
+echo "left: $LEFT"
+echo "howmany: $HOWMANY"
+
+cd /home/araldo/tstat
+
+$I=1
+for f in `ls $FOLDER`; do
+	if  [ $I -ge $LEFT ] && [ $I -le $RIGHT ]  
+	then
+		if [ ! -d "../outputs/$f" ]; then
+			mkdir ../outputs/$f
+			echo "tstat/tstat -s ../outputs/$f $FOLDER/$f/trace.pcap > ../outlogs/$f.log"
+			tstat/tstat -s ../outputs/$f $FOLDER/$f/trace.pcap > ../outlogs/$f.log
+		else
+			echo "$f already processed"
+		fi
+	fi
+
+	I=`expr $I + 1`
+done
+echo "end"
+
+cd -
