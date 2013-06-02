@@ -42,25 +42,25 @@
 #	ping.plot
 
 
-dev=$4
-cap=${1:-1}
+cap=${1:-1} #<aa> link capacity (in kbit)</aa>
 loss=${2:-0}
 aqm=${3:-fifo}
+dev=$4
+#<aa>
+dst=$5 #ip address (for example 84.57.14.201)
+#</aa>
 
 # input check + restore
 [[ "$1" == "clean" ]] && { tc qdisc del dev $dev root; tc qdisc show dev $dev; exit 0; }
 [[ "$1" == "show" ]] && { tc qdisc show dev $dev; exit 0; }
-[[ "$#" == "4"  ]] || { 
+[[ "$#" == "5"  ]] || { 
 	echo "usage
-	sudo ./network_emulation.sh (clean|show) <dev>
-	sudo ./network_emulation.sh capacity[kbit] loss% (fifo|red|sfq) <dev>
+	sudo $0 (clean|show) <dev>
+	sudo ./network_emulation.sh capacity[kbit] loss% (fifo|red|sfq) <dev> <ip_dst>
 	"
 	exit 1; 
 }
 
-# link check
-src="127.0.0.1"
-dst="127.0.0.1"
 
 # variable configuration
 cap=${1:-1}
