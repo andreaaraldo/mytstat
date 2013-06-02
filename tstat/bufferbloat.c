@@ -881,8 +881,7 @@ extern inline
 void print_void_window(enum analysis_type an_type,  
 	enum bufferbloat_analysis_trigger trig, const unsigned long long old_last_left_edge,
 	const tcp_pair_addrblock* addr_pair, const utp_stat* thisdir_bufferbloat_stat,
-	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type,
-	Bool internal_src, Bool internal_dst )
+	const utp_stat* otherdir_bufferbloat_stat, const int conn_id, const char* type)
 {
 	#ifdef SEVERE_DEBUG
 	printf("\nbufferbloat.c %d: printing edge %u\n",__LINE__,(unsigned)old_last_left_edge);
@@ -914,14 +913,12 @@ void print_void_window(enum analysis_type an_type,
 
 
 	print_last_window_general(an_type, trig, old_last_left_edge, addr_pair,
-		thisdir_bufferbloat_stat);
+		thisdir_bufferbloat_stat, internal_src, internal_dst);
 
 	print_last_window_directional(an_type, trig, thisdir_bufferbloat_stat, 
-		conn_id, type, BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES,
-		internal_src, internal_dst);
+		conn_id, type, BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES);
 	print_last_window_directional(an_type, trig, otherdir_bufferbloat_stat, 
-		conn_id, type, BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES,
-		internal_src, internal_dst);
+		conn_id, type, BUFFEBLOAT_NOSAMPLES, BUFFEBLOAT_NOSAMPLES);
 	
 	wfprintf(fp_logc,"\n"); fflush(fp_logc);
 	
