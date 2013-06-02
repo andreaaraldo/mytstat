@@ -1,6 +1,8 @@
 #----------------------------------------------------------------------
 #v1:
 #:> /tmp/ping.DATA
+PORT_TO_SNIFF=$1
+
 
 HOME_FOLDER=/home/andrea
 GENERAL_OUT_FOLDER=$HOME_FOLDER/temp/ping_logs
@@ -11,8 +13,6 @@ TARGET=desktop
 DEV=eth0
 TSTAT_FOLDER=/home/andrea/tstat
 LOG_FOLDER=$GENERAL_OUT_FOLDER
-OUTPUT_IMAGE=$LOG_FOLDER/plot.png
-PORT_TO_SNIFF=5011
 FILTER_FILE=$LOG_FOLDER/filter
 PING_SCRIPT=$LOG_FOLDER/ping.gp
 
@@ -33,7 +33,7 @@ sleep 2
 iperf -t 2000000 -c desktop -s $TSTAT_OUT_FOLDER --port $PORT_TO_SNIFF> $IPERF_LOG 2>&1 &
 
 sleep 5
-sh $TSTAT_FOLDER/ping_validation/build_gnuplot_script.sh $TSTAT_OUT_FOLDER $PING_SCRIPT
+sh $TSTAT_FOLDER/ping_validation/build_gnuplot_script.sh $TSTAT_OUT_FOLDER $PING_SCRIPT $LOG_FOLDER
 
 
 sleep 2
