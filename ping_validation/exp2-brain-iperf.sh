@@ -12,7 +12,7 @@ DESKTOP_IP=`sudo ssh -n -f root@netbook ping -c 1 desktop | head -n 1 | cut -d"(
 # netem bottleneck param
 UPLINK_CAPACITY=1000 #link capacity to emulate (in kbit)
 LOSS_PROBABILITY=0 #(percentage)
-DATARATE=10000  #we want that the netbook sends data packet in the sniffed flow
+DATARATE=7000  #we want that the netbook sends data packet in the sniffed flow
 		# according to this (in kbit)
 
 #Synchronizing the 2 clocks
