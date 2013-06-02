@@ -8,6 +8,13 @@ WIN_ACK_TRIG_FILE=$LAST_RUN_FOLDER/log_tcp_windowed_qd_acktrig
 WIN_DATA_TRIG_FILE=$LAST_RUN_FOLDER/log_tcp_windowed_qd_datatrig
 SAMPLE_ACK_TRIG_FILE=$LAST_RUN_FOLDER/log_tcp_qd_sample_acktrig
 
+#tstat log binding
+ACK_TRIG_WINDOWED_QD_C2S_COL=7
+ACK_TRIG_WINDOWED_QD_S2C_COL=20
+NO_QD_SAMPLES_S2C_COL=26
+CHANCES_IN_WIN_S2C_COL=23 # In the case of ack triggered analysis, this column indicates the 
+						# number of acks received, either valid or not
+
 #Setting gnuplot instructions
 #see: http://hxcaine.com/blog/2013/02/28/running-gnuplot-as-a-live-graph-with-automatic-updates/
 
@@ -26,12 +33,9 @@ echo -ne "set multiplot layout 3,1;\n" >> $PING_SCRIPT
 echo -ne "unset xtics;" >> $PING_SCRIPT
 echo -ne "plot " >> $PING_SCRIPT
 
-#echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$11) with linespoints axes x1y1 title 'data2ack_C2S' " >> $PING_SCRIPT
-#echo -ne ", '< cat $WIN_ACK_TRIG_FILE' u 1:(\$24) with linespoints axes x1y1 title 'data2ack_S2C'," >> $PING_SCRIPT
+echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$$ACK_TRIG_WINDOWED_QD_C2S_COL) with linespoints axes x1y1 title 'ack_trig_windowed_qd_C2S'" >> $PING_SCRIPT
 
-echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$7) with linespoints axes x1y1 title 'ack_trig_windowed_qd_C2S'" >> $PING_SCRIPT
-
-echo -ne ", '< cat $WIN_ACK_TRIG_FILE' u 1:(\$20) with linespoints axes x1y1 title 'ack_trig_windowed_qd_S2C'" >> $PING_SCRIPT
+echo -ne ", '< cat $WIN_ACK_TRIG_FILE' u 1:(\$$ACK_TRIG_WINDOWED_QD_S2C_COL) with linespoints axes x1y1 title 'ack_trig_windowed_qd_S2C'" >> $PING_SCRIPT
 
 echo -ne ", '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with linespoints axes x1y1 title 'rtt_ping';\n" >> $PING_SCRIPT
 echo -ne "set xrange [GPVAL_X_MIN:GPVAL_X_MAX];\n" >> $PING_SCRIPT
@@ -41,13 +45,9 @@ echo -ne "set xtics nomirror rotate by -90;\n" >> $PING_SCRIPT
 
 echo -ne "plot " >> $PING_SCRIPT
 
-#echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$13) with linespoints axes x1y2 title 'no qd_samples_C2S'," >> $PING_SCRIPT
+echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$$NO_QD_SAMPLES_S2C_COL) with linespoints axes x1y2 title 'no qd_samples_S2C'" >> $PING_SCRIPT
 
-echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$26) with linespoints axes x1y2 title 'no qd_samples_S2C'" >> $PING_SCRIPT
-
-#echo -ne ", '< cat $WIN_ACK_TRIG_FILE' u 1:($13/\$10) with linespoints axes x1y1 title 'validity_ratio_C2S'" >> $PING_SCRIPT
-
-echo -ne ", \"< awk '{if(\$23>0) print \$1,\$26/\$23 }' $WIN_ACK_TRIG_FILE\" u 1:2 with linespoints axes x1y1 title 'validity_ratio_S2C'" >> $PING_SCRIPT
+echo -ne ", \"< awk '{if(\$$CHANCES_IN_WIN_S2C_COL>0) print \$1,\$$NO_QD_SAMPLES_S2C_COL/\$$CHANCES_IN_WIN_S2C_COL }' $WIN_ACK_TRIG_FILE\" u 1:2 with linespoints axes x1y1 title 'validity_ratio_S2C'" >> $PING_SCRIPT
 echo -ne ";\n" >> $PING_SCRIPT
 
 #To be sure that the 2 graphs have exactly the same ticks
