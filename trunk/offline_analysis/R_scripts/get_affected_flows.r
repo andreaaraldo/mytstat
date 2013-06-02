@@ -515,7 +515,7 @@ get_class_spread_over_qd_category <- function(outgoing_windows_ff){
             }
             tot_of_that_class <- length(idx)
             print( paste( "Found ",tot_of_that_class,"windowed qd of class", traffic_class_ ) )
-            filtered_outgoing_windows <-outgoing_windows_ff[idx,]
+            filtered_outgoing_windows <-outgoing_windows_ff_clean[idx,]
             idx <- ffwhich(filtered_outgoing_windows, windowed_qd<100 )
             low_ <- length(idx)
             idx <- ffwhich(filtered_outgoing_windows, windowed_qd>=100 & windowed_qd<1000)
@@ -583,7 +583,7 @@ tryCatch({
     
     
     ## Extract time window
-    step = 120 #(minutes)
+    step = 5 #(minutes)
     left_date <- "2007-06-20 23:21:09"
     right_date <- "2007-06-21 23:32:32"
     
@@ -594,12 +594,11 @@ tryCatch({
     
     print( paste("The initial left_edge is", left_edge) )
     
-    idx <- ffwhich(outgoing_windows_ff, edge >0)
+    idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) )
     if( is.null(idx) ) {
         idx <- as.numeric( array( dim=c(0) ) )
     }
     clean_outgoing_windows_ff <- outgoing_windows_ff[idx,]
-    
     left_edge <- min(clean_outgoing_windows_ff[,1] )
     print(paste( "The first edge is", left_edge) )
     
