@@ -5,6 +5,7 @@ RUNTIME=2000000
 TARGET=137.194.164.37
 DEV=eth0
 LOSS_PROBABILITY=0 #(percentage)
+LINK_CAPACITY=1000 #link capacity to emulate (in kbit)
 
 all: load dbg srv netem cli 
 
@@ -15,7 +16,7 @@ srv:
 	iperf -s
 	
 netem:	
-	sudo ./network_emulation.sh 1 $(LOSS_PROBABILITY) fifo $(DEV)
+	sudo ./network_emulation.sh $(LINK_CAPACITY) $(LOSS_PROBABILITY) fifo $(DEV)
 	
 cli:
 	iperf -t $(RUNTIME) -c $(TARGET)

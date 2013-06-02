@@ -53,7 +53,7 @@ aqm=${3:-fifo}
 [[ "$#" == "4"  ]] || { 
 	echo "usage
 	sudo ./network_emulation.sh (clean|show) <dev>
-	sudo ./network_emulation.sh capacity[Mbps] loss% (fifo|red|sfq) <dev>
+	sudo ./network_emulation.sh capacity[kbit] loss% (fifo|red|sfq) <dev>
 	"
 	exit 1; 
 }
