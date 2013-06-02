@@ -6,14 +6,17 @@ NETBOOK_LOG_FOLDER=~/temp/ping_logs
 DESKTOP_LOG_FOLDER=~/temp/ping_logs
 CROSS_TRAFFIC_PORT=5012
 
-#ntpdate ntp.ubuntu.com
-#ssh root@netbook 'ntpdate ntp.ubuntu.com'
+ntpdate ntp.ubuntu.com
+ssh root@netbook 'ntpdate ntp.ubuntu.com'
 
 killall tstat; killall ping; killall iperf; killall iperf; killall iperf; killall iperf; 
 ssh -n -f root@netbook "killall tstat; killall gnuplot; killall ping; killall iperf; killall iperf; killall iperf; killall iperf; nohup ./whatever > /dev/null 2>&1 &"
 
+#Setting the bottlenecs
 ethtool -s eth0 autoneg off
 ethtool -s eth0 speed 10 duplex full
+make -C $DESKTOP_TSTAT_FOLDER/ping_validation netem	# See ping_validation/Makefile to
+							# edit the settings
 
 iperf -s --port 5011 --interval 2 > $DESKTOP_LOG_FOLDER/iperfserv.log &
 ssh -n -f root@netbook "iperf -s --port "$CROSS_TRAFFIC_PORT" --interval 2 > "$NETBOOK_LOG_FOLDER"/iperfserv.log ; nohup ./whatever > /dev/null 2>&1 &"
