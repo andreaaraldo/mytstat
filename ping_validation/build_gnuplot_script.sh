@@ -1,6 +1,10 @@
 TSTAT_OUT_FOLDER=$1
 PING_SCRIPT=$2
+GNUPLOT_OUTPUT_FOLDER=$3
 
+DATE=`date`
+PLOT_FILENAME=$GNUPLOT_OUTPUT_FOLDER/$DATE.png
+echo "The file $PLOT_FILENAME will be generated"
 
 #Get the latest analysis
 LAST_RUN_FOLDER=$TSTAT_OUT_FOLDER/`ls -Artl $TSTAT_OUT_FOLDER | tail -n1 | tr -s ' ' | cut -f9 -d' '`
@@ -20,6 +24,7 @@ CHANCES_IN_WIN_S2C_COL=25 # In the case of ack triggered analysis, this column i
 
 #to print both graphs
 echo -ne "reset;\n" > $PING_SCRIPT
+echo -ne "set term png; set output '$PLOT_FILENAME';\n"
 echo -ne "set grid; show grid; set xlab 'timestamp';\n" >> $PING_SCRIPT
 echo -ne "set format x \"%10.0f\";" >> $PING_SCRIPT
 echo -ne "set ylab '[ms]'; set ytics nomirror; \n" >> $PING_SCRIPT
