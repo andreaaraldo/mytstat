@@ -2,18 +2,19 @@
 #v1:
 #:> /tmp/ping.DATA
 
-
-TSTAT_OUT_FOLDER=/tmp/tstat_out
-TSTAT_LOG=/tmp/tstat.log
-IPERF_LOG=/tmp/iperf.log
+HOME_FOLDER=/home/andrea
+GENERAL_OUT_FOLDER=$HOME_FOLDER/temp/ping_logs
+TSTAT_OUT_FOLDER=$GENERAL_OUT_FOLDER/tstat_out
+TSTAT_LOG=$GENERAL_OUT_FOLDER/tstat.log
+IPERF_LOG=$GENERAL_OUT_FOLDER/iperf.log
 TARGET=desktop
 DEV=eth0
 TSTAT_FOLDER=/home/andrea/tstat
-LOG_FOLDER=$TSTAT_FOLDER/ping_validation/logs
+LOG_FOLDER=$GENERAL_OUT_FOLDER
 OUTPUT_IMAGE=$LOG_FOLDER/plot.png
 PORT_TO_SNIFF=5011
-FILTER_FILE=$TSTAT_FOLDER/ping_validation/filter
-PING_SCRIPT=/tmp/ping.gp
+FILTER_FILE=$LOG_FOLDER/filter
+PING_SCRIPT=$LOG_FOLDER/ping.gp
 
 rm $TSTAT_LOG
 rm $PING_SCRIPT

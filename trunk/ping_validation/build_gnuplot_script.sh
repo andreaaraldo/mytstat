@@ -3,16 +3,16 @@ PING_SCRIPT=$2
 
 
 #Get the latest analysis
-LAST_RUN_FOLDER=/tmp/tstat_out/`ls -Artl $TSTAT_OUT_FOLDER | tail -n1 | tr -s ' ' | cut -f9 -d' '`
+LAST_RUN_FOLDER=$TSTAT_OUT_FOLDER/`ls -Artl $TSTAT_OUT_FOLDER | tail -n1 | tr -s ' ' | cut -f9 -d' '`
 WIN_ACK_TRIG_FILE=$LAST_RUN_FOLDER/log_tcp_windowed_qd_acktrig
 WIN_DATA_TRIG_FILE=$LAST_RUN_FOLDER/log_tcp_windowed_qd_datatrig
 SAMPLE_ACK_TRIG_FILE=$LAST_RUN_FOLDER/log_tcp_qd_sample_acktrig
 
 #tstat log binding
-ACK_TRIG_WINDOWED_QD_C2S_COL=7
-ACK_TRIG_WINDOWED_QD_S2C_COL=20
-NO_QD_SAMPLES_S2C_COL=26
-CHANCES_IN_WIN_S2C_COL=23 # In the case of ack triggered analysis, this column indicates the 
+ACK_TRIG_WINDOWED_QD_C2S_COL=9
+ACK_TRIG_WINDOWED_QD_S2C_COL=22
+NO_QD_SAMPLES_S2C_COL=28
+CHANCES_IN_WIN_S2C_COL=25 # In the case of ack triggered analysis, this column indicates the 
 						# number of acks received, either valid or not
 
 #Setting gnuplot instructions
