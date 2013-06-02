@@ -2,8 +2,8 @@ NETBOOK_TSTAT_FOLDER=/home/andrea/tstat
 DESKTOP_TSTAT_FOLDER=/home/araldo/tstat
 NETBOOK_PING_SCRIPT=$NETBOOK_TSTAT_FOLDER/ping_validation/exp2-ping-netbook.plot.sh
 DESKTOP_PING_SCRIPT=$DESKTOP_TSTAT_FOLDER/ping_validation/ping.plot
-NETBOOK_LOG_FOLDER=$NETBOOK_TSTAT_FOLDER/ping_validation/logs
-DESKTOP_LOG_FOLDER=$DESKTOP_TSTAT_FOLDER/ping_validation/logs
+NETBOOK_LOG_FOLDER=~/temp/ping_logs
+DESKTOP_LOG_FOLDER=~/temp/ping_logs
 CROSS_TRAFFIC_PORT=5012
 
 #ntpdate ntp.ubuntu.com

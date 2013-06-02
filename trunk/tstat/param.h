@@ -42,7 +42,7 @@
 * use TCP versions which allow very large windows ...)
 */
 /* #define MAX_SEG_PER_QUAD -1  to track all segments */
-#define MAX_SEG_PER_QUAD 100
+#define MAX_SEG_PER_QUAD 10000
 
 
 
