@@ -646,9 +646,6 @@ tryCatch({
     quantiles_df <- melt( quantiles_df, id="left_edge", variable_name = 'quantiles')
     ggplot(quantiles_df, aes(left_edge,value)) + geom_line(aes(colour = quantiles))
     
-    
-    
-    
 },
          warning = function(w){handle_warning(w, ",main execution")},
          error = function(e){handle_error(e, ",main execution")}
