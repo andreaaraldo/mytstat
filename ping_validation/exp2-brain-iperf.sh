@@ -74,8 +74,8 @@ done
 echo ""
 echo ""
 echo "####### Cleaning up"
-ssh -n -f root@netbook "killall iperf; killall iperf; killall iperf; killall iperf; killall ping"
-ssh -n -f root@netbook "killall -2 tstat; killall -2 tcpdump"
+ssh -n -f root@netbook "killall iperf; killall iperf; killall iperf; killall iperf; killall ping; killall ping; killall ping; killall ping"
 killall iperf; killall iperf
+ssh -n -f root@netbook "killall -2 tstat; killall -2 tcpdump"
 
 echo "cross traffic ended"
