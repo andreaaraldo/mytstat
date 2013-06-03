@@ -1,6 +1,10 @@
-TSTAT_OUT_FOLDER=$1
-PING_SCRIPT=$2
-GNUPLOT_OUTPUT_FOLDER=$3
+#### author: andrea.araldo@gmail.com
+
+
+# All the environment variables used here, are taken from the script included 
+# in the next line
+MYDIR=`dirname $0`
+source $MYDIR/exp2-netbook-variables_conf.sh
 
 DATE=`date`
 PLOT_FILENAME=$GNUPLOT_OUTPUT_FOLDER/$DATE.png
@@ -42,7 +46,7 @@ echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$$ACK_TRIG_WINDOWED_QD_C2S_COL) with 
 
 echo -ne ", '< cat $WIN_ACK_TRIG_FILE' u 1:(\$$ACK_TRIG_WINDOWED_QD_S2C_COL) with linespoints axes x1y1 title 'ack_trig_windowed_qd_S2C'" >> $PING_SCRIPT
 
-echo -ne ", '< cut -d= -f4- /tmp/ping.DATA' u 1:3 with linespoints axes x1y1 title 'rtt_ping';\n" >> $PING_SCRIPT
+echo -ne ", '< cut -d= -f4- $PING_OUT_FILE' u 1:3 with linespoints axes x1y1 title 'rtt_ping';\n" >> $PING_SCRIPT
 echo -ne "set xrange [GPVAL_X_MIN:GPVAL_X_MAX];\n" >> $PING_SCRIPT
 
 echo -ne "set ylab 'validity ratio'; set y2lab 'no samples/window'; set ytics nomirror; set y2tics;\n" >> $PING_SCRIPT
