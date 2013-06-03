@@ -15,14 +15,22 @@ LOSS_PROBABILITY=0 #(percentage)
 DATARATE=7000  #we want that the netbook sends data packet in the sniffed flow
 		# according to this (in kbit)
 
-#Synchronizing the 2 clocks
-#ntpdate ntp.ubuntu.com
-#ssh root@netbook 'ntpdate ntp.ubuntu.com'
-
+echo ""
+echo ""
+echo "####### Cleaning up"
 killall tstat; killall ping; killall iperf; killall iperf; killall iperf; killall iperf; 
-ssh -n -f root@netbook "killall tstat; killall gnuplot; killall ping; killall iperf; killall iperf; killall iperf; killall iperf; nohup ./whatever > /dev/null 2>&1 &"
+ssh -n -f root@netbook "killall tstat; killall gnuplot; killall ping; killall iperf; killall iperf; killall iperf; killall iperf;"
+sleep 2
 
-###### Setting the bottlenecks: begin
+echo ""
+echo ""
+echo "####### Synchronizing the 2 clocks"
+ntpdate ntp.ubuntu.com
+ssh root@netbook 'ntpdate ntp.ubuntu.com'
+
+echo ""
+echo ""
+echo "####### Setting the bottlenecks"
 ethtool -s eth0 autoneg off
 ethtool -s eth0 speed 10 duplex full
 NETEM_COMMAND="$DESKTOP_TSTAT_FOLDER/ping_validation/network_emulation.sh $UPLINK_CAPACITY $LOSS_PROBABILITY fifo eth0 $NETBOOK_IP"
@@ -34,20 +42,27 @@ NETEM_COMMAND_NETBOOK_SIDE="$NETBOOK_TSTAT_FOLDER/ping_validation/network_emulat
 echo "on netbook: "$NETEM_COMMAND_NETBOOK_SIDE
 ssh -n -f root@netbook $NETEM_COMMAND_NETBOOK_SIDE
 
-###### Setting the bottlenecks: end
 
 
+echo ""
+echo ""
+echo "####### Launching the iperf servers"
 iperf -s --port 5011 --interval 2 > $DESKTOP_LOG_FOLDER/iperfserv.log &
 ssh -n -f root@netbook "iperf -s --port "$CROSS_TRAFFIC_PORT" --interval 2 > "$NETBOOK_LOG_FOLDER"/iperfserv.log ; nohup ./whatever > /dev/null 2>&1 &"
-
 sleep 1
 echo "Receivers started"
 
+
+echo ""
+echo ""
+echo "####### Launching netbook ping script"
 ssh -n -f root@netbook 'sh '$NETBOOK_PING_SCRIPT $SNIFFED_TRAFFIC_PORT "; nohup ./whatever > /dev/null 2>&1 &"
 echo "netbook ping script started"
-
 sleep 15;
-echo "starting cross traffic"
+
+echo ""
+echo ""
+echo "####### Injecting cross traffic"
 #50 100 500 1000 5000 10000 50000 
 for bandwidth in 1 2 3 4 5;
 do 
@@ -56,6 +71,11 @@ do
 	sleep 15;
 done
 
-ssh -n -f root@netbook "killall tstat; killall iperf; killall iperf; killall iperf; killall iperf; killall ping"
+echo ""
+echo ""
+echo "####### Cleaning up"
+ssh -n -f root@netbook "killall iperf; killall iperf; killall iperf; killall iperf; killall ping"
+ssh -n -f root@netbook "killall -2 tstat; killall -2 tcpdump"
+killall iperf; killall iperf
 
 echo "cross traffic ended"
