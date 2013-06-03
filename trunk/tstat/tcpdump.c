@@ -758,7 +758,14 @@ tcpdump_install_filter (pcap_t * pcap, bpf_u_int32 net)
 
       if (pcap_compile (pcap, &filter_comp, filter_string, 1, net) < 0)
 	{
-	  fprintf (fp_stderr, "pcap_compile: %s\n", pcap_geterr (pcap));
+	  //<aa>	
+	  char pcacp_perror_string[300];
+	  //</aa>
+	  fprintf (fp_stderr, "pcap_compile %d: %s\n", __LINE__,pcap_geterr (pcap) );
+	  //<aa>
+	  pcap_perror (pcap,pcacp_perror_string);
+	  fprintf (fp_stderr, "pcacp_perror_string: %s\n", pcacp_perror_string );
+	  //</aa>
 	  exit (1);
 	}
 

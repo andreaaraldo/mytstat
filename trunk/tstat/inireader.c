@@ -131,7 +131,7 @@ void ini_read(char *fname) {
                         break;
                 }
                 if (i == INI_SECTION_LEN) {
-                    fprintf (fp_stderr, "inireader: '%s' - syntax error\n", word);
+                    fprintf (fp_stderr, "inireader %d: '%s' - syntax error\n", __LINE__,word);
                     exit(1);
                 }
                 curr_section = &ini_sections[i];
@@ -151,7 +151,7 @@ void ini_read(char *fname) {
                        for (i = 2; i < len && isxdigit(word[i]); i++)
                         ;
                        if (i != len) {
-                         fprintf (fp_stderr, "inireader: '%s' - syntax error\n", word);
+                         fprintf (fp_stderr, "inireader %d: '%s' - syntax error\n",__LINE__, word);
                          exit(1);
                         }
                        sscanf(word,"%x",&param_value);
@@ -161,14 +161,14 @@ void ini_read(char *fname) {
                       for (i = 0; i < len && isdigit(word[i]); i++)
                         ;
                       if (i != len) {
-                        fprintf (fp_stderr, "inireader: '%s' - syntax error\n", word);
+                        fprintf (fp_stderr, "inireader %d: '%s' - syntax error\n", __LINE__,word);
                         exit(1);
                        }
                       param_value = atoi(word);
                      }
                 }
                 else {
-                    fprintf (fp_stderr, "inireader: '%s' - syntax error\n", word);
+                    fprintf (fp_stderr, "inireader %d: '%s' - syntax error\n", __LINE__,word);
                     exit(1);
                 }
 
