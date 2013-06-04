@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #### author: andrea.araldo@gmail.com
 
 
