@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ### author: andrea.araldo@gmail.com
 
 PORT_TO_SNIFF=$1
@@ -10,16 +12,16 @@ source $MYDIR/exp2-netbook-variables_conf.sh
 
 OUTPUT_SPECIFIER="" #" > $TSTAT_LOG 2>&1"
 
-[[ "$#" == "1"  ]] || { 
+if [ $# -ne 1 ]
+then
+	echo "Inserted parameters: "$#
 	echo "ERROR. Missing parameters. usage
 	$0 <port_to_sniff>
 	"
 	exit 1; 
-}
+fi
 
-
-
-killall gnuplot
+#killall gnuplot
 
 echo "port $PORT_TO_SNIFF" > $FILTER_FILE
 rm -rf $TSTAT_OUT_FOLDER.old
@@ -37,7 +39,8 @@ if [ $EXIT_CODE -ne 0 ]
 then
 	echo "ERROR in launching tstat: exit code "$EXIT_CODE
 else
-	sh $TSTAT_FOLDER/ping_validation/build_gnuplot_script.sh
+	bash $TSTAT_FOLDER/ping_validation/build_gnuplot_script.bash
+	echo "launching gnuplot"
 	gnuplot $PING_SCRIPT	
 fi
 

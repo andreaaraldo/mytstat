@@ -49,10 +49,5 @@ sleep 2
 echo "launching gnuplot"
 gnuplot $PING_SCRIPT
 
-#Killing processes
-#kill -2 $TCPDUMP_PID
-#kill -2 $PING_PID
-#kill -2 $TSTAT_PID
-#kill -2 $IPERF_PID
 
 exit
