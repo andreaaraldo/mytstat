@@ -44,9 +44,8 @@ class_assoc <- data.frame(
     )
 
 con <- file(r_logfile)
-sink(con, append=TRUE)
-sink(con, append=TRUE, type="message")
-
+sink(con, append=FALSE)
+sink(con, append=FALSE, type="message")
 
 handle_warning <- function(w, function_name)
 {
@@ -574,8 +573,18 @@ get_class_spread_over_qd_category <- function(outgoing_windows_ff){
 difference <- function(dataframe1, dataframe2)
 {
     tryCatch({
+        if( dim(dataframe1)[1]==1 & is.na(dataframe1[1, c('edge')]) ){
+            # dataframe1 is empty and the difference is exactly dataframe2
+            return(dataframe2)
+        }
+        if( dim(dataframe2)[1]==1 & is.na(dataframe2[1, c('edge')]) ){
+            # dataframe2 is empty and the difference is exactly dataframe1
+            return(dataframe1)
+        }
+            
+        
         print("dataframe1 (incomplete)")
-        print( class(dataframe1) )
+        class(dataframe1)
         print(dataframe1 )
         print("dataframe2")
         print( class(dataframe2) )
@@ -593,21 +602,31 @@ difference <- function(dataframe1, dataframe2)
         print("union_projection")
         print(union_projection )
         
-        difference_idx <- ffwhich(union_projection, 
-                                   !duplicated(x=union_projection, fromLast = FALSE) & 
-                                       !duplicated(x=union_projection, fromLast = TRUE) )
-#     
-#         difference_idx <- 
-#             !duplicated(union_projection,fromLast = FALSE) & 
-#             !duplicated(union_projection,fromLast = TRUE)
-#         print("difference_idx")
-#         print(difference_idx )
+        difference_idx <- 
+            ffwhich(union_projection, 
+                    !duplicated(x=as.data.frame(union_projection), fromLast = FALSE) & 
+                        !duplicated(x=as.data.frame(union_projection), fromLast = TRUE) )
+        
+#         print("")
+#         print("")
+#         print("difference_idx last=FALSE")
+#         print( !duplicated(x=as.data.frame(union_projection), fromLast = FALSE) )
+#         
+#         print("")
+#         print("")
+#         print("difference_idx last=TRUE")
+#         print( !duplicated(x=as.data.frame(union_projection), fromLast = TRUE) )
+        
+        writeLines("\n\ndifference_idx")
+        print(difference_idx)
         
         difference_df <- union[difference_idx,]
         
-        print("difference_df")
+        writeLines("\n\n")
+        print("difference(..): difference_df")
         print( class(difference_df) )
         print(difference_df)
+        print("returning")
         return(difference_df)
     },
              warning = function(w){handle_warning(w, "difference(..)")},
@@ -618,87 +637,164 @@ difference <- function(dataframe1, dataframe2)
 get_proto_influence <- function(outgoing_windows_ff)
 {
     tryCatch({
+        writeLines("\n\n")
+        print("outgoing_windows_ff")
+        print(outgoing_windows_ff )
+        
+        
+        # A point influenced by a class C is a windowed queueing delay
+        # that has coexisted with class C, i.e., in the second which the
+        # windowed queueing delay is calculated in, there has existed a flow
+        # of protocol C.
+        # The inflenced_point dataframe attaches every windowed queueing delay with all
+        # the classes that influence it (if any)
+        
         influenced_point_colnames <- 
             c('edge', 'ipaddr', 'port', 'protocol', 'windowed_qd', 'influencing_class')
+        
         ####### SEVERE DEBUG: begin
         rownames <- row.names(outgoing_windows_ff)
         if( !is.null( rownames ) ) {
             print( "row_names of outgoing_windows_ff are" )
             print(rownames)
             stop( "rownames must be NULL." )
-        }
-            
+        }    
         ####### SEVERE DEBUG: begin
         
-        outgoing_windows_ff_ord <- outgoing_windows_ff
+        # I want to associate every windowed_qd to all the protocols that have coexisted 
+        # with it. In order to do that, I do an exact copy of outgoing_windows_ff and
+        # merge the to copy (as an SQL join)
+        outgoing_windows_ff_1 <- ffdf(edge=outgoing_windows_ff$edge, 
+                                      ipaddr=outgoing_windows_ff$ipaddr,
+                                      influencing_port=outgoing_windows_ff$port,
+                                      influencing_proto=outgoing_windows_ff$proto,
+                                      influencing_class=outgoing_windows_ff$class)
         
-        print("outgoing_windows_ff_ord")
-        print( outgoing_windows_ff_ord )
+        writeLines("\n\n")
+        print("outgoing_windows_ff_1")
+        print(outgoing_windows_ff_1 )
         
-        outgoing_windows_ff_1 <- ffdf(edge=outgoing_windows_ff_ord$edge, 
-                                      ipaddr=outgoing_windows_ff_ord$ipaddr,
-                                      influencing_port=outgoing_windows_ff_ord$port,
-                                      influencing_proto=outgoing_windows_ff_ord$proto,
-                                      influencing_class=outgoing_windows_ff_ord$class)
         
-        merged <- merge(x=outgoing_windows_ff_ord, y=outgoing_windows_ff_1, 
-                        by.x=c('edge','ipaddr'),by.y=c('edge','ipaddr') )
-        merged_ff <- merged
-        idx <- ffwhich(merged_ff, port != influencing_port )
-        influence <- merged_ff[idx,]
-        print("")
-        print("")
+        merged <- as.ffdf( merge(x=as.data.frame(outgoing_windows_ff), 
+                        y=as.data.frame(outgoing_windows_ff_1), 
+                        by.x=c('edge','ipaddr'),by.y=c('edge','ipaddr') ) )
+        writeLines("\n\n")
+        print("merged")
+        print(merged )
+        
+        # Having done the merge, there are rows merged with themselves. WeI want to
+        # eliminate these association, otherwise I would assert that each windowed queueing
+        # delay is influenced by itself (and it's nonsense)
+        idx <- ffwhich(merged, port != influencing_port )
+        influence <- merged[idx,]
+        writeLines("\n\n")
         print("influence")
         print(influence )
         
+        classes <- class_assoc$class[ !duplicated(class_assoc$class) ]
+        writeLines("\n\n")
+        print("classes")
+        print( class(classes) )
+        print(classes)
         
-        traffic_class <- "WEB"
-        idx <- ffwhich(influence, influencing_class==traffic_class )
+        influence_point <- NULL
+        iteration <- 1
+        
+        print("Se traffivc class glielo do io e' questo")
+        traffic_class_io <- "WEB"
+        print( class(traffic_class_io ) )
+        print(traffic_class_io)
+        
+        repeat{
+            writeLines("\n\n\n\n\n\n\n\n#############\n")
+            traffic_class <- classes[iteration]
+            print("traffic_class_io==traffic_class?")
+            print(traffic_class_io==traffic_class)
+            
+            print("Analyzing the influence of class ")
+            print( class(traffic_class ) )
+            print(traffic_class)
+            
+            # I want to extract all the windowed_qd influenced by traffic_class
+            idx <- ffwhich(influence, as.character(influencing_class)==as.character(traffic_class) )
+            if(is.null(idx) ){
+                idx <- as.numeric( array( dim=c(0) ) )
+            }
+            
+            influenced_by_class_verbose <- influence[idx,]
+            # Get rid of all the useless columns
+            influenced_by_class <- subset( influenced_by_class_verbose, 
+                                           select=influenced_point_colnames )
+            writeLines("\n\n")
+            print("influenced_by_class")
+            print(influenced_by_class)
+            print("dim of influenced_by_class")
+            print( dim(influenced_by_class) )
+            
+            
+            # Now, I want to find all the windowed queueing delays that are NOT influenced
+            # by traffic class. In order to do this, I want to substract the influenced
+            # windowed_qd from the set of all the outgoing windowed_qd (this set is represented
+            # by outgoing_windows_ff). It is technically required that the influenced
+            # windowed_qds that I want to substract are in the same format (i.e. with the same
+            # columns) of outgoing_windows. It is why I need to operate the following projection
+            influenced_by_class_projected_on_outgoing_windows_cols <- 
+                subset(influenced_by_class_verbose, select=colnames(outgoing_windows_ff) )
+            writeLines("\n\n")
+            print("influenced_by_class_projected_on_outgoing_windows_cols")
+            print( class(influenced_by_class_projected_on_outgoing_windows_cols) )
+            print(influenced_by_class_projected_on_outgoing_windows_cols)
+            
+            writeLines("\n\n")
+            print("Giving to difference(..) the dataframe1")
+            print(outgoing_windows_ff)
+            
+            
+            non_influenced_by_class_ <-
+                difference( outgoing_windows_ff , 
+                            influenced_by_class_projected_on_outgoing_windows_cols )
+            writeLines("\n\n")
+            print("non_influenced_by_class prima di merge")
+            print(non_influenced_by_class_)
+            
+            # Now, I want to add to give to non_influenced_by_class the same format of 
+            # influenced_by_class (because later I want to unify them). I need to add the
+            # influencing_class column. I want that all values in this column are
+            # filling_string
+            filling_string <- factor( paste(traffic_class,"NO",sep="_") )
+            
+            # A trick to insert a column with all the same values to a dataframe is
+            # by doing a merge (in particular, I will operate a cartesian product)
+            influencing_class <- ff(rep(filling_string, 
+                                        length.out=dim(non_influenced_by_class_)[1] ) )
+            writeLines("\n\n")
+            print("influencing_class")
+            print(influencing_class)
+            
+            non_influenced_by_class_$influencing_class <- influencing_class
+            
+            # I don't care anymore the actual class of the windowed_qd
+            non_influenced_by_class_$class <- NULL
+            
+            writeLines("\n\n")
+            print("non_influenced_by_class")
+            print(non_influenced_by_class_)
+            
+            influence_point_ <- rbind( influenced_by_class, non_influenced_by_class_)
+            
+            if(iteration==1){
+                influence_point <- influence_point_
+            }else{
+                influence_point <- rbind(influence_point, influence_point_)
+            }
+            
+            iteration <- iteration +1
+            if(iteration > length(class_assoc$class) ){
+                break
+            }
+        }
+        return(influence_point)
 
-        print("")
-        print("")
-        print("influenced_by_class of class")
-        influenced_by_class_verbose <- influence[idx,]
-        print( class(influenced_by_class_verbose) )
-        print(influenced_by_class_verbose)
-        
-        influenced_by_class_projected_on_outgoing_windows_cols <- 
-            subset(influenced_by_class_verbose, select=colnames(outgoing_windows_ff) )
-        print("")
-        print("")
-        print("influenced_by_class_projected_on_outgoing_windows_cols")
-        print( class(influenced_by_class_projected_on_outgoing_windows_cols) )
-        print(influenced_by_class_projected_on_outgoing_windows_cols)
-        
-        # Get rid of all the useless columns
-        influenced_by_class <- subset( influenced_by_class_verbose, 
-                                       select=influenced_point_colnames )
-        
-        non_influenced_by_class <-
-            difference( outgoing_windows_ff_ord , 
-                        influenced_by_class_projected_on_outgoing_windows_cols )
-        print("non_influenced_by_class prima di sostituzione")
-        print(non_influenced_by_class)
-        
-        non_influenced_by_class <- as.data.frame(non_influenced_by_class)
-        non_influenced_by_class$influencing_class <- paste(traffic_class,"NO",sep="_")
-        non_influenced_by_class$class <- NULL
-        print("non_influenced_by_class dopo di sostituzione")
-        print(non_influenced_by_class)
-        
-        #column_to_insert <- as.ff( factor(paste(traffic_class,"NO",sep="_") ) )
-        print(column_to_insert )
-        non_influenced_by_class[,c('class')] <- column_to_insert
-        
-        
-        influenced_points_ <- rbind( influenced_by_class, non_influenced_by_class )
-        
-        print("")
-        print("")
-        print("influenced_points_")
-        print(length( influenced_points_[,1] ) )
-        print(influenced_points_[,])
-        
     },
              warning = function(w){handle_warning(w, "get_proto_influence(..)")},
              error = function(e){handle_error(e, "get_proto_influence(..)")}
