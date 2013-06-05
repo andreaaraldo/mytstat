@@ -267,15 +267,17 @@ calculate_point_df <- function(filelist)
 convert_to_outgoing_windows_ff <- function(outgoing_windows_)
 {
     tryCatch({
-        outgoing_windows_ff <- 
-            ffdf(edge=ff(outgoing_windows_$edge), 
-                 ipaddr=ff(outgoing_windows_$ipaddr),
-                 port=ff(outgoing_windows_$port),
-                 protocol = ff(outgoing_windows_$protocol),
-                 windowed_qd = ff(outgoing_windows_$windowed_qd),
-                 class = ff(outgoing_windows_$class)
-            )
+        outgoing_windows_ff <- as.ffdf(outgoing_windows_)
         
+#         outgoing_windows_ff <- 
+#             ffdf(edge=ff(outgoing_windows_$edge), 
+#                  ipaddr=ff(outgoing_windows_$ipaddr),
+#                  port=ff(outgoing_windows_$port),
+#                  protocol = ff(outgoing_windows_$protocol),
+#                  windowed_qd = ff(outgoing_windows_$windowed_qd),
+#                  class = ff(outgoing_windows_$class)
+#             )
+#         
         ####### SEVERE DEBUG: begin
         num_of_na_rows <- length( 
             outgoing_windows_[is.na(outgoing_windows_$edge) | outgoing_windows_$edge==0 |
@@ -567,6 +569,143 @@ get_class_spread_over_qd_category <- function(outgoing_windows_ff){
     
 }
 
+# Return the rows in dataframe1 and dataframe2 that are not in both dataframes
+# inspired by http://stackoverflow.com/a/10907485/2110769
+difference <- function(dataframe1, dataframe2)
+{
+    tryCatch({
+        print("dataframe1 (incomplete)")
+        print( class(dataframe1) )
+        print(dataframe1 )
+        print("dataframe2")
+        print( class(dataframe2) )
+        print(dataframe2 )
+        union <- rbind(dataframe1, dataframe2)
+        
+        print("union")
+        print( class( union ) )
+        print(union)
+        
+        # We use the projection to extrapolate the indexes of the rows that will fall
+        # in the result, in order to let the duplicated(..) function work only on few
+        # columns in order to reduce the computational load
+        union_projection <- subset(union, select=c('edge', 'ipaddr', 'port') )
+        print("union_projection")
+        print(union_projection )
+        
+        difference_idx <- ffwhich(union_projection, 
+                                   !duplicated(x=union_projection, fromLast = FALSE) & 
+                                       !duplicated(x=union_projection, fromLast = TRUE) )
+#     
+#         difference_idx <- 
+#             !duplicated(union_projection,fromLast = FALSE) & 
+#             !duplicated(union_projection,fromLast = TRUE)
+#         print("difference_idx")
+#         print(difference_idx )
+        
+        difference_df <- union[difference_idx,]
+        
+        print("difference_df")
+        print( class(difference_df) )
+        print(difference_df)
+        return(difference_df)
+    },
+             warning = function(w){handle_warning(w, "difference(..)")},
+             error = function(e){handle_error(e, "difference(..)")}
+    )
+}
+
+get_proto_influence <- function(outgoing_windows_ff)
+{
+    tryCatch({
+        influenced_point_colnames <- 
+            c('edge', 'ipaddr', 'port', 'protocol', 'windowed_qd', 'influencing_class')
+        ####### SEVERE DEBUG: begin
+        rownames <- row.names(outgoing_windows_ff)
+        if( !is.null( rownames ) ) {
+            print( "row_names of outgoing_windows_ff are" )
+            print(rownames)
+            stop( "rownames must be NULL." )
+        }
+            
+        ####### SEVERE DEBUG: begin
+        
+        outgoing_windows_ff_ord <- outgoing_windows_ff
+        
+        print("outgoing_windows_ff_ord")
+        print( outgoing_windows_ff_ord )
+        
+        outgoing_windows_ff_1 <- ffdf(edge=outgoing_windows_ff_ord$edge, 
+                                      ipaddr=outgoing_windows_ff_ord$ipaddr,
+                                      influencing_port=outgoing_windows_ff_ord$port,
+                                      influencing_proto=outgoing_windows_ff_ord$proto,
+                                      influencing_class=outgoing_windows_ff_ord$class)
+        
+        merged <- merge(x=outgoing_windows_ff_ord, y=outgoing_windows_ff_1, 
+                        by.x=c('edge','ipaddr'),by.y=c('edge','ipaddr') )
+        merged_ff <- merged
+        idx <- ffwhich(merged_ff, port != influencing_port )
+        influence <- merged_ff[idx,]
+        print("")
+        print("")
+        print("influence")
+        print(influence )
+        
+        
+        traffic_class <- "WEB"
+        idx <- ffwhich(influence, influencing_class==traffic_class )
+
+        print("")
+        print("")
+        print("influenced_by_class of class")
+        influenced_by_class_verbose <- influence[idx,]
+        print( class(influenced_by_class_verbose) )
+        print(influenced_by_class_verbose)
+        
+        influenced_by_class_projected_on_outgoing_windows_cols <- 
+            subset(influenced_by_class_verbose, select=colnames(outgoing_windows_ff) )
+        print("")
+        print("")
+        print("influenced_by_class_projected_on_outgoing_windows_cols")
+        print( class(influenced_by_class_projected_on_outgoing_windows_cols) )
+        print(influenced_by_class_projected_on_outgoing_windows_cols)
+        
+        # Get rid of all the useless columns
+        influenced_by_class <- subset( influenced_by_class_verbose, 
+                                       select=influenced_point_colnames )
+        
+        non_influenced_by_class <-
+            difference( outgoing_windows_ff_ord , 
+                        influenced_by_class_projected_on_outgoing_windows_cols )
+        print("non_influenced_by_class prima di sostituzione")
+        print(non_influenced_by_class)
+        
+        non_influenced_by_class <- as.data.frame(non_influenced_by_class)
+        non_influenced_by_class$influencing_class <- paste(traffic_class,"NO",sep="_")
+        non_influenced_by_class$class <- NULL
+        print("non_influenced_by_class dopo di sostituzione")
+        print(non_influenced_by_class)
+        
+        #column_to_insert <- as.ff( factor(paste(traffic_class,"NO",sep="_") ) )
+        print(column_to_insert )
+        non_influenced_by_class[,c('class')] <- column_to_insert
+        
+        
+        influenced_points_ <- rbind( influenced_by_class, non_influenced_by_class )
+        
+        print("")
+        print("")
+        print("influenced_points_")
+        print(length( influenced_points_[,1] ) )
+        print(influenced_points_[,])
+        
+    },
+             warning = function(w){handle_warning(w, "get_proto_influence(..)")},
+             error = function(e){handle_error(e, "get_proto_influence(..)")}
+    )
+    
+}
+
 tryCatch({
     print("Loading outgoing_windows_ff")
     build_outgoing_windows_df()
@@ -581,6 +720,11 @@ tryCatch({
     }
     ####### SEVERE DEBUG: end
     
+    idx<-fforder(outgoing_windows_ff$edge, outgoing_windows_ff$ipaddr)
+    outgoing_windows_ff_ord <- outgoing_windows_ff[idx ,]
+    outgoing_windows_ff_ord_subsetted <- as.ffdf(outgoing_windows_ff_ord[1:5,] )
+    row.names(outgoing_windows_ff_ord_subsetted) <- NULL
+    get_proto_influence( outgoing_windows_ff_ord_subsetted )
     
     ## Extract time window
     step = 5 #(minutes)
