@@ -71,8 +71,6 @@ tryCatch({
          ,error=function(e){handle_error(e,"")}
 )
 
-
-
 plot_percentiles <- function(percentiles)
 {
     max_x <- max(c(max(percentiles[,c("percentile_90")]),
@@ -253,7 +251,7 @@ calculate_point_df <- function(filelist)
         print(length(point_[,1]))
         pointff_ <- ffdf(edge=ff(point_$edge), windowed_qd=ff(point_$windowed_qd), 
                          protocol=ff( point_$protocol) )
-        pointff <- ffdfappend( pointff, pointff_, adjustvmode=F)
+        pointff <- ffdfappend( pointff, pointff_, adjustvmode=T)
     }
     
     print("total length")
@@ -568,6 +566,129 @@ get_class_spread_over_qd_category <- function(outgoing_windows_ff){
     
 }
 
+
+plot_quantile_time_evolution <- function(outgoing_windows_ff)
+{
+    tryCatch({
+        ## Extract time window
+        step = 5 #(minutes)
+        left_date <- "2007-06-20 23:21:09"
+        right_date <- "2007-06-21 23:32:32"
+        
+        left_edge <- as.numeric(
+            strptime(left_date, format="%Y-%m-%d %H:%M:%S") )
+        right_edge <- as.numeric(
+            strptime(right_date, format="%Y-%m-%d %H:%M:%S") )
+        
+        print( paste("The initial left_edge is", left_edge) )
+        
+        idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) )
+        if( is.null(idx) ) {
+            idx <- as.numeric( array( dim=c(0) ) )
+        }
+        clean_outgoing_windows_ff <- outgoing_windows_ff[idx,]
+        left_edge <- min(clean_outgoing_windows_ff[,1] )
+        print(paste( "The first edge is", left_edge) )
+        
+        right_edge <- left_edge + 60*60*24
+        
+        print("Extracting windows")
+        quantiles <- NULL
+        iteration <- 1
+        repeat
+        {
+            extracted_windows <- extract_time_window(
+                outgoing_windows_ff, left_edge, step)
+            print(paste("Number of windows extracted between",left_edge,"and",right_edge,sep=" "))
+            print(length(extracted_windows[,1]))
+            
+            new_quantiles <- t( quantile(extracted_windows$windowed_qd,
+                                         c(.50,.90,.95,.99), na.rm = TRUE) )
+            new_quantiles <- cbind(left_edge, new_quantiles)
+            
+            #new_quantiles$left_edge <- left_edge
+            print("new_quantiles is")
+            
+            print( head(new_quantiles) )
+            if(iteration ==1){
+                quantiles <- new_quantiles
+            }else{
+                quantiles <- rbind( quantiles, new_quantiles)
+            }
+            
+            print("Now quantiles is")
+            print(quantiles)
+            
+            
+            left_edge <- left_edge+step*60
+            iteration <- iteration+1
+            
+            if(left_edge > right_edge){
+                break
+            }
+        }
+        quantiles_df <- data.frame(quantiles)
+        quantiles_df <- na.omit(quantiles_df)
+        
+        #Inspired by: http://stackoverflow.com/a/4877936/2110769
+        quantiles_df <- melt( quantiles_df, id="left_edge", variable_name = 'quantiles')
+        ggplot(quantiles_df, aes(left_edge,value)) + geom_line(aes(colour = quantiles))
+        
+    },
+             warning = function(w){handle_warning(w, "get_proto_influence(..)")},
+             error = function(e){handle_error(e, "get_proto_influence(..)")}
+    )   
+    
+}
+
+# I had to write this function because of a bug on the standard ffdfappen function in ffbase
+# when there are different factor levels in ffdf1 and ffdf2
+influence_point_append <- function(ffdf1, ffdf2)
+{
+    tryCatch({
+        if( nrow( ffdf1 ) == 0 | is.na( ffdf1$influencing_class[1] )){
+            print("ffdf1 is 0")
+            return(ffdf2)
+        }
+        print("ffdf1$influencing_class[1]")
+        print(ffdf1$influencing_class[1] )
+        print("ffdf2$influencing_class[1]")
+        print(ffdf2$influencing_class[1] )
+        
+        writeLines("\n\n\nffappend di")
+        print( class( ffdf1$influencing_class ) )
+        print( ffdf1$influencing_class )
+        print("rows di ffdf1")
+        print(nrow( ffdf1 ) )
+        writeLines("e di")
+        print( class( ffdf2$influencing_class ) )
+        print( ffdf2$influencing_class )
+        print("rows di ffdf2")
+        print(nrow( ffdf2 ) )
+        
+        if( nrow( ffdf2 ) == 0 | is.na( ffdf2$influencing_class[1] ) ){
+            print("ffdf2 is 0")
+            return(ffdf1)
+        }
+        
+        
+        influencing_class <- ffappend( ffdf1$influencing_class, ffdf2$influencing_class)
+        print("dopo di ffdfappend")
+        ffdf1$influencing_class <- NULL
+        ffdf2$influencing_class <- NULL
+        print("dopo di annullare")
+        union <- ffdfappend(ffdf1, ffdf2)
+        print("dopo di ffdfappend")
+        union$influencing_class <- influencing_class
+        print("dopo di aggiugnere influencing_class")
+        return(union)
+    },
+             warning = function(w){handle_warning(w, "influence_point_append(..)")},
+             error = function(e){handle_error(e, "influence_point_append(..)")}
+    )
+}
+
+
 # Return the rows in dataframe1 and dataframe2 that are not in both dataframes
 # inspired by http://stackoverflow.com/a/10907485/2110769
 difference <- function(dataframe1, dataframe2)
@@ -634,6 +755,8 @@ difference <- function(dataframe1, dataframe2)
     )
 }
 
+
+
 get_proto_influence <- function(outgoing_windows_ff)
 {
     tryCatch({
@@ -692,15 +815,10 @@ get_proto_influence <- function(outgoing_windows_ff)
         print(influence )
         
         classes <- class_assoc$class[ !duplicated(class_assoc$class) ]
-        writeLines("\n\n")
-        print("classes")
-        print( class(classes) )
-        print(classes)
-        
         influence_point <- NULL
         iteration <- 1
         
-        print("Se traffivc class glielo do io e' questo")
+        print("Se traffic class glielo do io e' questo")
         traffic_class_io <- "WEB"
         print( class(traffic_class_io ) )
         print(traffic_class_io)
@@ -708,6 +826,20 @@ get_proto_influence <- function(outgoing_windows_ff)
         repeat{
             writeLines("\n\n\n\n\n\n\n\n#############\n")
             traffic_class <- classes[iteration]
+            
+            ####### SEVERE DEBUG: begin
+            if( iteration > length( classes ) ){
+                stop("iteration=", iteration,"while length( classes )=",length( classes ))
+            }
+            
+            if( is.na( traffic_class ) ){
+                print("traffic_class is")
+                print(traffic_class)
+                stop( paste("iteration=", iteration, ": Traffic class cannot be NA") )
+            }
+                
+            ####### SEVERE DEBUG: end
+            
             print("traffic_class_io==traffic_class?")
             print(traffic_class_io==traffic_class)
             
@@ -715,13 +847,25 @@ get_proto_influence <- function(outgoing_windows_ff)
             print( class(traffic_class ) )
             print(traffic_class)
             
+            writeLines("\n\n\nas.character(influence$influencing_class)==as.character(traffic_class)")
+            bool_vector <- as.character(influence$influencing_class)==as.character(traffic_class)
+            writeLines("\n\n\n\nbool_vector:")
+            print(class(bool_vector ) )
+            print( bool_vector )
+            
             # I want to extract all the windowed_qd influenced by traffic_class
-            idx <- ffwhich(influence, as.character(influencing_class)==as.character(traffic_class) )
+            idx <- ffwhich(influence, bool_vector )
             if(is.null(idx) ){
+                print("idx is:Rimluoveere questo")
+                print(idx)
+                if(traffic_class == traffic_class_io){
+                    stop("Aspeee': WEB non influenza niente? Impossibile, vah!")
+                }
                 idx <- as.numeric( array( dim=c(0) ) )
             }
             
             influenced_by_class_verbose <- influence[idx,]
+            
             # Get rid of all the useless columns
             influenced_by_class <- subset( influenced_by_class_verbose, 
                                            select=influenced_point_colnames )
@@ -779,27 +923,113 @@ get_proto_influence <- function(outgoing_windows_ff)
             writeLines("\n\n")
             print("non_influenced_by_class")
             print(non_influenced_by_class_)
+            print("dopo printare non_influenced_by_class")
             
-            influence_point_ <- rbind( influenced_by_class, non_influenced_by_class_)
+            influence_point_ <- NULL
+            if( nrow(influenced_by_class) == 0 ){
+                print("influenced_by_class ha 0 rows")
+                influence_point_ <- non_influenced_by_class_
+            }else{
+                print("ffdfappend to produce influence_point_")
+                influence_point_ <- 
+                    influence_point_append( influenced_by_class, non_influenced_by_class_)
+                print("RIABILITAAA DOPOOOOOOOOO dopo ffdfappend")
+            }
+            # see https://stat.ethz.ch/pipermail/r-help/2007-January/124277.html
+#             influence_point_ <- 
+#                 ifelse( nrow(influenced_by_class)==0,
+#                         non_influenced_by_class_,
+#                         rbind( influenced_by_class, non_influenced_by_class_)
+#                 )
+            
+            ####### SEVERE DEBUG: begin
+            if( !is.ffdf(influence_point_) ){
+                print("class of influence_point_ is")
+                print( class(influence_point_) )
+                print("influence_point_ is")
+                print( influence_point_) 
+                stop("influence_point_ is not an ffdf. It's nonsense")
+            }
+            ####### SEVERE DEBUG: end
+            
+            print("dopo binding")
+ 
+            print("Sto facendo binding delle seguenti")
+            print("influence_point")
+            print(influence_point)
+            print("dim of influence_point")
+            print( dim(influence_point) )
+            
+            print("influence_point_ of class")
+            print( class(influence_point_) )
+            print(influence_point_)
+            print("dim of influence_point_")
+            print( dim(influence_point_) )
+            print("Dopo printare le dim of influence_point_")
+            
+            
+            ####### SEVERE_DEBUG: begin
+            if( is.null(non_influenced_by_class_) ){
+                print("non_influenced_by_class_ is")
+                print(non_influenced_by_class_)
+                stop("non_influenced_by_class_ is NULL. It's very strange")
+            }
+            
+            if( is.null( dim(non_influenced_by_class_) ) ){
+                print("class of non_influenced_by_class_ is")
+                print( class(non_influenced_by_class_) )
+                print("non_influenced_by_class_ is")
+                print(non_influenced_by_class_)
+                stop("dim of non_influenced_by_class_ is NULL. It's nonsense")
+            }
+            
+            if( is.null(influence_point_) ){
+                print("influence_point_ is")
+                print(influence_point_)
+                stop("influence_point_ is NULL. It's nonsense")
+            }
+            
+            if( is.null( dim(influence_point_) ) ){
+                print("class of influence_point_ is")
+                print( class(influence_point_) )
+                print("influence_point_ is")
+                print(influence_point_)
+                stop("dim of influence_point_ is NULL. It's nonsense")
+            }
+            
+            
+            if( is.na(influence_point_[1,c('edge') ] ) ){
+                print("influence_point_ is")
+                print(influence_point_)
+                stop("influence_point_ has a null-edge row. It's nonsense")
+            }
+            ####### SEVERE DEBUG: end
             
             if(iteration==1){
                 influence_point <- influence_point_
             }else{
-                influence_point <- rbind(influence_point, influence_point_)
+                
+                influence_point <- ffdfappend(influence_point, influence_point_,
+                                              recode=TRUE, adjustvmode=TRUE)
+                print("Dentro else dopo di ffdfappend di influence point")
             }
+            print("Now influence_point is")
+            print(as.data.frame(influence_point) )
             
             iteration <- iteration +1
-            if(iteration > length(class_assoc$class) ){
+            if(iteration > length( classes ) ){
                 break
             }
+            
+            print("dopo decisione se break")
+            print("Starting the next loop cycle")
         }
         return(influence_point)
 
     },
              warning = function(w){handle_warning(w, "get_proto_influence(..)")},
              error = function(e){handle_error(e, "get_proto_influence(..)")}
-    )
-    
+    )   
 }
 
 tryCatch({
@@ -815,77 +1045,15 @@ tryCatch({
         stop(paste( "There are",len,"invalid values in outgoing_windows") )
     }
     ####### SEVERE DEBUG: end
-    
     idx<-fforder(outgoing_windows_ff$edge, outgoing_windows_ff$ipaddr)
     outgoing_windows_ff_ord <- outgoing_windows_ff[idx ,]
     outgoing_windows_ff_ord_subsetted <- as.ffdf(outgoing_windows_ff_ord[1:5,] )
     row.names(outgoing_windows_ff_ord_subsetted) <- NULL
+    
+    con <- file(r_logfile)
+    sink(con, append=FALSE)
+    sink(con, append=FALSE, type="message")
     get_proto_influence( outgoing_windows_ff_ord_subsetted )
-    
-    ## Extract time window
-    step = 5 #(minutes)
-    left_date <- "2007-06-20 23:21:09"
-    right_date <- "2007-06-21 23:32:32"
-    
-    left_edge <- as.numeric(
-        strptime(left_date, format="%Y-%m-%d %H:%M:%S") )
-    right_edge <- as.numeric(
-        strptime(right_date, format="%Y-%m-%d %H:%M:%S") )
-    
-    print( paste("The initial left_edge is", left_edge) )
-    
-    idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) )
-    if( is.null(idx) ) {
-        idx <- as.numeric( array( dim=c(0) ) )
-    }
-    clean_outgoing_windows_ff <- outgoing_windows_ff[idx,]
-    left_edge <- min(clean_outgoing_windows_ff[,1] )
-    print(paste( "The first edge is", left_edge) )
-    
-    right_edge <- left_edge + 60*60*24
-    
-    print("Extracting windows")
-    quantiles <- NULL
-    iteration <- 1
-    repeat
-    {
-        extracted_windows <- extract_time_window(
-            outgoing_windows_ff, left_edge, step)
-        print(paste("Number of windows extracted between",left_edge,"and",right_edge,sep=" "))
-        print(length(extracted_windows[,1]))
-        
-        new_quantiles <- t( quantile(extracted_windows$windowed_qd,
-                                  c(.50,.90,.95,.99), na.rm = TRUE) )
-        new_quantiles <- cbind(left_edge, new_quantiles)
-        
-        #new_quantiles$left_edge <- left_edge
-        print("new_quantiles is")
-            
-        print( head(new_quantiles) )
-        if(iteration ==1){
-            quantiles <- new_quantiles
-        }else{
-            quantiles <- rbind( quantiles, new_quantiles)
-        }
-        
-        print("Now quantiles is")
-        print(quantiles)
-        
-        
-        left_edge <- left_edge+step*60
-        iteration <- iteration+1
-        
-        if(left_edge > right_edge){
-            break
-        }
-    }
-    quantiles_df <- data.frame(quantiles)
-    quantiles_df <- na.omit(quantiles_df)
-    
-    #Inspired by: http://stackoverflow.com/a/4877936/2110769
-    quantiles_df <- melt( quantiles_df, id="left_edge", variable_name = 'quantiles')
-    ggplot(quantiles_df, aes(left_edge,value)) + geom_line(aes(colour = quantiles))
-    
 },
          warning = function(w){handle_warning(w, ",main execution")},
          error = function(e){handle_error(e, ",main execution")}
