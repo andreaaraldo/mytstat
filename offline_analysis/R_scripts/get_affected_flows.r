@@ -8,8 +8,8 @@ proto_scatterplot_file <- paste(save_folder,"scatter.png",sep="/")
 percentiles_savefile <- paste(save_folder,"percentiles.R.save",sep="/")
 point_savefile <- paste(save_folder,"point.R.save",sep="/")
 window_savefile <- paste(save_folder,"windows.R.save",sep="/")
-qd_of_flows_to_study_savefile <- 
-    paste(save_folder,"qd_flows_to_study.R.save",sep="/")
+influence_point_savefile <- paste(save_folder,"influence_point.R.save",sep="/")
+qd_of_flows_to_study_savefile <- paste(save_folder,"qd_flows_to_study.R.save",sep="/")
 chosen_qd_threshold <- 0
 chosen_flow_length_threshold <- 0
 
@@ -646,41 +646,41 @@ plot_quantile_time_evolution <- function(outgoing_windows_ff)
 influence_point_append <- function(ffdf1, ffdf2)
 {
     tryCatch({
-        if( nrow( ffdf1 ) == 0 | is.na( ffdf1$influencing_class[1] )){
-            print("ffdf1 is 0")
+        writeLines("\n\n\n")
+        print("ffdf1 vedi che e'")
+        print(ffdf1)
+        print("nrow( ffdf1 )")
+        print(nrow( ffdf1 ))
+        
+        if( nrow( ffdf1 ) == 0 
+            # | is.na( ffdf1$influencing_class[1] )
+            ){
             return(ffdf2)
         }
-        print("ffdf1$influencing_class[1]")
-        print(ffdf1$influencing_class[1] )
-        print("ffdf2$influencing_class[1]")
-        print(ffdf2$influencing_class[1] )
-        
-        writeLines("\n\n\nffappend di")
-        print( class( ffdf1$influencing_class ) )
-        print( ffdf1$influencing_class )
-        print("rows di ffdf1")
-        print(nrow( ffdf1 ) )
-        writeLines("e di")
-        print( class( ffdf2$influencing_class ) )
-        print( ffdf2$influencing_class )
-        print("rows di ffdf2")
-        print(nrow( ffdf2 ) )
-        
-        if( nrow( ffdf2 ) == 0 | is.na( ffdf2$influencing_class[1] ) ){
-            print("ffdf2 is 0")
+        if( nrow( ffdf2 ) == 0 
+            # | is.na( ffdf2$influencing_class[1] ) 
+            ){
             return(ffdf1)
         }
         
+        ####### SEVERE DEBUG: begin
+        if( is.na( ffdf1$influencing_class[1] ) ){
+            print("ffd1")
+            print(ffdf1)
+            stop("NA in edge, ipaddr, proto, class are not allowed")
+        }
+        if( is.na( ffdf2$influencing_class[1] ) ){
+            print("ffd2")
+            print(ffdf2)
+            stop("NA in edge, ipaddr, proto, class are not allowed")
+        }
+        ####### SEVERE DEBUG: end
         
         influencing_class <- ffappend( ffdf1$influencing_class, ffdf2$influencing_class)
-        print("dopo di ffdfappend")
         ffdf1$influencing_class <- NULL
         ffdf2$influencing_class <- NULL
-        print("dopo di annullare")
         union <- ffdfappend(ffdf1, ffdf2)
-        print("dopo di ffdfappend")
         union$influencing_class <- influencing_class
-        print("dopo di aggiugnere influencing_class")
         return(union)
     },
              warning = function(w){handle_warning(w, "influence_point_append(..)")},
@@ -702,52 +702,21 @@ difference <- function(dataframe1, dataframe2)
             # dataframe2 is empty and the difference is exactly dataframe1
             return(dataframe1)
         }
-            
         
-        print("dataframe1 (incomplete)")
-        class(dataframe1)
-        print(dataframe1 )
-        print("dataframe2")
-        print( class(dataframe2) )
-        print(dataframe2 )
         union <- rbind(dataframe1, dataframe2)
-        
-        print("union")
-        print( class( union ) )
-        print(union)
         
         # We use the projection to extrapolate the indexes of the rows that will fall
         # in the result, in order to let the duplicated(..) function work only on few
         # columns in order to reduce the computational load
         union_projection <- subset(union, select=c('edge', 'ipaddr', 'port') )
-        print("union_projection")
-        print(union_projection )
         
         difference_idx <- 
             ffwhich(union_projection, 
                     !duplicated(x=as.data.frame(union_projection), fromLast = FALSE) & 
                         !duplicated(x=as.data.frame(union_projection), fromLast = TRUE) )
-        
-#         print("")
-#         print("")
-#         print("difference_idx last=FALSE")
-#         print( !duplicated(x=as.data.frame(union_projection), fromLast = FALSE) )
-#         
-#         print("")
-#         print("")
-#         print("difference_idx last=TRUE")
-#         print( !duplicated(x=as.data.frame(union_projection), fromLast = TRUE) )
-        
-        writeLines("\n\ndifference_idx")
-        print(difference_idx)
-        
+       
         difference_df <- union[difference_idx,]
         
-        writeLines("\n\n")
-        print("difference(..): difference_df")
-        print( class(difference_df) )
-        print(difference_df)
-        print("returning")
         return(difference_df)
     },
              warning = function(w){handle_warning(w, "difference(..)")},
@@ -760,11 +729,6 @@ difference <- function(dataframe1, dataframe2)
 get_proto_influence <- function(outgoing_windows_ff)
 {
     tryCatch({
-        writeLines("\n\n")
-        print("outgoing_windows_ff")
-        print(outgoing_windows_ff )
-        
-        
         # A point influenced by a class C is a windowed queueing delay
         # that has coexisted with class C, i.e., in the second which the
         # windowed queueing delay is calculated in, there has existed a flow
@@ -793,39 +757,27 @@ get_proto_influence <- function(outgoing_windows_ff)
                                       influencing_proto=outgoing_windows_ff$proto,
                                       influencing_class=outgoing_windows_ff$class)
         
-        writeLines("\n\n")
-        print("outgoing_windows_ff_1")
-        print(outgoing_windows_ff_1 )
-        
-        
         merged <- as.ffdf( merge(x=as.data.frame(outgoing_windows_ff), 
                         y=as.data.frame(outgoing_windows_ff_1), 
                         by.x=c('edge','ipaddr'),by.y=c('edge','ipaddr') ) )
-        writeLines("\n\n")
-        print("merged")
-        print(merged )
-        
+
         # Having done the merge, there are rows merged with themselves. WeI want to
         # eliminate these association, otherwise I would assert that each windowed queueing
         # delay is influenced by itself (and it's nonsense)
         idx <- ffwhich(merged, port != influencing_port )
         influence <- merged[idx,]
-        writeLines("\n\n")
-        print("influence")
-        print(influence )
         
         classes <- class_assoc$class[ !duplicated(class_assoc$class) ]
         influence_point <- NULL
         iteration <- 1
         
-        print("Se traffic class glielo do io e' questo")
-        traffic_class_io <- "WEB"
-        print( class(traffic_class_io ) )
-        print(traffic_class_io)
-        
         repeat{
             writeLines("\n\n\n\n\n\n\n\n#############\n")
             traffic_class <- classes[iteration]
+            
+            # I will label with the following string to all the outgoing windowed queueing delay
+            # that are not influenced by this traffic_class
+            filling_string <- factor( paste(traffic_class,"NO",sep="_") )
             
             ####### SEVERE DEBUG: begin
             if( iteration > length( classes ) ){
@@ -837,110 +789,81 @@ get_proto_influence <- function(outgoing_windows_ff)
                 print(traffic_class)
                 stop( paste("iteration=", iteration, ": Traffic class cannot be NA") )
             }
-                
             ####### SEVERE DEBUG: end
             
-            print("traffic_class_io==traffic_class?")
-            print(traffic_class_io==traffic_class)
-            
             print("Analyzing the influence of class ")
-            print( class(traffic_class ) )
             print(traffic_class)
             
-            writeLines("\n\n\nas.character(influence$influencing_class)==as.character(traffic_class)")
-            bool_vector <- as.character(influence$influencing_class)==as.character(traffic_class)
-            writeLines("\n\n\n\nbool_vector:")
-            print(class(bool_vector ) )
-            print( bool_vector )
-            
             # I want to extract all the windowed_qd influenced by traffic_class
-            idx <- ffwhich(influence, bool_vector )
-            if(is.null(idx) ){
-                print("idx is:Rimluoveere questo")
-                print(idx)
-                if(traffic_class == traffic_class_io){
-                    stop("Aspeee': WEB non influenza niente? Impossibile, vah!")
-                }
-                idx <- as.numeric( array( dim=c(0) ) )
+            bool_vector <- as.character(influence$influencing_class)==as.character(traffic_class)
+            idx_influenced <- ffwhich(influence, bool_vector )
+            print("idx: prima di controllo")
+            print(idx_influenced)
+            if(!is.null(idx_influenced) ){
+                influenced_by_class_verbose <- influence[idx_influenced,]
+                
+                # Get rid of all the useless columns
+                influenced_by_class <- subset( influenced_by_class_verbose, 
+                                               select=influenced_point_colnames )
+                
+                # Now, I want to find all the windowed queueing delays that are NOT influenced
+                # by traffic class. In order to do this, I want to substract the influenced
+                # windowed_qd from the set of all the outgoing windowed_qd (this set is represented
+                # by outgoing_windows_ff). It is technically required that the influenced
+                # windowed_qds that I want to substract are in the same format (i.e. with the same
+                # columns) of outgoing_windows. It is why I need to operate the following projection
+                influenced_by_class_projected_on_outgoing_windows_cols <- 
+                    subset(influenced_by_class_verbose, select=colnames(outgoing_windows_ff) )
+                
+                non_influenced_by_class_ <-
+                    difference( outgoing_windows_ff , 
+                                influenced_by_class_projected_on_outgoing_windows_cols )
+                
+                # Now, I want to add to give to non_influenced_by_class the same format of 
+                # influenced_by_class (because later I want to unify them). I need to add the
+                # influencing_class column. I want that all values in this column are
+                # filling_string
+                
+                
+            }else{
+                # This class does not influence any windowed_qd
+                non_influenced_by_class_ <- outgoing_windows_ff
+                
             }
-            
-            influenced_by_class_verbose <- influence[idx,]
-            
-            # Get rid of all the useless columns
-            influenced_by_class <- subset( influenced_by_class_verbose, 
-                                           select=influenced_point_colnames )
-            writeLines("\n\n")
-            print("influenced_by_class")
-            print(influenced_by_class)
-            print("dim of influenced_by_class")
-            print( dim(influenced_by_class) )
-            
-            
-            # Now, I want to find all the windowed queueing delays that are NOT influenced
-            # by traffic class. In order to do this, I want to substract the influenced
-            # windowed_qd from the set of all the outgoing windowed_qd (this set is represented
-            # by outgoing_windows_ff). It is technically required that the influenced
-            # windowed_qds that I want to substract are in the same format (i.e. with the same
-            # columns) of outgoing_windows. It is why I need to operate the following projection
-            influenced_by_class_projected_on_outgoing_windows_cols <- 
-                subset(influenced_by_class_verbose, select=colnames(outgoing_windows_ff) )
-            writeLines("\n\n")
-            print("influenced_by_class_projected_on_outgoing_windows_cols")
-            print( class(influenced_by_class_projected_on_outgoing_windows_cols) )
-            print(influenced_by_class_projected_on_outgoing_windows_cols)
-            
-            writeLines("\n\n")
-            print("Giving to difference(..) the dataframe1")
-            print(outgoing_windows_ff)
-            
-            
-            non_influenced_by_class_ <-
-                difference( outgoing_windows_ff , 
-                            influenced_by_class_projected_on_outgoing_windows_cols )
-            writeLines("\n\n")
-            print("non_influenced_by_class prima di merge")
-            print(non_influenced_by_class_)
-            
-            # Now, I want to add to give to non_influenced_by_class the same format of 
-            # influenced_by_class (because later I want to unify them). I need to add the
-            # influencing_class column. I want that all values in this column are
-            # filling_string
-            filling_string <- factor( paste(traffic_class,"NO",sep="_") )
-            
-            # A trick to insert a column with all the same values to a dataframe is
-            # by doing a merge (in particular, I will operate a cartesian product)
+          
+            # Now I add a column filled with the filling_string
             influencing_class <- ff(rep(filling_string, 
                                         length.out=dim(non_influenced_by_class_)[1] ) )
-            writeLines("\n\n")
-            print("influencing_class")
-            print(influencing_class)
-            
             non_influenced_by_class_$influencing_class <- influencing_class
             
             # I don't care anymore the actual class of the windowed_qd
             non_influenced_by_class_$class <- NULL
             
-            writeLines("\n\n")
-            print("non_influenced_by_class")
-            print(non_influenced_by_class_)
-            print("dopo printare non_influenced_by_class")
-            
-            influence_point_ <- NULL
-            if( nrow(influenced_by_class) == 0 ){
-                print("influenced_by_class ha 0 rows")
-                influence_point_ <- non_influenced_by_class_
-            }else{
-                print("ffdfappend to produce influence_point_")
+            if( !is.null(idx_influenced) ){
+                # Doing as follows does not work. Why?
+                # see https://stat.ethz.ch/pipermail/r-help/2007-January/124277.html
+                #             influence_point_ <- 
+                #                 ifelse( nrow(influenced_by_class)==0,
+                #                         non_influenced_by_class_,
+                #                         influence_point_append( influenced_by_class, non_influenced_by_class_)
+                #                 )
+                #             
+                print("Calling influence_point_append( influenced_by_class, non_influenced_by_class_)")
                 influence_point_ <- 
                     influence_point_append( influenced_by_class, non_influenced_by_class_)
-                print("RIABILITAAA DOPOOOOOOOOO dopo ffdfappend")
+                
+            }else{
+                # This class does not influence any windowed_qd
+                influence_point_ <- non_influenced_by_class_
             }
-            # see https://stat.ethz.ch/pipermail/r-help/2007-January/124277.html
-#             influence_point_ <- 
-#                 ifelse( nrow(influenced_by_class)==0,
-#                         non_influenced_by_class_,
-#                         rbind( influenced_by_class, non_influenced_by_class_)
-#                 )
+       
+#              influence_point_ <- NULL
+#              if( nrow(influenced_by_class) == 0 ){
+#                  influence_point_ <- non_influenced_by_class_
+#              }else{
+#                  influence_point_ <- 
+#                      influence_point_append( influenced_by_class, non_influenced_by_class_)
+#              }}
             
             ####### SEVERE DEBUG: begin
             if( !is.ffdf(influence_point_) ){
@@ -950,25 +873,7 @@ get_proto_influence <- function(outgoing_windows_ff)
                 print( influence_point_) 
                 stop("influence_point_ is not an ffdf. It's nonsense")
             }
-            ####### SEVERE DEBUG: end
             
-            print("dopo binding")
- 
-            print("Sto facendo binding delle seguenti")
-            print("influence_point")
-            print(influence_point)
-            print("dim of influence_point")
-            print( dim(influence_point) )
-            
-            print("influence_point_ of class")
-            print( class(influence_point_) )
-            print(influence_point_)
-            print("dim of influence_point_")
-            print( dim(influence_point_) )
-            print("Dopo printare le dim of influence_point_")
-            
-            
-            ####### SEVERE_DEBUG: begin
             if( is.null(non_influenced_by_class_) ){
                 print("non_influenced_by_class_ is")
                 print(non_influenced_by_class_)
@@ -997,7 +902,6 @@ get_proto_influence <- function(outgoing_windows_ff)
                 stop("dim of influence_point_ is NULL. It's nonsense")
             }
             
-            
             if( is.na(influence_point_[1,c('edge') ] ) ){
                 print("influence_point_ is")
                 print(influence_point_)
@@ -1005,25 +909,33 @@ get_proto_influence <- function(outgoing_windows_ff)
             }
             ####### SEVERE DEBUG: end
             
-            if(iteration==1){
+            if( iteration==1 ){
                 influence_point <- influence_point_
             }else{
-                
-                influence_point <- ffdfappend(influence_point, influence_point_,
-                                              recode=TRUE, adjustvmode=TRUE)
-                print("Dentro else dopo di ffdfappend di influence point")
+                influence_point <- influence_point_append(influence_point, influence_point_)
             }
+            
             print("Now influence_point is")
             print(as.data.frame(influence_point) )
+            
+#             if(iteration==1){
+#                 influence_point <- influence_point_
+#             }else{
+#                 
+#                 influence_point <- ffdfappend(influence_point, influence_point_,
+#                                               recode=TRUE, adjustvmode=TRUE)
+#                 print("Dentro else dopo di ffdfappend di influence point")
+#             }
             
             iteration <- iteration +1
             if(iteration > length( classes ) ){
                 break
             }
             
-            print("dopo decisione se break")
-            print("Starting the next loop cycle")
         }
+        
+        print("Now influence_point is")
+        print(as.data.frame(influence_point) )
         return(influence_point)
 
     },
@@ -1032,9 +944,23 @@ get_proto_influence <- function(outgoing_windows_ff)
     )   
 }
 
+build_influence_point_df <- function(outgoing_windows_ff)
+{
+    idx<-fforder(outgoing_windows_ff$edge, outgoing_windows_ff$ipaddr)
+    outgoing_windows_ff_ord <- outgoing_windows_ff[idx ,]
+    outgoing_windows_ff_ord_subsetted <- as.ffdf(outgoing_windows_ff_ord[1:5,] )
+    row.names(outgoing_windows_ff_ord_subsetted) <- NULL
+    
+    con <- file(r_logfile)
+    sink(con, append=FALSE)
+    sink(con, append=FALSE, type="message")
+    influence_point <- get_proto_influence( outgoing_windows_ff_ord_subsetted )
+    ffsave(influence_point, file=influence_point_savefile)
+}
+
 tryCatch({
     print("Loading outgoing_windows_ff")
-    build_outgoing_windows_df()
+    # build_outgoing_windows_df()
     # (windows_ff has been created by build_outgoing_windows_df() )
     ffload(file=window_savefile, overwrite=TRUE)
     # Now, the variable outgoing_windows_ff is available
@@ -1045,15 +971,19 @@ tryCatch({
         stop(paste( "There are",len,"invalid values in outgoing_windows") )
     }
     ####### SEVERE DEBUG: end
-    idx<-fforder(outgoing_windows_ff$edge, outgoing_windows_ff$ipaddr)
-    outgoing_windows_ff_ord <- outgoing_windows_ff[idx ,]
-    outgoing_windows_ff_ord_subsetted <- as.ffdf(outgoing_windows_ff_ord[1:5,] )
-    row.names(outgoing_windows_ff_ord_subsetted) <- NULL
     
-    con <- file(r_logfile)
-    sink(con, append=FALSE)
-    sink(con, append=FALSE, type="message")
-    get_proto_influence( outgoing_windows_ff_ord_subsetted )
+    print("Building influence_point")
+    build_influence_point_df( outgoing_windows_ff )
+    print( paste( "influence_point is saved in ", influence_point_savefile) )
+    
+    print("Loading influence_point")
+    ffload(file=influence_point_savefile, overwrite=TRUE)
+    # Now, the variable influence_point_savefile is available
+    print("dim of influence_point is")
+    print( dim( influence_point ) )
+    
+    
+    
 },
          warning = function(w){handle_warning(w, ",main execution")},
          error = function(e){handle_error(e, ",main execution")}
