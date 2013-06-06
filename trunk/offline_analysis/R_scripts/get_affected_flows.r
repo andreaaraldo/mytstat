@@ -4,7 +4,7 @@ save_folder <- "/home/araldo/temp/r_out"
 r_logfile <- paste(save_folder,"r.log",sep="/")
 percentiles_cdf_plot <- paste(save_folder,"percentiles_cdf.jpg",sep="/")
 qd_pdf_plot <- paste(save_folder,"qd_pdf.jpg",sep="/")
-proto_scatterplot_file <- paste(save_folder,"scatter.png",sep="/")
+linear_class_scatterplot_file <- paste(save_folder,"scatter.eps",sep="/")
 percentiles_savefile <- paste(save_folder,"percentiles.R.save",sep="/")
 point_savefile <- paste(save_folder,"point.R.save",sep="/")
 window_savefile <- paste(save_folder,"windows.R.save",sep="/")
@@ -204,8 +204,39 @@ get_outgoing_windows <- function(windows)
     )
 }
 
+build_class_scatterplots <- function()
+{
+    tryCatch({
+        
+        print("Loading outgoing_windows_ff")
+        ffload(file=window_savefile, overwrite=TRUE)
+        # Now, the variable outgoing_windows_ff is available
+        
+        outgoing_windows_ff_clean <- as.data.frame(outgoing_windows_ff)
+        outgoing_windows_ff_clean <-
+            outgoing_windows_ff_clean[!is.na(outgoing_windows_ff_clean$windowed_qd), ]
+        
+        # see: http://www.r-bloggers.com/preparing-plots-for-publication/
+#         filename <- paste(linear_class_scatterplot_file, "linear","png", sep='.')
+#         pl <- qplot(class, windowed_qd, data=outgoing_windows_ff_clean, geom="jitter", 
+#                     alpha=I(1/5))
+#         print("Plot generated")
+#         ggsave(plot=pl, file=filename, dpi=75)
+#         print( paste("plot saved to file",filename) )
+        
+        filename <- paste(linear_class_scatterplot_file, "log","png", sep='.')
+        pl <- qplot(class, windowed_qd, data=outgoing_windows_ff_clean, geom="jitter", 
+                    alpha=I(1/5), log="y")
+        ggsave(plot=pl, file=filename, dpi=75)
+        print( paste("plot saved to file",filename) )
+    },
+             warning=function(w){handle_warning(w,"build_linear_class_scatterplot(..)")},
+             error=function(e){handle_error(e,"build_linear_class_scatterplot(..)")}
+    )
+}
 
-build_logarithmic_protocol_scatterplot <- function(point, plot_file)
+
+build_logarithmic_protocol_scatterplot_useless <- function(point, plot_file)
 {
     png(plot_file, width = 700, height = 700)
     qds <- jitter(point$windowed_qd, amount=10)
@@ -217,7 +248,7 @@ build_logarithmic_protocol_scatterplot <- function(point, plot_file)
     dev.off()    
 }
 
-build_non_logarithmic_protocol_scatterplot <- function(point, plot_file)
+build_non_logarithmic_protocol_scatterplot_useless <- function(point, plot_file)
 {
     png(plot_file, width = 700, height = 700)
     qds <- jitter(point$windowed_qd, amount=10)
@@ -797,8 +828,6 @@ get_proto_influence <- function(outgoing_windows_ff)
             # I want to extract all the windowed_qd influenced by traffic_class
             bool_vector <- as.character(influence$influencing_class)==as.character(traffic_class)
             idx_influenced <- ffwhich(influence, bool_vector )
-            print("idx: prima di controllo")
-            print(idx_influenced)
             if(!is.null(idx_influenced) ){
                 influenced_by_class_verbose <- influence[idx_influenced,]
                 
@@ -848,7 +877,6 @@ get_proto_influence <- function(outgoing_windows_ff)
                 #                         influence_point_append( influenced_by_class, non_influenced_by_class_)
                 #                 )
                 #             
-                print("Calling influence_point_append( influenced_by_class, non_influenced_by_class_)")
                 influence_point_ <- 
                     influence_point_append( influenced_by_class, non_influenced_by_class_)
                 
@@ -915,8 +943,6 @@ get_proto_influence <- function(outgoing_windows_ff)
                 influence_point <- influence_point_append(influence_point, influence_point_)
             }
             
-            print("Now influence_point is")
-            print(as.data.frame(influence_point) )
             
 #             if(iteration==1){
 #                 influence_point <- influence_point_
@@ -932,6 +958,7 @@ get_proto_influence <- function(outgoing_windows_ff)
                 break
             }
             
+            
         }
         
         print("Now influence_point is")
@@ -944,26 +971,12 @@ get_proto_influence <- function(outgoing_windows_ff)
     )   
 }
 
-build_influence_point_df <- function(outgoing_windows_ff)
+build_influence_point_df <- function()
 {
-    idx<-fforder(outgoing_windows_ff$edge, outgoing_windows_ff$ipaddr)
-    outgoing_windows_ff_ord <- outgoing_windows_ff[idx ,]
-    outgoing_windows_ff_ord_subsetted <- as.ffdf(outgoing_windows_ff_ord[1:5,] )
-    row.names(outgoing_windows_ff_ord_subsetted) <- NULL
-    
-    con <- file(r_logfile)
-    sink(con, append=FALSE)
-    sink(con, append=FALSE, type="message")
-    influence_point <- get_proto_influence( outgoing_windows_ff_ord_subsetted )
-    ffsave(influence_point, file=influence_point_savefile)
-}
-
-tryCatch({
     print("Loading outgoing_windows_ff")
-    # build_outgoing_windows_df()
-    # (windows_ff has been created by build_outgoing_windows_df() )
     ffload(file=window_savefile, overwrite=TRUE)
     # Now, the variable outgoing_windows_ff is available
+    
     ####### SEVERE DEBUG: begin
     idx <- ffwhich(outgoing_windows_ff, edge==0 | is.na(ipaddr))
     len <- length( idx )
@@ -973,17 +986,30 @@ tryCatch({
     ####### SEVERE DEBUG: end
     
     print("Building influence_point")
-    build_influence_point_df( outgoing_windows_ff )
+    
+    idx<-fforder(outgoing_windows_ff$edge, outgoing_windows_ff$ipaddr)
+    outgoing_windows_ff_ord <- outgoing_windows_ff[idx ,]
+    outgoing_windows_ff_ord_subsetted <- outgoing_windows_ff_ord
+    row.names(outgoing_windows_ff_ord_subsetted) <- NULL
+    
+    influence_point <- get_proto_influence( outgoing_windows_ff_ord_subsetted )
+    ffsave(influence_point, file=influence_point_savefile)
+    
     print( paste( "influence_point is saved in ", influence_point_savefile) )
     
-    print("Loading influence_point")
+    print("Trying to load influence_point")
     ffload(file=influence_point_savefile, overwrite=TRUE)
     # Now, the variable influence_point_savefile is available
     print("dim of influence_point is")
     print( dim( influence_point ) )
+}
+
+tryCatch({
+    con <- file(r_logfile)
+    sink(con, append=FALSE)
+    sink(con, append=FALSE, type="message")
     
-    
-    
+    build_class_scatterplots()
 },
          warning = function(w){handle_warning(w, ",main execution")},
          error = function(e){handle_error(e, ",main execution")}
