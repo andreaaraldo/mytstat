@@ -25,11 +25,13 @@ NO_QD_SAMPLES_S2C_COL=28
 CHANCES_IN_WIN_S2C_COL=25 # In the case of ack triggered analysis, this column indicates the 
 						# number of acks received, either valid or not
 
+echo "###### This gnuplot script is automatically produced by launching ping_validation/exp2-netbook-offline-plotting.bash" > $PING_SCRIPT
+
 #Setting gnuplot instructions
 #see: http://hxcaine.com/blog/2013/02/28/running-gnuplot-as-a-live-graph-with-automatic-updates/
 
 #to print both graphs
-echo -ne "reset;\n" > $PING_SCRIPT
+echo -ne "reset;\n" >> $PING_SCRIPT
 echo -ne "set term png; set output '$PLOT_FILENAME';\n"
 echo -ne "set grid; show grid; set xlab 'timestamp';\n" >> $PING_SCRIPT
 echo -ne "set format x \"%10.0f\";" >> $PING_SCRIPT
@@ -41,7 +43,13 @@ echo -ne "set tmargin 0; set bmargin 0; set lmargin 10; set rmargin 10;" >> $PIN
 #See gnuplot.sourceforge.net/demo/layout.html
 echo -ne "set multiplot layout 3,1;\n" >> $PING_SCRIPT
 
-echo -ne "unset xtics;" >> $PING_SCRIPT
+# I want x tics but not xlabels (ref: http://gnuplot.10905.n7.nabble.com/tics-without-name-tp4595p4596.html)
+#echo -ne "unset xtics;" >> $PING_SCRIPT
+echo  "set xtics format \" \";" >> $PING_SCRIPT
+
+# Set the y axis range for the 1st plot
+echo -ne "set yrange [0:1870];\n" >> $PING_SCRIPT
+
 echo -ne "plot " >> $PING_SCRIPT
 
 echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$$ACK_TRIG_WINDOWED_QD_C2S_COL) with linespoints axes x1y1 title 'ack_trig_windowed_qd_C2S'" >> $PING_SCRIPT
@@ -51,8 +59,15 @@ echo -ne ", '< cat $WIN_ACK_TRIG_FILE' u 1:(\$$ACK_TRIG_WINDOWED_QD_S2C_COL) wit
 echo -ne ", '< cut -d= -f4- $PING_OUT_FILE' u 1:3 with linespoints axes x1y1 title 'rtt_ping';\n" >> $PING_SCRIPT
 echo -ne "set xrange [GPVAL_X_MIN:GPVAL_X_MAX];\n" >> $PING_SCRIPT
 
+#### 2nd PLOT
+
 echo -ne "set ylab 'validity ratio'; set y2lab 'no samples/window'; set ytics nomirror; set y2tics;\n" >> $PING_SCRIPT
 echo -ne "set xtics nomirror rotate by -90;\n" >> $PING_SCRIPT
+
+# Set the y axis range for the 1st plot
+echo -ne "set yrange [0:1.1];\n" >> $PING_SCRIPT
+echo -ne "set y2range [0:30];\n" >> $PING_SCRIPT
+
 
 echo -ne "plot " >> $PING_SCRIPT
 
@@ -63,5 +78,6 @@ echo -ne ";\n" >> $PING_SCRIPT
 
 #To be sure that the 2 graphs have exactly the same ticks
 echo -ne "set xrange [GPVAL_X_MIN:GPVAL_X_MAX];\n" >> $PING_SCRIPT
+
 
 echo -ne "pause 2; reread;\n" >> $PING_SCRIPT
