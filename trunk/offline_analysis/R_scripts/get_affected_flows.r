@@ -6,9 +6,9 @@ percentiles_cdf_plot <- paste(save_folder,"percentiles_cdf.jpg",sep="/")
 qd_pdf_plot <- paste(save_folder,"qd_pdf.jpg",sep="/")
 linear_class_scatterplot_file <- paste(save_folder,"scatter.eps",sep="/")
 percentiles_savefile <- paste(save_folder,"percentiles.R.save",sep="/")
-point_savefile <- paste(save_folder,"point.R.save",sep="/")
 window_savefile <- paste(save_folder,"windows.R.save",sep="/")
 influence_point_savefile <- paste(save_folder,"influence_point.R.save",sep="/")
+merged_savefile <- paste(save_folder,"merged.R.save",sep="/")
 qd_of_flows_to_study_savefile <- paste(save_folder,"qd_flows_to_study.R.save",sep="/")
 chosen_qd_threshold <- 0
 chosen_flow_length_threshold <- 0
@@ -211,6 +211,7 @@ build_class_scatterplots <- function()
         print("Loading outgoing_windows_ff")
         ffload(file=window_savefile, overwrite=TRUE)
         # Now, the variable outgoing_windows_ff is available
+        
         
         outgoing_windows_ff_clean <- as.data.frame(outgoing_windows_ff)
         outgoing_windows_ff_clean <-
@@ -528,8 +529,10 @@ plot_class_distinguished_frequency_plots <- function()
     )
 }
 
-get_class_spread_over_qd_category <- function(outgoing_windows_ff){
+get_class_spread_over_qd_category <- function(){
     tryCatch({
+        ffload(file=window_savefile, overwrite=TRUE)
+        
         idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) )
         tot <- length(idx)
         outgoing_windows_ff_clean <-outgoing_windows_ff[idx,]
@@ -755,11 +758,149 @@ difference <- function(dataframe1, dataframe2)
     )
 }
 
-
+merge_large_dataframes <- function(dataframe1, dataframe2)
+{
+    tryCatch({
+        ####### SEVERE DEBUG: begin
+        idx <- ffwhich( dataframe1, edge==0 )
+        if( !is.null( idx ) ){
+            print("idx of 0 edge windowed_qd")
+            print(idx)
+            stop("there are 0 edges in dataframe1 It is not allowed")
+        }
+        
+        idx <- ffwhich( dataframe2, edge==0 )
+        if( !is.null( idx ) ){
+            print("idx of 0 edge windowed_qd")
+            print(idx)
+            stop("there are 0 edges in dataframe2 It is not allowed")
+        }
+        ####### SEVERE DEBUG: end
+        
+        step = 5 #(minutes)
+        left_edge <- min(dataframe1[,c('edge')] )
+        right_edge <- max(dataframe1[,c('edge')] )
+        print(paste( "Left edge: ", left_edge, "; right edge:", right_edge) )
+        
+        print("Extracting windows")
+        merged <- NULL
+        iteration <- 1
+        repeat
+        {
+            extracted1 <- as.data.frame(
+                extract_time_window( dataframe1, left_edge, step ) )
+            extracted2 <- as.data.frame(
+                extract_time_window( dataframe1, left_edge, step ) )
+            
+            print(paste("Number of windows extracted between",left_edge,"and",right_edge,sep=" "))
+            print(length(extracted1[,1]))
+            
+            ####### SEVERE DEBUG: begin
+            if( dim(extracted1)[1] != dim(extracted2)[1] ){
+                stop("I would expect the 2 extracted tables be of the same length")
+            }
+            
+            extracted_not_valid <- subset( extracted1, edge==0  )
+            if( !is.null( extracted_not_valid ) & 
+                    dim(extracted_not_valid)[1] !=0 ){
+                print("extracted1 has 0-edge windowed_qd")
+                print(extracted_not_valid)
+                stop("there are 0 edges in extracted1. It is not allowed")
+            }
+           
+            extracted_not_valid <- subset( extracted2, edge==0  )
+            if( !is.null( extracted_not_valid ) & 
+                    dim(extracted_not_valid)[1] !=0 ){
+                print("extracted2 has 0-edge windowed_qd")
+                print(extracted_not_valid)
+                stop("there are 0 edges in extracted2. It is not allowed")
+            }
+            
+            ####### SEVERE DEBUG: end
+            
+            merged_not_ff <- merge(x=extracted1, y=extracted2, all.x=FALSE, all.y=FALSE,
+                                   by.x=c('edge','ipaddr'), by.y=c('edge','ipaddr') )
+            
+            merged_ <- as.ffdf( merged_not_ff )
+            
+            ####### SEVERE DEBUG: begin
+            merged_not_ff_not_valid <- subset( merged_not_ff, edge==0  )
+            if( !is.null( merged_not_ff_not_valid ) & 
+                    dim(merged_not_ff_not_valid)[1] !=0 ){
+                print("merged_not_ff_not_valid")
+                print(merged_not_ff_not_valid)
+                stop("there are 0 edges in merged_not_ff It is not allowed")
+            }
+            
+            idx <- ffwhich( merged_, edge==0 )
+            if( !is.null( idx ) ){
+                writeLines("\n\n\n\niteration")
+                print(iteration)
+                writeLines("0-edge rows in merged_")
+                print(merged_[idx,])
+                stop("there are 0 edges in merged_. It is not allowed. ")
+            }
+            ####### SEVERE DEBUG: end
+            
+            
+            if(iteration ==1){
+                merged <- merged_
+            }else{
+                merged <- ffdfappend(merged, merged_)
+            }
+            
+            ####### SEVERE DEBUG: begin
+            idx <- ffwhich( merged, edge==0 )
+            if( !is.null( idx ) ){
+                writeLines("\n\n\n\niteration")
+                print(iteration)
+                writeLines("JUST CALCULATED: 0-edge rows in merged")
+                print(merged[idx,])
+                stop("there are 0 edges in merged. It is not allowed. merged_ is ok. So the problem is wqith ffdfappend")
+            }
+            ####### SEVERE DEBUG: end
+            
+            ffsave(merged, file=merged_savefile)
+            
+            print( paste( "merged is saved in ", merged_savefile) )
+            
+            print("Trying to load merged")
+            ffload(file=merged_savefile, overwrite=TRUE)
+            
+            ####### SEVERE DEBUG: begin
+            idx <- ffwhich( merged, edge==0 )
+            if( !is.null( idx ) ){
+                writeLines("\n\n\n\nAFTER LOADING: 0-edge rows in merged")
+                print(merged[idx,])
+                stop("there are 0 edges in merged. It is not allowed")
+            }
+            ####### SEVERE DEBUG: end
+            
+            # Now, the variable merged is available
+            print("dim of merged is")
+            print( dim( merged ) )
+            
+            left_edge <- left_edge+step*60
+            iteration <- iteration+1
+            
+            if(left_edge > right_edge){
+                break
+            }
+        }
+        
+        return(merged)
+    },
+             warning = function(w){handle_warning(w, "merge_large_dataframes(..)")},
+             error = function(e){handle_error(e, "merge_large_dataframes(..)")}
+    )
+    
+    
+}
 
 get_proto_influence <- function(outgoing_windows_ff)
 {
     tryCatch({
+        print("get_proto_influence(..) running ...")
         # A point influenced by a class C is a windowed queueing delay
         # that has coexisted with class C, i.e., in the second which the
         # windowed queueing delay is calculated in, there has existed a flow
@@ -788,10 +929,12 @@ get_proto_influence <- function(outgoing_windows_ff)
                                       influencing_proto=outgoing_windows_ff$proto,
                                       influencing_class=outgoing_windows_ff$class)
         
-        merged <- as.ffdf( merge(x=as.data.frame(outgoing_windows_ff), 
-                        y=as.data.frame(outgoing_windows_ff_1), 
-                        by.x=c('edge','ipaddr'),by.y=c('edge','ipaddr') ) )
-
+        print("Merging outgoing_windows_ff with itself ...")
+        merged <- merge_large_dataframes(outgoing_windows_ff, outgoing_windows_ff_1)
+        print("Merge complete")
+        ffload(file=merged_savefile, overwrite=TRUE)
+        # Now the variable merged is loaded
+        
         # Having done the merge, there are rows merged with themselves. WeI want to
         # eliminate these association, otherwise I would assert that each windowed queueing
         # delay is influenced by itself (and it's nonsense)
@@ -1005,11 +1148,11 @@ build_influence_point_df <- function()
 }
 
 tryCatch({
-    con <- file(r_logfile)
-    sink(con, append=FALSE)
-    sink(con, append=FALSE, type="message")
+#     con <- file(r_logfile)
+#     sink(con, append=FALSE)
+#     sink(con, append=FALSE, type="message")
     
-    build_class_scatterplots()
+    build_influence_point_df()
 },
          warning = function(w){handle_warning(w, ",main execution")},
          error = function(e){handle_error(e, ",main execution")}
