@@ -32,7 +32,7 @@ echo "###### This gnuplot script is automatically produced by launching ping_val
 
 #to print both graphs
 echo -ne "reset;\n" >> $PING_SCRIPT
-echo -ne "set term png; set output '$PLOT_FILENAME';\n"
+#echo -ne "set term png; set output '$PLOT_FILENAME';\n"
 echo -ne "set grid; show grid; set xlab 'timestamp';\n" >> $PING_SCRIPT
 echo -ne "set format x \"%10.0f\";" >> $PING_SCRIPT
 echo -ne "set ylab '[ms]'; set ytics nomirror; \n" >> $PING_SCRIPT
