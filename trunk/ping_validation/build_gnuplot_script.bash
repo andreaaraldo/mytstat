@@ -52,16 +52,17 @@ echo -ne "set yrange [0:1870];\n" >> $PING_SCRIPT
 
 echo -ne "plot " >> $PING_SCRIPT
 
-echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$$ACK_TRIG_WINDOWED_QD_C2S_COL) with linespoints axes x1y1 title 'ack_trig_windowed_qd_C2S'" >> $PING_SCRIPT
+# this one is in the C2S direction
+#echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$$ACK_TRIG_WINDOWED_QD_C2S_COL) with linespoints axes x1y1 title 'ack_trig_windowed_qd_C2S' , " >> $PING_SCRIPT
 
-echo -ne ", '< cat $WIN_ACK_TRIG_FILE' u 1:(\$$ACK_TRIG_WINDOWED_QD_S2C_COL) with linespoints axes x1y1 title 'ack_trig_windowed_qd_S2C'" >> $PING_SCRIPT
+echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$$ACK_TRIG_WINDOWED_QD_S2C_COL) with linespoints axes x1y1 title 'qd'" >> $PING_SCRIPT
 
-echo -ne ", '< cut -d= -f4- $PING_OUT_FILE' u 1:3 with linespoints axes x1y1 title 'rtt_ping';\n" >> $PING_SCRIPT
+echo -ne ", '< cut -d= -f4- $PING_OUT_FILE' u 1:3 with linespoints axes x1y1 title 'ping rtt';\n" >> $PING_SCRIPT
 echo -ne "set xrange [GPVAL_X_MIN:GPVAL_X_MAX];\n" >> $PING_SCRIPT
 
 #### 2nd PLOT
 
-echo -ne "set ylab 'validity ratio'; set y2lab 'no samples/window'; set ytics nomirror; set y2tics;\n" >> $PING_SCRIPT
+echo -ne "set ylab 'validity ratio'; set y2lab 'samples/sec'; set ytics nomirror; set y2tics;\n" >> $PING_SCRIPT
 echo -ne "set xtics nomirror rotate by -90;\n" >> $PING_SCRIPT
 
 # Set the y axis range for the 1st plot
@@ -71,9 +72,9 @@ echo -ne "set y2range [0:30];\n" >> $PING_SCRIPT
 
 echo -ne "plot " >> $PING_SCRIPT
 
-echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$$NO_QD_SAMPLES_S2C_COL) with linespoints axes x1y2 title 'no qd_samples_S2C'" >> $PING_SCRIPT
+echo -ne "'< cat $WIN_ACK_TRIG_FILE' u 1:(\$$NO_QD_SAMPLES_S2C_COL) with linespoints axes x1y2 title 'qd_samples/sec'" >> $PING_SCRIPT
 
-echo -ne ", \"< awk '{if(\$$CHANCES_IN_WIN_S2C_COL>0) print \$1,\$$NO_QD_SAMPLES_S2C_COL/\$$CHANCES_IN_WIN_S2C_COL }' $WIN_ACK_TRIG_FILE\" u 1:2 with linespoints axes x1y1 title 'validity_ratio_S2C'" >> $PING_SCRIPT
+echo -ne ", \"< awk '{if(\$$CHANCES_IN_WIN_S2C_COL>0) print \$1,\$$NO_QD_SAMPLES_S2C_COL/\$$CHANCES_IN_WIN_S2C_COL }' $WIN_ACK_TRIG_FILE\" u 1:2 with linespoints axes x1y1 title 'validity ratio' " >> $PING_SCRIPT
 echo -ne ";\n" >> $PING_SCRIPT
 
 #To be sure that the 2 graphs have exactly the same ticks
