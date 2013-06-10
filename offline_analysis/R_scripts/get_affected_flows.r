@@ -782,12 +782,12 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
         right_edge <- max(dataframe1[,c('edge')] )
         print(paste( "Left edge: ", left_edge, "; right edge:", right_edge) )
         
-        print("Extracting windows")
         merged <- NULL
         iteration <- 1
         repeat
         {
-            print( paste("Starting iteration ", iteration) )
+            writeLines("\n\n\n")
+            print( paste("Calculating the merge from ", left_edge,"to", left_edge+step*60) )
             extracted1 <- as.data.frame(
                 extract_time_window( dataframe1, left_edge, step ) )
             extracted2 <- as.data.frame(
@@ -797,13 +797,7 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
                                       "influencing_protocol", "influencing_windowed_qd",
                                       "influencing_class")
             
-            print("Provo a togliere colonna class")
-            #extracted1$class <- NULL
-            #extracted2$influencing_class <- NULL
-            #extracted1$ipaddr <- NULL
-            #extracted2$ipaddr <- NULL
-            
-            print(paste("Number of windows extracted between",left_edge,"and",right_edge,sep=" "))
+            print( "Number of windows extracted" )
             print(length(extracted1[,1]))
             
             ####### SEVERE DEBUG: begin
@@ -830,7 +824,6 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
             
             merged_not_ff <- merge(x=extracted1, y=extracted2, all.x=FALSE, all.y=FALSE,
                                    by.x=c('edge', 'ipaddr'), by.y=c('edge', 'ipaddr') )
-            print( "Fatto il merge ")
             
             ####### SEVERE DEBUG: begin
             merged_not_ff_not_valid <- subset( merged_not_ff, edge==0  )
@@ -855,15 +848,10 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
             
             if(iteration ==1){
                 merged <- as.ffdf( merged_not_ff )
-                #merged <- merged_
             }else{
                 merged_ <- as.ffdf( merged_not_ff )
-                print("Sto per appendere")
-                print("merged_")
-                print(merged_)
-                writeLines("\n\n and merged")
-                print(merged)
                 
+                ####### SEVERE DEBUG: begin
                 idx <- ffwhich( merged, edge==0 )
                 if( !is.null( idx ) ){
                     writeLines("\n\n\n\niteration")
@@ -872,20 +860,16 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
                     print(merged[idx,])
                     stop("there are 0 edges in merged. It is not allowed. merged_ is ok. So the problem is wqith ffdfappend")
                 }
-                
-                writeLines("\n\n\nPrima di ffdfappend: Provo ad appendere solo la edge col")
-                print("merged$edge=")
-                print(merged$edge)
-                print("merged_$edge=")
-                print(merged_$edge)
-                col_appesa <- c( merged$edge, merged_$edge )
-                print("col_appesa")
-                print(col_appesa)
+
+                idx <- ffwhich( merged, edge==0 )
+                if( !is.null( idx ) ){
+                    writeLines("\n\n\n\nAFTER LOADING: 0-edge rows in merged")
+                    print(merged[idx,])
+                    stop("there are 0 edges in merged. It is not allowed")
+                }
+                ####### SEVERE DEBUG: end
                 
                 merged <- rbind(merged, merged_)
-                print("Ho appeso")
-                
-                
             }
             
             ####### SEVERE DEBUG: begin
@@ -897,33 +881,8 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
                 print(merged[idx,])
                 stop("there are 0 edges in merged. It is not allowed. merged_ is ok. So the problem is wqith ffdfappend")
             }
-            
-            writeLines("\n\n\nBefore saving merged is ")
-            print(merged)
-            print( "e la colonna edge e' ")
-            print(merged$edge)
-            
             ####### SEVERE DEBUG: end
             
-            ffsave(merged, file=merged_savefile)
-            print( paste( "merged is saved in ", merged_savefile) )
-            
-            ####### SEVERE DEBUG: begin
-            print("Trying to load merged")
-            ffload(file=merged_savefile, overwrite=TRUE)
-            
-            writeLines("\n\n\nAfter save and load, merged is ")
-            print(merged)
-            print( "e la colonna edge e' ")
-            print(merged$edge)
-            
-            idx <- ffwhich( merged, edge==0 )
-            if( !is.null( idx ) ){
-                writeLines("\n\n\n\nAFTER LOADING: 0-edge rows in merged")
-                print(merged[idx,])
-                stop("there are 0 edges in merged. It is not allowed")
-            }
-            ####### SEVERE DEBUG: end
             
             # Now, the variable merged is available
             print("dim of merged is")
@@ -937,6 +896,9 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
             }
         }
         
+        ffsave(merged, file=merged_savefile)
+        print( paste( "merged is saved in ", merged_savefile) )
+        
         return(merged)
     },
              warning = function(w){handle_warning(w, "merge_large_dataframes(..)")},
@@ -946,16 +908,64 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
     
 }
 
-get_proto_influence <- function(outgoing_windows_ff)
+# It is a wrapper for merge_large_dataframes(..)
+build_merged <- function()
+{
+    tryCatch({
+        print("Loading outgoing_windows_ff")
+        ffload(file=window_savefile, overwrite=TRUE)
+        # Now, the variable outgoing_windows_ff is available
+        print("outgoing_windows_ff is")
+        print(outgoing_windows_ff)
+        
+        idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) )
+        outgoing_windows_ff_clean <- outgoing_windows_ff[idx, ]
+        
+        # I want to associate every windowed_qd to all the protocols that have coexisted 
+        # with it. In order to do that, I do an exact copy of outgoing_windows_ff and
+        # merge the to copy (as an SQL join)
+        outgoing_windows_ff_1 <- ffdf(edge = outgoing_windows_ff_clean$edge, 
+                                      ipaddr = outgoing_windows_ff_clean$ipaddr,
+                                      influencing_port = outgoing_windows_ff_clean$port,
+                                      influencing_proto = outgoing_windows_ff_clean$proto,
+                                      influencing_class = outgoing_windows_ff_clean$class)
+        
+        print("Merging outgoing_windows_ff_clean with itself ...")
+        merged <- merge_large_dataframes(outgoing_windows_ff_clean, outgoing_windows_ff_1)
+        print("Merge complete")
+    },
+             warning = function(w){handle_warning(w, "build_merged(..)")},
+             error = function(e){handle_error(e, "build_merged(..)")}
+    )  
+}
+
+# Dependencies: 
+# - outgoing_windows_ff (obtained with build_outgoing_windows_df(..) )
+# - merged (obtained with build_merged(..) )
+get_proto_influence <- function()
 {
     tryCatch({
         print("get_proto_influence(..) running ...")
+        
+        # When analyzing a class of traffic, random_samples will be chosen among
+        # windowed_qd that are influenced by that class, and random_samples will be
+        # chosen among windowed_qd that are not influenced
+        random_samples <- 1000
+        
+        sampling_activities <- 7
+        
         # A point influenced by a class C is a windowed queueing delay
         # that has coexisted with class C, i.e., in the second which the
         # windowed queueing delay is calculated in, there has existed a flow
         # of protocol C.
         # The inflenced_point dataframe attaches every windowed queueing delay with all
         # the classes that influence it (if any)
+        
+        print("Loading outgoing_windows_ff")
+        ffload(file=window_savefile, overwrite=TRUE)
+        # Now, the variable outgoing_windows_ff is available
+        print("outgoing_windows_ff is")
+        print(outgoing_windows_ff)
         
         influenced_point_colnames <- 
             c('edge', 'ipaddr', 'port', 'protocol', 'windowed_qd', 'influencing_class')
@@ -967,24 +977,14 @@ get_proto_influence <- function(outgoing_windows_ff)
             print(rownames)
             stop( "rownames must be NULL." )
         }    
-        ####### SEVERE DEBUG: begin
+        ####### SEVERE DEBUG: end
         
-        # I want to associate every windowed_qd to all the protocols that have coexisted 
-        # with it. In order to do that, I do an exact copy of outgoing_windows_ff and
-        # merge the to copy (as an SQL join)
-        outgoing_windows_ff_1 <- ffdf(edge=outgoing_windows_ff$edge, 
-                                      ipaddr=outgoing_windows_ff$ipaddr,
-                                      influencing_port=outgoing_windows_ff$port,
-                                      influencing_proto=outgoing_windows_ff$proto,
-                                      influencing_class=outgoing_windows_ff$class)
-        
-        print("Merging outgoing_windows_ff with itself ...")
-        merged <- merge_large_dataframes(outgoing_windows_ff, outgoing_windows_ff_1)
-        print("Merge complete")
+        print("Loading merged and printing it")
         ffload(file=merged_savefile, overwrite=TRUE)
         # Now the variable merged is loaded
+        print(merged)
         
-        # Having done the merge, there are rows merged with themselves. WeI want to
+        # Having done the merge, there are rows merged with themselves. We want to
         # eliminate these association, otherwise I would assert that each windowed queueing
         # delay is influenced by itself (and it's nonsense)
         idx <- ffwhich(merged, port != influencing_port )
@@ -1020,6 +1020,8 @@ get_proto_influence <- function(outgoing_windows_ff)
             # I want to extract all the windowed_qd influenced by traffic_class
             bool_vector <- as.character(influence$influencing_class)==as.character(traffic_class)
             idx_influenced <- ffwhich(influence, bool_vector )
+            
+            influenced_by_class <- NULL
             if(!is.null(idx_influenced) ){
                 influenced_by_class_verbose <- influence[idx_influenced,]
                 
@@ -1059,81 +1061,128 @@ get_proto_influence <- function(outgoing_windows_ff)
             
             # I don't care anymore the actual class of the windowed_qd
             non_influenced_by_class_$class <- NULL
+            non_influenced_by_class <- non_influenced_by_class_
             
-            if( !is.null(idx_influenced) ){
-                # Doing as follows does not work. Why?
-                # see https://stat.ethz.ch/pipermail/r-help/2007-January/124277.html
-                #             influence_point_ <- 
-                #                 ifelse( nrow(influenced_by_class)==0,
-                #                         non_influenced_by_class_,
-                #                         influence_point_append( influenced_by_class, non_influenced_by_class_)
-                #                 )
-                #             
-                influence_point_ <- 
-                    influence_point_append( influenced_by_class, non_influenced_by_class_)
+            #Now, we have influenced_by_class and non_influenced_by_class
+            
+            
+            writeLines("\n\n\ntraffic_class")
+            print("influenced_by_class")
+            print(nrow(influenced_by_class) )
+            print("non_influenced_by_class")
+            print(nrow(non_influenced_by_class) )
+            
+            print(traffic_class)
+            for(i in 1:sampling_activities){
+                print("sampling activity")
+                print(i)
                 
-            }else{
-                # This class does not influence any windowed_qd
-                influence_point_ <- non_influenced_by_class_
-            }
-       
-#              influence_point_ <- NULL
-#              if( nrow(influenced_by_class) == 0 ){
-#                  influence_point_ <- non_influenced_by_class_
-#              }else{
-#                  influence_point_ <- 
-#                      influence_point_append( influenced_by_class, non_influenced_by_class_)
-#              }}
-            
-            ####### SEVERE DEBUG: begin
-            if( !is.ffdf(influence_point_) ){
-                print("class of influence_point_ is")
-                print( class(influence_point_) )
-                print("influence_point_ is")
-                print( influence_point_) 
-                stop("influence_point_ is not an ffdf. It's nonsense")
-            }
-            
-            if( is.null(non_influenced_by_class_) ){
-                print("non_influenced_by_class_ is")
-                print(non_influenced_by_class_)
-                stop("non_influenced_by_class_ is NULL. It's very strange")
+                how_many <- min(random_samples, nrow(influenced_by_class), 
+                                nrow(non_influenced_by_class) )
+                idx <- sample(nrow(influenced_by_class), how_many)
+                filtered_influenced_by_class <- influenced_by_class[idx,]
+                
+                idx <- sample(nrow(non_influenced_by_class), how_many)
+                filtered_non_influenced_by_class <- non_influenced_by_class[idx,]
+                
+                influenced_by_class_median_ <- 
+                    quantile(influenced_by_class$windowed_qd,c('0.5') )
+                print("median of the influenced windowed_qds")
+                print(influenced_by_class_median)
+                
+                non_influenced_by_class_median <- 
+                    quantile(non_influenced_by_class$windowed_qd,c('0.5') )
+                print("median of the non_influenced windowed_qds")
+                print(non_influenced_by_class_median)
+                
+                
             }
             
-            if( is.null( dim(non_influenced_by_class_) ) ){
-                print("class of non_influenced_by_class_ is")
-                print( class(non_influenced_by_class_) )
-                print("non_influenced_by_class_ is")
-                print(non_influenced_by_class_)
-                stop("dim of non_influenced_by_class_ is NULL. It's nonsense")
+            
+            
+            
+            
+            
+            
+            # Activate only if you want to build influence_point
+            if(FALSE){
+                if( !is.null(idx_influenced) ){
+                    # Doing as follows does not work. Why?
+                    # see https://stat.ethz.ch/pipermail/r-help/2007-January/124277.html
+                    #             influence_point_ <- 
+                    #                 ifelse( nrow(influenced_by_class)==0,
+                    #                         non_influenced_by_class_,
+                    #                         influence_point_append( influenced_by_class, non_influenced_by_class_)
+                    #                 )
+                    #             
+                    influence_point_ <- 
+                        influence_point_append( influenced_by_class, non_influenced_by_class_)
+                    
+                }else{
+                    # This class does not influence any windowed_qd
+                    influence_point_ <- non_influenced_by_class_
+                }
+                
+                #              influence_point_ <- NULL
+                #              if( nrow(influenced_by_class) == 0 ){
+                #                  influence_point_ <- non_influenced_by_class_
+                #              }else{
+                #                  influence_point_ <- 
+                #                      influence_point_append( influenced_by_class, non_influenced_by_class_)
+                #              }}
+                
+                ####### SEVERE DEBUG: begin
+                if( !is.ffdf(influence_point_) ){
+                    print("class of influence_point_ is")
+                    print( class(influence_point_) )
+                    print("influence_point_ is")
+                    print( influence_point_) 
+                    stop("influence_point_ is not an ffdf. It's nonsense")
+                }
+                
+                if( is.null(non_influenced_by_class_) ){
+                    print("non_influenced_by_class_ is")
+                    print(non_influenced_by_class_)
+                    stop("non_influenced_by_class_ is NULL. It's very strange")
+                }
+                
+                if( is.null( dim(non_influenced_by_class_) ) ){
+                    print("class of non_influenced_by_class_ is")
+                    print( class(non_influenced_by_class_) )
+                    print("non_influenced_by_class_ is")
+                    print(non_influenced_by_class_)
+                    stop("dim of non_influenced_by_class_ is NULL. It's nonsense")
+                }
+                
+                if( is.null(influence_point_) ){
+                    print("influence_point_ is")
+                    print(influence_point_)
+                    stop("influence_point_ is NULL. It's nonsense")
+                }
+                
+                if( is.null( dim(influence_point_) ) ){
+                    print("class of influence_point_ is")
+                    print( class(influence_point_) )
+                    print("influence_point_ is")
+                    print(influence_point_)
+                    stop("dim of influence_point_ is NULL. It's nonsense")
+                }
+                
+                if( is.na(influence_point_[1,c('edge') ] ) ){
+                    print("influence_point_ is")
+                    print(influence_point_)
+                    stop("influence_point_ has a null-edge row. It's nonsense")
+                }
+                ####### SEVERE DEBUG: end
+                
+                if( iteration==1 ){
+                    influence_point <- influence_point_
+                }else{
+                    influence_point <- influence_point_append(influence_point, influence_point_)
+                }
+                
             }
             
-            if( is.null(influence_point_) ){
-                print("influence_point_ is")
-                print(influence_point_)
-                stop("influence_point_ is NULL. It's nonsense")
-            }
-            
-            if( is.null( dim(influence_point_) ) ){
-                print("class of influence_point_ is")
-                print( class(influence_point_) )
-                print("influence_point_ is")
-                print(influence_point_)
-                stop("dim of influence_point_ is NULL. It's nonsense")
-            }
-            
-            if( is.na(influence_point_[1,c('edge') ] ) ){
-                print("influence_point_ is")
-                print(influence_point_)
-                stop("influence_point_ has a null-edge row. It's nonsense")
-            }
-            ####### SEVERE DEBUG: end
-            
-            if( iteration==1 ){
-                influence_point <- influence_point_
-            }else{
-                influence_point <- influence_point_append(influence_point, influence_point_)
-            }
             
             
 #             if(iteration==1){
@@ -1163,7 +1212,7 @@ get_proto_influence <- function(outgoing_windows_ff)
     )   
 }
 
-build_influence_point_df <- function()
+build_influence_point_df_useless <- function()
 {
     print("Loading outgoing_windows_ff")
     ffload(file=window_savefile, overwrite=TRUE)
@@ -1197,11 +1246,7 @@ build_influence_point_df <- function()
 }
 
 tryCatch({
-#     con <- file(r_logfile)
-#     sink(con, append=FALSE)
-#     sink(con, append=FALSE, type="message")
-    
-    build_influence_point_df()
+    get_proto_influence()
 },
          warning = function(w){handle_warning(w, ",main execution")},
          error = function(e){handle_error(e, ",main execution")}
