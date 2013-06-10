@@ -787,10 +787,21 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
         iteration <- 1
         repeat
         {
+            print( paste("Starting iteration ", iteration) )
             extracted1 <- as.data.frame(
                 extract_time_window( dataframe1, left_edge, step ) )
             extracted2 <- as.data.frame(
                 extract_time_window( dataframe1, left_edge, step ) )
+            
+            colnames(extracted2) <- c("edge", "ipaddr", "influencing_port",
+                                      "influencing_protocol", "influencing_windowed_qd",
+                                      "influencing_class")
+            
+            print("Provo a togliere colonna class")
+            #extracted1$class <- NULL
+            #extracted2$influencing_class <- NULL
+            #extracted1$ipaddr <- NULL
+            #extracted2$ipaddr <- NULL
             
             print(paste("Number of windows extracted between",left_edge,"and",right_edge,sep=" "))
             print(length(extracted1[,1]))
@@ -815,13 +826,11 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
                 print(extracted_not_valid)
                 stop("there are 0 edges in extracted2. It is not allowed")
             }
-            
             ####### SEVERE DEBUG: end
             
             merged_not_ff <- merge(x=extracted1, y=extracted2, all.x=FALSE, all.y=FALSE,
-                                   by.x=c('edge','ipaddr'), by.y=c('edge','ipaddr') )
-            
-            merged_ <- as.ffdf( merged_not_ff )
+                                   by.x=c('edge', 'ipaddr'), by.y=c('edge', 'ipaddr') )
+            print( "Fatto il merge ")
             
             ####### SEVERE DEBUG: begin
             merged_not_ff_not_valid <- subset( merged_not_ff, edge==0  )
@@ -832,6 +841,7 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
                 stop("there are 0 edges in merged_not_ff It is not allowed")
             }
             
+            merged_ <- as.ffdf( merged_not_ff )
             idx <- ffwhich( merged_, edge==0 )
             if( !is.null( idx ) ){
                 writeLines("\n\n\n\niteration")
@@ -844,9 +854,38 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
             
             
             if(iteration ==1){
-                merged <- merged_
+                merged <- as.ffdf( merged_not_ff )
+                #merged <- merged_
             }else{
-                merged <- ffdfappend(merged, merged_)
+                merged_ <- as.ffdf( merged_not_ff )
+                print("Sto per appendere")
+                print("merged_")
+                print(merged_)
+                writeLines("\n\n and merged")
+                print(merged)
+                
+                idx <- ffwhich( merged, edge==0 )
+                if( !is.null( idx ) ){
+                    writeLines("\n\n\n\niteration")
+                    print(iteration)
+                    writeLines("BEFORE MERGING: 0-edge rows in merged")
+                    print(merged[idx,])
+                    stop("there are 0 edges in merged. It is not allowed. merged_ is ok. So the problem is wqith ffdfappend")
+                }
+                
+                writeLines("\n\n\nPrima di ffdfappend: Provo ad appendere solo la edge col")
+                print("merged$edge=")
+                print(merged$edge)
+                print("merged_$edge=")
+                print(merged_$edge)
+                col_appesa <- c( merged$edge, merged_$edge )
+                print("col_appesa")
+                print(col_appesa)
+                
+                merged <- rbind(merged, merged_)
+                print("Ho appeso")
+                
+                
             }
             
             ####### SEVERE DEBUG: begin
@@ -858,16 +897,26 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
                 print(merged[idx,])
                 stop("there are 0 edges in merged. It is not allowed. merged_ is ok. So the problem is wqith ffdfappend")
             }
+            
+            writeLines("\n\n\nBefore saving merged is ")
+            print(merged)
+            print( "e la colonna edge e' ")
+            print(merged$edge)
+            
             ####### SEVERE DEBUG: end
             
             ffsave(merged, file=merged_savefile)
-            
             print( paste( "merged is saved in ", merged_savefile) )
             
+            ####### SEVERE DEBUG: begin
             print("Trying to load merged")
             ffload(file=merged_savefile, overwrite=TRUE)
             
-            ####### SEVERE DEBUG: begin
+            writeLines("\n\n\nAfter save and load, merged is ")
+            print(merged)
+            print( "e la colonna edge e' ")
+            print(merged$edge)
+            
             idx <- ffwhich( merged, edge==0 )
             if( !is.null( idx ) ){
                 writeLines("\n\n\n\nAFTER LOADING: 0-edge rows in merged")
