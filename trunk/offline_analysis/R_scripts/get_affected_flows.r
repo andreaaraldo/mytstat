@@ -8,6 +8,7 @@ linear_class_scatterplot_file <- paste(save_folder,"scatter.eps",sep="/")
 percentiles_savefile <- paste(save_folder,"percentiles.R.save",sep="/")
 window_savefile <- paste(save_folder,"windows.R.save",sep="/")
 influence_point_savefile <- paste(save_folder,"influence_point.R.save",sep="/")
+proto_influence_savefile <- paste(save_folder,"influence_scatter_point_table.txt",sep="/")
 merged_savefile <- paste(save_folder,"merged.R.save",sep="/")
 qd_of_flows_to_study_savefile <- paste(save_folder,"qd_flows_to_study.R.save",sep="/")
 chosen_qd_threshold <- 0
@@ -992,6 +993,7 @@ get_proto_influence <- function()
         
         classes <- class_assoc$class[ !duplicated(class_assoc$class) ]
         influence_point <- NULL
+        proto_influence_table <- NULL
         iteration <- 1
         
         repeat{
@@ -1067,40 +1069,73 @@ get_proto_influence <- function()
             
             
             writeLines("\n\n\ntraffic_class")
+            print(traffic_class)
             print("influenced_by_class")
             print(nrow(influenced_by_class) )
             print("non_influenced_by_class")
             print(nrow(non_influenced_by_class) )
             
-            print(traffic_class)
-            for(i in 1:sampling_activities){
-                print("sampling activity")
-                print(i)
-                
-                how_many <- min(random_samples, nrow(influenced_by_class), 
-                                nrow(non_influenced_by_class) )
-                idx <- sample(nrow(influenced_by_class), how_many)
-                filtered_influenced_by_class <- influenced_by_class[idx,]
-                
-                idx <- sample(nrow(non_influenced_by_class), how_many)
-                filtered_non_influenced_by_class <- non_influenced_by_class[idx,]
-                
-                influenced_by_class_median_ <- 
-                    quantile(influenced_by_class$windowed_qd,c('0.5') )
-                print("median of the influenced windowed_qds")
-                print(influenced_by_class_median)
-                
-                non_influenced_by_class_median <- 
-                    quantile(non_influenced_by_class$windowed_qd,c('0.5') )
-                print("median of the non_influenced windowed_qds")
-                print(non_influenced_by_class_median)
-                
-                
+            how_many <- min(random_samples, nrow(influenced_by_class), 
+                            nrow(non_influenced_by_class) )
+            
+            if(how_many == 0){
+                print( paste("how_many=", how_many ) )
+            }else{
+                for(i in 1:sampling_activities) {
+                    print( paste( "sampling activity", i) )
+                    idx <- sample(nrow(influenced_by_class), how_many)
+                    selected_influenced_by_class <- as.data.frame(influenced_by_class[idx,] )
+                    print("selected_influenced_by_class found")
+                    
+                    idx <- sample(nrow(non_influenced_by_class), how_many)
+                    selected_non_influenced_by_class <- 
+                        as.data.frame(non_influenced_by_class[idx,] )
+                    print("selected_non_influenced_by_class found")
+                    
+                    print("class of windowed_qd")
+                    print( class( selected_influenced_by_class$windowed_qd ) )
+                    print( class( selected_non_influenced_by_class$windowed_qd ) )
+                    
+                    influenced_by_class_quantiles <- 
+                        quantile(selected_influenced_by_class$windowed_qd,
+                                 c(0.50, .90, .95, .99) )
+                    print("quantiles of the influenced windowed_qds")
+                    print(influenced_by_class_quantiles)
+                    
+                    non_influenced_by_class_quantiles <- 
+                        quantile(selected_influenced_by_class$windowed_qd,
+                                 c(0.50, .90, .95, .99) )
+                    print("quantiles of the non_influenced windowed_qds")
+                    print(non_influenced_by_class_quantiles)
+                    
+                    print("influenced_by_class_quantiles[c(.50)]" )
+                    print( class(influenced_by_class_quantiles[c(.50)]) )
+                    print(influenced_by_class_quantiles[c(.50)] )
+                    
+                    proto_influence_table_ <- 
+                        data.frame(class_of_traffic=traffic_class,
+                                   influenced_rows=nrow(influenced_by_class),
+                                   non_influenced_rows=nrow(non_influenced_by_class),
+                                   influenced_quant_50=influenced_by_class_quantiles[c(.50)],
+                                   non_influenced_quant_50=non_influenced_by_class_quantiles[c(.50)],
+                                   influenced_quant_90=influenced_by_class_quantiles[c(.90)],
+                                   non_influenced_quant_90=non_influenced_by_class_quantiles[c(.90)],
+                                   influenced_quant_95=influenced_by_class_quantiles[c(.95)],
+                                   non_influenced_quant_95=non_influenced_by_class_quantiles[c(.95)],
+                                   influenced_quant_99=influenced_by_class_quantiles[c(.99)],
+                                   non_influenced_quant_99=non_influenced_by_class_quantiles[c(.99)]
+                                   )
+                    
+                    if( is.null(proto_influence_table) ){
+                        # This is the first row that we add to the table
+                        proto_influence_table <- proto_influence_table_
+                    }else{
+                        proto_influence_table <- rbind(proto_influence_table, proto_influence_table_)
+                    }
+                    print("Now proto_influence_table is")
+                    print(proto_influence_table)
+                }# end of i-th sampling activity
             }
-            
-            
-            
-            
             
             
             
@@ -1198,14 +1233,16 @@ get_proto_influence <- function()
             if(iteration > length( classes ) ){
                 break
             }
-            
-            
         }
         
-        print("Now influence_point is")
-        print(as.data.frame(influence_point) )
-        return(influence_point)
-
+        write.table(proto_influence_table, file=proto_influence_savefile)
+        print( paste( "proto_influence_table is saved in ", proto_influence_savefile ) )
+        
+        if(FALSE){
+            print("Now influence_point is")
+            print(as.data.frame(influence_point) )
+            return(influence_point)
+        }
     },
              warning = function(w){handle_warning(w, "get_proto_influence(..)")},
              error = function(e){handle_error(e, "get_proto_influence(..)")}
