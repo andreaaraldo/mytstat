@@ -55,7 +55,7 @@ echo -ne "set multiplot layout 4,1;\n" >> $PING_SCRIPT
 echo  "set xtics format \" \";" >> $PING_SCRIPT
 
 # Set the y axis range for the 1st plot
-echo -ne "set yrange [0:1870];\n" >> $PING_SCRIPT
+echo -ne "set yrange [0:110];\n" >> $PING_SCRIPT
 
 echo -ne "plot " >> $PING_SCRIPT
 
@@ -75,7 +75,7 @@ echo -ne "set xlab ' ';\n" >> $PING_SCRIPT
 echo -ne "set xtics nomirror rotate by -90;\n" >> $PING_SCRIPT
 
 # Set the y axis range for the 1st plot
-echo -ne "set yrange [0:30];\n" >> $PING_SCRIPT
+echo -ne "set yrange [0:410];\n" >> $PING_SCRIPT
 
 
 echo -ne "plot " >> $PING_SCRIPT
@@ -96,7 +96,7 @@ echo -ne "set xtics nomirror rotate by -90;\n" >> $PING_SCRIPT
 
 # Set the y axis range for the 1st plot
 echo -ne "set yrange [0:1.1];\n" >> $PING_SCRIPT
-echo -ne "set y2range [0:150];\n" >> $PING_SCRIPT
+echo -ne "set y2range [0:6000];\n" >> $PING_SCRIPT
 
 
 echo -ne "plot " >> $PING_SCRIPT
