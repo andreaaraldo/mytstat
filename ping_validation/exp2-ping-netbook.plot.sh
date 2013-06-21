@@ -34,8 +34,8 @@ PING_PID=$!
 
 chmod ugoa+rwx $PING_OUT_FILE
 echo "port $PORT_TO_SNIFF" > $FILTER_FILE
-nohup tstat  -i $DEV -l -f $FILTER_FILE -s $TSTAT_OUT_FOLDER > $TSTAT_LOG 2>&1 &
-TSTAT_PID=$!
+#nohup tstat  -i $DEV -l -f $FILTER_FILE -s $TSTAT_OUT_FOLDER > $TSTAT_LOG 2>&1 &
+#TSTAT_PID=$!
 
 sleep 2
 iperf -t 2000000 -c desktop -s $TSTAT_OUT_FOLDER --port $PORT_TO_SNIFF> $IPERF_LOG 2>&1 &

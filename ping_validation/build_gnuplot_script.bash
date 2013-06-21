@@ -48,7 +48,7 @@ echo -ne "set tmargin 0; set bmargin 0; set lmargin 10; set rmargin 10;" >> $PIN
 #I want my graphs be placesd in 2 rows and 1 column. I ask for 3 plots (although
 #I need only 2 plots) in order to gain space
 #See gnuplot.sourceforge.net/demo/layout.html
-echo -ne "set multiplot layout 3,1;\n" >> $PING_SCRIPT
+echo -ne "set multiplot layout 4,1;\n" >> $PING_SCRIPT
 
 # I want x tics but not xlabels (ref: http://gnuplot.10905.n7.nabble.com/tics-without-name-tp4595p4596.html)
 #echo -ne "unset xtics;" >> $PING_SCRIPT
@@ -69,21 +69,41 @@ echo -ne "set xrange [GPVAL_X_MIN:GPVAL_X_MAX];\n" >> $PING_SCRIPT
 
 #### 2nd PLOT
 
-echo -ne "set ylab 'validity ratio'; set y2lab 'samples/sec'; set ytics nomirror; set y2tics;\n" >> $PING_SCRIPT
+echo -ne "set ylab 'qd\_samples/sec'; set ytics nomirror; \n" >> $PING_SCRIPT
+echo -ne "set format x \" \";\n" >> $PING_SCRIPT
+echo -ne "set xlab ' ';\n" >> $PING_SCRIPT
+echo -ne "set xtics nomirror rotate by -90;\n" >> $PING_SCRIPT
+
+# Set the y axis range for the 1st plot
+echo -ne "set yrange [0:30];\n" >> $PING_SCRIPT
+
+
+echo -ne "plot " >> $PING_SCRIPT
+
+echo -ne "'< cat $WIN_ACK_TRIG_FILE' u (\$1-$FIRST_TIME):(\$$NO_QD_SAMPLES_S2C_COL) with lines title 'qd_samples/sec'" >> $PING_SCRIPT
+
+echo -ne ";\n" >> $PING_SCRIPT
+
+#To be sure that the 2 graphs have exactly the same ticks
+echo -ne "set xrange [GPVAL_X_MIN:GPVAL_X_MAX];\n" >> $PING_SCRIPT
+
+#### 3rd PLOT
+
+echo -ne "set ylab 'validity ratio'; set y2lab 'acks'; set ytics nomirror; set y2tics;\n" >> $PING_SCRIPT
 echo -ne "set format x \"%g\";\n" >> $PING_SCRIPT
 echo -ne "set xlab 'timestamp';\n" >> $PING_SCRIPT
 echo -ne "set xtics nomirror rotate by -90;\n" >> $PING_SCRIPT
 
 # Set the y axis range for the 1st plot
 echo -ne "set yrange [0:1.1];\n" >> $PING_SCRIPT
-echo -ne "set y2range [0:30];\n" >> $PING_SCRIPT
+echo -ne "set y2range [0:150];\n" >> $PING_SCRIPT
 
 
 echo -ne "plot " >> $PING_SCRIPT
 
-echo -ne "'< cat $WIN_ACK_TRIG_FILE' u (\$1-$FIRST_TIME):(\$$NO_QD_SAMPLES_S2C_COL) with lines axes x1y2 title 'qd_samples/sec'" >> $PING_SCRIPT
+echo -ne "'< cat $WIN_ACK_TRIG_FILE' u (\$1-$FIRST_TIME):(\$$CHANCES_IN_WIN_S2C_COL ) with lines axes x1y2 title 'acks'" >> $PING_SCRIPT
 
-echo -ne ", \"< awk '{if(\$$CHANCES_IN_WIN_S2C_COL>0) print \$1,\$$NO_QD_SAMPLES_S2C_COL/\$$CHANCES_IN_WIN_S2C_COL }' $WIN_ACK_TRIG_FILE\" u (\$1-$FIRST_TIME):2 with points axes x1y1 title 'validity ratio' " >> $PING_SCRIPT
+echo -ne ", \"< awk '{if(\$$CHANCES_IN_WIN_S2C_COL>0) print \$1,\$$NO_QD_SAMPLES_S2C_COL/\$$CHANCES_IN_WIN_S2C_COL }' $WIN_ACK_TRIG_FILE\" u (\$1-$FIRST_TIME):2 with lines axes x1y1 title 'validity ratio' " >> $PING_SCRIPT
 echo -ne ";\n" >> $PING_SCRIPT
 
 #To be sure that the 2 graphs have exactly the same ticks
