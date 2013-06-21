@@ -91,7 +91,7 @@ echo -ne "set xrange [GPVAL_X_MIN:GPVAL_X_MAX];\n" >> $PING_SCRIPT
 
 echo -ne "set ylab 'validity ratio'; set y2lab 'acks'; set ytics nomirror; set y2tics;\n" >> $PING_SCRIPT
 echo -ne "set format x \"%g\";\n" >> $PING_SCRIPT
-echo -ne "set xlab 'timestamp';\n" >> $PING_SCRIPT
+echo -ne "set xlab 'times (sec)';\n" >> $PING_SCRIPT
 echo -ne "set xtics nomirror rotate by -90;\n" >> $PING_SCRIPT
 
 # Set the y axis range for the 1st plot
