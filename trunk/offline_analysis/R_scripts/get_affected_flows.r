@@ -1,23 +1,24 @@
 ####### CONSTANTS
-log_file_folder <- "/home/araldo/analysis_output" #log files produced by tstqt
+log_file_folder <- "/home/araldo/output_of_config_tester/Makefile.conf.5" #log files produced by tstqt
 save_folder <- "/home/araldo/temp/r_out"
 r_logfile <- paste(save_folder,"r.log",sep="/")
-percentiles_cdf_plot <- paste(save_folder,"percentiles_cdf.jpg",sep="/")
-qd_pdf_plot <- paste(save_folder,"qd_pdf.jpg",sep="/")
+percentiles_plot <- paste(save_folder,"percentiles",sep="/")
+percentile_table_file <- paste(save_folder,"percentile_table.txt",sep="/")
 linear_class_scatterplot_file <- paste(save_folder,"scatter.eps",sep="/")
 percentiles_savefile <- paste(save_folder,"percentiles.R.save",sep="/")
-window_savefile <- paste(save_folder,"windows.R.save",sep="/")
+window_savefile <- paste(save_folder,"outgoing_windows_long.R.save",sep="/")
 influence_point_savefile <- paste(save_folder,"influence_point.R.save",sep="/")
 proto_influence_savefile <- paste(save_folder,"influence_scatter_point_table.txt",sep="/")
-merged_savefile <- paste(save_folder,"merged.R.save",sep="/")
-qd_of_flows_to_study_savefile <- paste(save_folder,"qd_flows_to_study.R.save",sep="/")
+quantile_evolution_savefile <- paste(save_folder,"quantile_evolution.txt",sep="/")
+merged_savefile <- paste(save_folder,"merged_long.R.save",sep="/")
+qd_of_flows_to_study_savefile <- paste(save_folder,"qd_flows_to_study_long.R.save",sep="/")
 chosen_qd_threshold <- 0
 chosen_flow_length_threshold <- 0
 
 field_names<-c("edge", "ipaddr1","port1","ipaddr2","port2",
                "C_internal", "S_internal",
                
-               "type_C2S",
+#                "type_C2S",
                "windowed_qd_C2S","error_C2S","max_qd_C2S",
                "chances_C2S",
                "grossdelay_C2S","conn_id_C2S","qd_samples_C2S",
@@ -60,6 +61,38 @@ handle_error <- function(e, function_name)
     stop(e)
 }
 
+# To calculate the empirical complementary cdf
+# see https://stat.ethz.ch/pipermail/r-help/2007-May/133006.html
+eccdf <- function(x)
+{
+    tryCatch({
+        x <- sort(x)
+        n <- length(x)
+        if (n < 1)
+            stop("'x' must have 1 or more non-missing values")
+        vals <- sort(unique(x))
+        rval <- approxfun(vals, 1-cumsum(tabulate(match(x, vals)))/n, #[CHANGED]
+                          method = "constant", yleft = 1, yright = 0, f = 0, ties = "ordered")
+        class(rval) <- c("eccdf", "stepfun", class(rval)) #[CHANGED]
+        attr(rval, "call") <- sys.call()
+        rval 
+    },
+             warning=function(w){handle_warning(w,"eccdf(..)")},
+             error=function(e){handle_error(e,"eccdf(..)")} 
+    )
+}
+plot.eccdf_useless <- function (x, ..., ylab = "1-Fn(x)", verticals = FALSE,
+                        col.01line = "gray70") #CHANGED
+{
+    tryCatch({
+        plot.stepfun(x, ..., ylab = ylab, verticals = verticals)
+        abline(h = c(0, 1), col = col.01line, lty = 2)
+    },
+             warning=function(w){handle_warning(w,"plot.eccdf(..)")},
+             error=function(e){handle_error(e,"plot.eccdf(..)") }
+    )
+}
+
 
 tryCatch({
     library(plyr)
@@ -72,36 +105,132 @@ tryCatch({
          ,error=function(e){handle_error(e,"")}
 )
 
-plot_percentiles <- function(percentiles)
+calculate_percentiles <- function()
 {
-    max_x <- max(c(max(percentiles[,c("percentile_90")]),
-                   max(percentiles[,c("percentile_95")]),
-                   max(percentiles[,c("percentile_99")]) )
+    tryCatch( {
+        filelist <- list.files(path = log_file_folder, 
+                               pattern = "*log_tcp_windowed_qd_acktrig", 
+                               all.files = FALSE,full.names = TRUE, recursive = TRUE,
+                               ignore.case = FALSE, include.dirs = FALSE)
+        
+        flow_id_vector <- c("ipaddr","port","ipaddr_out","port_out")
+        percentiles <- NULL
+        
+        iteration <- 1
+        repeat{
+            filename <- filelist[iteration]
+            print( paste( "Calculating percentiles for file ",filename) )
+            windows_ <-load_window_log(filename)
+            outgoing_windows_ <- get_outgoing_windows(windows=windows_)
+            
+            # Take all the non empty windows and project the resulting
+            # dataframe on the columns that characterize a flow
+            #all_non_empty_flows_ <-subset(outgoing_windows_, !is.na(windowed_qd), 
+            #                              select(flow_id_vector) )
+            
+            # Find the flows with at least 1 non empty window. For each of them
+            # calculate how many non empty windows are observed
+            #all_non_empty_flows <- 
+            #    ddply(all_non_empty_flows_, .(ipaddr,port,ipaddr_out, port_out), 
+            #          summarise, non_empty_win_count=length(port) 
+            #    )
+            
+            ####### Consider only the flows that are long enough
+            #long_flows <- subset(all_non_empty_flows, 
+            #                     non_empty_wins_count >= flow_length_threshold)
+            
+            ####### Per flow percentiles
+            percentiles_df_ <- 
+                ddply(outgoing_windows_, .(ipaddr, port, ipaddr_out, port_out), 
+                      summarize,
+                      percentile_50 = quantile( windowed_qd, na.rm=TRUE, c(.50)),
+                      percentile_90 = quantile( windowed_qd, na.rm=TRUE, c(.90)),
+                      percentile_95 = quantile( windowed_qd, na.rm=TRUE, c(.95)),
+                      percentile_99 = quantile( windowed_qd, na.rm=TRUE, c(.99))
+                )
+            
+            if(iteration == 1){
+                percentiles_df <- percentiles_df_
+            }else{
+                percentiles_df <- rbind( percentiles_df, percentiles_df_ )
+            }
+            
+            iteration <- iteration +1
+            if(iteration > length(filelist)){
+                break
+            }
+        }
+        write.table(x=percentiles_df, percentile_table_file)
+        return(percentiles_df)
+    },
+              warning=function(w){handle_warning(w,"calculate_percentiles(..)")},
+              error=function(e){handle_error(e,"calculate_percentiles(..)")}
     )
-    jpeg(percentiles_cdf_plot)
-    
-    plot(ecdf(percentiles[,c("percentile_90")]), 
-         log="x", xlim=c(1,max_x))
-    
-    plot(ecdf(percentiles[,c("percentile_95")]), 
-         log="x", xlim=c(1,max_x), add=TRUE )
-    
-    plot(ecdf(percentiles[,c("percentile_99")]), 
-         log="x", xlim=c(1,max_x), add=TRUE )
-    
-    dev.off()
 }
 
-plot_qd <- function(qd_of_flows_to_study)
+plot_percentiles <- function()
 {
-    jpeg(qd_pdf_plot)
-    bins <- seq(min(qd_of_flows_to_study), 
-                max(qd_of_flows_to_study)+10,10)
-    
-    zoom <- c(0,1000)
-    hist(qd_of_flows_to_study, breaks=bins, xlim=zoom, 
-         plot=TRUE)
-    dev.off()
+    tryCatch({
+        percentiles<-read.table(percentile_table_file)
+        max_x <- 5000
+        
+        print("Generating cdf plot")
+        plot_file <- paste(percentiles_plot,"cdf","eps",sep='.')
+        postscript(plot_file, horizontal = FALSE,width=6,height=5)
+        
+        plot(ecdf(percentiles[,c("percentile_50")]), 
+             log="x", xlim=c(1,max_x), col="red", 
+             xlab="aggregated queueing delays (ms)",
+             ylab="CDF", main=" "
+             )
+        
+        plot(ecdf(percentiles[,c("percentile_90")]), 
+             xlim=c(1,max_x), col="green", add=TRUE )
+        
+        plot(ecdf(percentiles[,c("percentile_95")]), 
+              xlim=c(1,max_x), col="skyblue", add=TRUE )
+         
+        plot(ecdf(percentiles[,c("percentile_99")]), 
+              xlim=c(1,max_x), col="violet", add=TRUE )
+         legend('topleft',
+                c("50%-percentile","90%-percentile", "95%-percentile", "99%-percentile"),
+                lty=1, col=c("red","green","skyblue","violet"), bty='n', cex=.75)
+        
+        grid()
+        dev.off()
+        
+        
+        print("Generating complementary cdf plot")
+        plot_file <- paste(percentiles_plot,"inverse_cdf","eps",sep='.')
+        
+        postscript(plot_file, horizontal = FALSE,width=6,height=5)
+        
+        plot(eccdf(percentiles[,c("percentile_50")]), 
+             log="x", xlim=c(1,max_x), col="red", 
+             xlab="aggregated queueing delays (ms)",
+             ylab="complementary CDF", main=" "
+        )
+        
+        plot(eccdf(percentiles[,c("percentile_90")]), 
+             xlim=c(1,max_x), col="green", add=TRUE )
+        
+        plot(eccdf(percentiles[,c("percentile_95")]), 
+             xlim=c(1,max_x), col="skyblue", add=TRUE )
+        
+        plot(eccdf(percentiles[,c("percentile_99")]), 
+             xlim=c(1,max_x), col="violet", add=TRUE )
+        legend('topleft',
+               c("50%-percentile","90%-percentile", "95%-percentile", "99%-percentile"),
+               lty=1, col=c("red","green","skyblue","violet"), bty='n', cex=.75)
+        
+        grid()
+        dev.off()
+        
+        print( paste( "The plots are: ",percentiles_plot,"*") )
+    },
+             warning=function(w){handle_warning(w,"plor_percentiles(..)")},
+             error=function(e){handle_error(e,"plot_percentiles(..)")}
+    )   
 }
 
 load_window_log <- function(filename)
@@ -117,7 +246,7 @@ load_window_log <- function(filename)
     return(windows)
 }
 
-process_logfile <- function(filename)
+process_logfile_useless <- function(filename)
 {
     windows_ <-load_window_log(filename)
     
@@ -129,26 +258,6 @@ process_logfile <- function(filename)
     return(result)
 }
 
-calculate_global_stats <- function(filelist)
-{
-    result <- process_logfile(filelist[1])
-    percentiles <- result$percentiles
-    qd_of_flows_to_study <- result$qd_of_flows_to_study
-    
-    for (filename in filelist[2:length(filelist)])
-    {
-        print("Processing another file")
-        result <- process_logfile(filename)
-        percentiles <- rbind(percentiles, result$percentiles)
-        
-        qd_of_flows_to_study <- 
-            c(qd_of_flows_to_study, result$qd_of_flows_to_study)
-    }
-    
-    save(percentiles, file=percentiles_savefile)
-    save(qd_of_flows_to_study, file=qd_of_flows_to_study_savefile)    
-}
-
 get_global_stats <- function()
 {
     load(percentiles_savefile)
@@ -158,27 +267,24 @@ get_global_stats <- function()
     print(quantile(qd_of_flows_to_study,c(.90,.95,.99)))
 }
 
-
-
 get_outgoing_windows <- function(windows)
 {
     tryCatch({
         print( paste( "Extracting outgoing windows from ", 
                       length(windows[,1] ), "windows " ) )
         outgoing_window_colnames_temp <- 
-            c("edge", "ipaddr","port","type","windowed_qd")
+            c("edge", "ipaddr","port","ipaddr_out","port_out","type","windowed_qd")
         
         internal_client_windows <- 
             windows[ windows$C_internal==1 & windows$S_internal==0,
-                     c("edge","ipaddr1", "port1", "type_C2S","windowed_qd_C2S")]
+                     c("edge","ipaddr1", "port1", "ipaddr2", "port2", "type_C2S","windowed_qd_C2S")]
         colnames(internal_client_windows) <- outgoing_window_colnames_temp
         print( paste( "There are ", 
                       length(internal_client_windows[,1] ), " cli windows" ) )
-        
-        
+                
         internal_server_windows <- 
             windows[ windows$S_internal==1 & windows$C_internal==0,
-                     c("edge","ipaddr2", "port2", "type_S2C","windowed_qd_S2C")]
+                     c("edge","ipaddr2", "port2","ipaddr1", "port1", "type_S2C","windowed_qd_S2C")]
         colnames(internal_server_windows) <- outgoing_window_colnames_temp
         print( paste( "There are ", 
                       length(internal_server_windows[,1]), " srv windows" ) )
@@ -191,9 +297,21 @@ get_outgoing_windows <- function(windows)
                                           outgoing_windows$edge==0, 1 ] ) != 0 ){
             stop("invalid values in outgoing_windows")
         }
+        
+        neglected_windows <- 
+            windows[ (windows$S_internal==1 & windows$C_internal==1) | 
+                         (windows$S_internal==0 & windows$C_internal==0),
+                     c("edge","ipaddr2", "port2","ipaddr1", "port1", "type_S2C","windowed_qd_S2C")]
+        print( paste( "There are ", 
+                      length(neglected_windows[,1]), " windows with both client ",
+                      "and server internal or external. These will be ignored") )
+        
+        if(length(internal_client_windows[,1]) + length(internal_server_windows[,1]) +
+               length(neglected_windows[,1]) != length(windows[,1] )){
+            stop("The sum of neglected windows, internal client windows and internal server windows is not the total windows")
+        }
         ####### SEVERE DEBUG: end
             
-        
         protocol_column <- 
             sapply(strsplit(as.character(outgoing_windows$type),":"), "[[", 1)
         outgoing_windows$protocol <- as.numeric(protocol_column)
@@ -238,34 +356,137 @@ build_class_scatterplots <- function()
 }
 
 
-build_logarithmic_protocol_scatterplot_useless <- function(point, plot_file)
+build_frequency_plots <- function()
 {
-    png(plot_file, width = 700, height = 700)
-    qds <- jitter(point$windowed_qd, amount=10)
-    qds[qds<=1] <- 1
-    plot(qds, jitter( x =as.numeric(factor(point$protocol) ) , amount=0.3), log="x",
-        lty="solid", cex=.4,
-        col=rgb(0,0,0,alpha=2,maxColorValue=255), 
-        pch=16)
-    dev.off()    
-}
-
-build_non_logarithmic_protocol_scatterplot_useless <- function(point, plot_file)
-{
-    png(plot_file, width = 700, height = 700)
-    qds <- jitter(point$windowed_qd, amount=10)
-    plot(qds, jitter( x =as.numeric(factor(point$protocol) ) , amount=0.3),
-         lty="solid", cex=.4,xlim=c(1, 800),
-         col=rgb(0,0,0,alpha=2,maxColorValue=255), 
-         pch=16)
-    dev.off()    
+    tryCatch({
+        # Frequency plot of the windowed_qd
+        plot_file <- paste(save_folder,"qd_frequency.eps",sep="/")
+        
+        print("Loading outgoing_windows_ff")
+        ffload(file=window_savefile, overwrite=TRUE)
+        # Now, the variable outgoing_windows_ff is available
+        
+        idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) )
+        outgoing_windows_ff_clean <-outgoing_windows_ff[idx,c("windowed_qd")]
+        outgoing_windowed_qd_ <- as.data.frame(outgoing_windows_ff_clean)
+        remove(outgoing_windows_ff)
+        remove(outgoing_windows_ff_clean)
+        remove(idx)
+#         q <- qplot(outgoing_windowed_qd, geom="histogram",freq=FALSE,binwidth=10,
+#                    xlim = c(0, 1000))
+        mydataframe <- data.frame( outgoing_windowed_qd=outgoing_windowed_qd_)
+        
+        mean <- mean(mydataframe$outgoing_windowed_qd, na.rm=TRUE)
+        labels <- data.frame(xposition=c(mean), yposition=c(0.07),label="mean" )
+        # The trick to add the vertical line is taken from http://stackoverflow.com/a/5392378
+        # The trick to add the label is http://stackoverflow.com/a/9081281
+        # The trick to format the label is http://sape.inf.usi.ch/quick-reference/ggplot2/geom_vline
+        q <- ggplot(mydataframe, aes(x=outgoing_windowed_qd)) +
+            geom_histogram(aes(y=..count../sum(..count..)),binwidth = 10   )+
+            ylab("frequency") + xlab("aggregated queueing delay (ms)") +
+            ylim(0, 0.26)+
+            scale_x_continuous(breaks = round(seq(0, 1000, by = 100),1), 
+                               limits=c(0, 1000) )+
+            geom_vline(aes(xintercept=mean ), linetype="dotted") +
+            geom_text(data = labels, aes(x = xposition, y = yposition, label = label),
+                      size=4, angle=90, vjust=-0.4, hjust=0)
+        
+        ggsave( plot_file, q, width = 6, height = 5 ) 
+        print( paste("Plot saved in ",plot_file) )
+        
+        
+        
+        percentiles <-read.table(percentile_table_file)
+        ybound = 0.07
+        labelposition=c(0.04)
+        
+        # Frequency plot of the 50th percentile
+        plot_file <- paste(save_folder,"frequency_50th_percentile.eps",sep="/")
+        
+        mean <- mean(percentiles$percentile_50, na.rm=TRUE)
+        labels <- data.frame(xposition=c(mean), yposition=labelposition,label="mean" )
+        q <- ggplot(percentiles, aes(x=percentile_50)) +
+            geom_histogram(aes(y=..count../sum(..count..)),binwidth = 10   )+
+            ylab("frequency") + xlab("50th percentile of aggregated queueing delay (ms)") +
+            ylim(0, ybound)+
+            scale_x_continuous(breaks = round(seq(0, 1000, by = 100),1), 
+                               limits=c(0, 1000) ) +
+            geom_vline(aes(xintercept=mean ), linetype="dotted") +
+            geom_text(data = labels, aes(x = xposition, y = yposition, label = label),
+                      size=4, angle=90, vjust=-0.4, hjust=0)
+        
+        ggsave( plot_file, q, width = 6, height = 5 ) 
+        print( paste("Plot saved in ",plot_file) )
+        
+        
+        # Frequency plot of the 90th percentile
+        plot_file <- paste(save_folder,"frequency_90th_percentile.eps",sep="/")
+        
+        mean <- mean(percentiles$percentile_90, na.rm=TRUE)
+        labels <- data.frame(xposition=c(mean), yposition=labelposition,label="mean" )
+        q <- ggplot(percentiles, aes(x=percentile_90)) +
+            geom_histogram(aes(y=..count../sum(..count..)),binwidth = 10   )+
+            ylab("frequency") + xlab("90th percentile of aggregated queueing delay (ms)") +
+            ylim(0, ybound)+
+            scale_x_continuous(breaks = round(seq(0, 1000, by = 100),1), 
+                               limits=c(0, 1000) )+
+            geom_vline(aes(xintercept=mean ), linetype="dotted") +
+            geom_text(data = labels, aes(x = xposition, y = yposition, label = label),
+                      size=4, angle=90, vjust=-0.4, hjust=0)
+        
+        ggsave( plot_file, q, width = 6, height = 5 ) 
+        print( paste("Plot saved in ",plot_file) )
+        
+        
+        # Frequency plot of the 95th percentile
+        plot_file <- paste(save_folder,"frequency_95th_percentile.eps",sep="/")
+        
+        mean <- mean(percentiles$percentile_95, na.rm=TRUE)
+        labels <- data.frame(xposition=c(mean), yposition=labelposition,label="mean" )
+        q <- ggplot(percentiles, aes(x=percentile_95)) +
+            geom_histogram(aes(y=..count../sum(..count..)),binwidth = 10   )+
+            ylab("frequency") + xlab("95th percentile of aggregated queueing delay (ms)") +
+            ylim(0, ybound)+
+            scale_x_continuous(breaks = round(seq(0, 1000, by = 100),1), 
+                               limits=c(0, 1000) )+
+            geom_vline(aes(xintercept=mean ), linetype="dotted") +
+            geom_text(data = labels, aes(x = xposition, y = yposition, label = label),
+                      size=4, angle=90, vjust=-0.4, hjust=0)
+        
+        ggsave( plot_file, q, width = 6, height = 5 ) 
+        print( paste("Plot saved in ",plot_file) )
+        
+        
+        # Frequency plot of the 99th percentile
+        plot_file <- paste(save_folder,"frequency_99th_percentile.eps",sep="/")
+        
+        mean <- mean(percentiles$percentile_99, na.rm=TRUE)
+        labels <- data.frame(xposition=c(mean), yposition=labelposition,label="mean" )
+        q <- ggplot(percentiles, aes(x=percentile_99)) +
+            geom_histogram(aes(y=..count../sum(..count..)),binwidth = 10   )+
+            ylab("frequency") + xlab("99th percentile of aggregated queueing delay (ms)") +
+            ylim(0, ybound)+
+            scale_x_continuous(breaks = round(seq(0, 1000, by = 100),1), 
+                               limits=c(0, 1000) )+
+            geom_vline(aes(xintercept=mean ), linetype="dotted") +
+            geom_text(data = labels, aes(x = xposition, y = yposition, label = label),
+                      size=4, angle=90, vjust=-0.4, hjust=0)
+        
+        ggsave( plot_file, q, width = 6, height = 5 ) 
+        print( paste("Plot saved in ",plot_file) )
+        
+        
+    },
+             warning=function(w){handle_warning(w,"build_frequency_plots(..)")},
+             error=function(e){handle_error(e,"build_frequency_plots(..)")}
+    )
 }
 
 # Build the point_df unifying all the point dataframes of the single
 # tracks (each of which was obtained with get_point(windows), where windows
 # are the windows of a single tracks). It saves point_df in the file
 # point_savefile
-calculate_point_df <- function(filelist)
+calculate_point_df_useless <- function(filelist)
 {
     filename <- filelist[1]
     print(paste("Extracting points from file:",filename) )
@@ -335,8 +556,6 @@ convert_to_outgoing_windows_ff <- function(outgoing_windows_)
     )
 }
 
-
-
 calculate_outgoing_windows_df <- function(filelist)
 {
     tryCatch({
@@ -360,7 +579,7 @@ calculate_outgoing_windows_df <- function(filelist)
                 windows_ <- load_window_log(filename)
                 outgoing_windows_1 <- get_outgoing_windows(windows_)
                 outgoing_windows_ <- 
-                    merge( outgoing_windows_1, traffic_classassoc, 
+                    merge( outgoing_windows_1, class_assoc, 
                            by.x="protocol", by.y="protocol", all.x=TRUE)
                 
                 ####### SEVERE DEBUG: begin
@@ -481,6 +700,51 @@ build_outgoing_windows_df <- function()
     )
 }
 
+plot_percentage_bar <- function()
+{
+    tryCatch( {
+        plot_file <- paste(save_folder,"range_portions.eps",sep="/")
+        
+        print("Loading outgoing_windows_ff")
+        # (windows_ff has been created by build_outgoing_windows_df() )
+        ffload(file=window_savefile, overwrite=TRUE)
+        # Now, the variable outgoing_windows_ff is available
+        
+        idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) )
+        outgoing_windows_ff_clean <-outgoing_windows_ff[idx,c("windowed_qd","class")]
+        outgoing_windowed_qd <- as.data.frame(outgoing_windows_ff_clean)
+        remove(outgoing_windows_ff)
+        remove(outgoing_windows_ff_clean)
+        remove(idx)
+        
+        range_levels <- c("LOW","MID","HIG")
+        
+        outgoing_windowed_qd$range = 
+            ifelse( outgoing_windowed_qd$windowed_qd >=1000,
+                    factor("HIG", levels=range_levels, labels=range_levels), 
+                    ifelse(outgoing_windowed_qd$windowed_qd <100, 
+                           factor("LOW", levels=range_levels, labels=range_levels), 
+                           factor("MID", levels=range_levels, labels=range_levels) )   )
+        
+        # Inpired by https://sites.google.com/site/r4statistics/example-programs/graphics-ggplot2
+        # Workaround in case of probmems:
+        # https://github.com/hadley/ggplot2/issues/785
+        q <- ggplot(outgoing_windowed_qd, 
+                    aes(class, fill=factor(range) ) )+
+               geom_bar(position="fill")
+        ggsave( plot_file, q, width = 6, height = 6 ) 
+        print( paste("Plot saved in ",plot_file) )
+    },
+              warning = function(w){handle_warning(w,"plot_percentage_bar(..)")},
+              error = function(e){handle_error(e,"plot_percentage_bar(..)")}
+    )
+    
+    # Preallocate a vector with the same elements as the rows of outgoing_windowed_qd
+    #   see: http://stackoverflow.com/a/3414062
+#     range_ <- rep(NA, dim(outgoing_windowed_qd)[1])
+#     outgoing_windowed_qd$range <- range_
+}
+
 plot_class_distinguished_frequency_plots <- function()
 {
     tryCatch({
@@ -489,7 +753,6 @@ plot_class_distinguished_frequency_plots <- function()
         ffload(file=window_savefile, overwrite=TRUE)
         # Now, the variable outgoing_windows_ff is available
         
-        
         #### Interval [100,1000[
         idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) &
                        windowed_qd >= 100 & windowed_qd < 1000)
@@ -497,9 +760,16 @@ plot_class_distinguished_frequency_plots <- function()
             idx <- as.numeric( array( dim=c(0) ) )
         }
         filtered_outgoing_windows <- as.data.frame( outgoing_windows_ff[idx,] )
-        head(filtered_outgoing_windows)
-        q <- qplot( factor(protocol), data=filtered_outgoing_windows, geom="bar", log="y")
+#         filtered_outgoing_windows <- filtered_outgoing_windows[ 
+#             filtered_outgoing_windows$class!="P2P" & 
+#                 filtered_outgoing_windows$class!="OTHER",]
+        
+        q <- qplot( class, data=filtered_outgoing_windows, geom="bar")
         q + opts(axis.text.x=theme_text(angle=-90))
+        plot_file <- paste(save_folder,"freq_MID.linear.eps",sep="/")
+        
+        ggsave( plot_file, q, width = 6, height = 4 ) 
+        print( paste("Plot saved in ",plot_file) )
         
         #### Interval [1000,+infty[
         idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) &
@@ -508,9 +778,15 @@ plot_class_distinguished_frequency_plots <- function()
             idx <- as.numeric( array( dim=c(0) ) )
         }
         filtered_outgoing_windows <- as.data.frame( outgoing_windows_ff[idx,] )
-        head(filtered_outgoing_windows)
-        q <- qplot( factor(protocol), data=filtered_outgoing_windows, geom="bar", log="y")
+#         filtered_outgoing_windows <- filtered_outgoing_windows[ 
+#             filtered_outgoing_windows$class!="P2P" & 
+#                 filtered_outgoing_windows$class!="OTHER",]
+#         
+        q <- qplot( class, data=filtered_outgoing_windows, geom="bar")
         q + opts(axis.text.x=theme_text(angle=-90))
+        plot_file <- paste(save_folder,"freq_HIGH.linear.eps",sep="/")
+        ggsave( plot_file, q, width = 6, height = 4 ) 
+        print( paste("Plot saved in ",plot_file) )
         
         #### Interval [0,100[
         idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) &
@@ -519,9 +795,16 @@ plot_class_distinguished_frequency_plots <- function()
             idx <- as.numeric( array( dim=c(0) ) )
         }
         filtered_outgoing_windows <- as.data.frame( outgoing_windows_ff[idx,] )
-        head(filtered_outgoing_windows)
-        q <- qplot( factor(protocol), data=filtered_outgoing_windows, geom="bar", log="y")
+#         filtered_outgoing_windows <- filtered_outgoing_windows[ 
+#             filtered_outgoing_windows$class!="P2P" & 
+#                 filtered_outgoing_windows$class!="OTHER",]
+#         
+        q <- qplot( class, data=filtered_outgoing_windows, geom="bar")
         q + opts(axis.text.x=theme_text(angle=-90))
+        plot_file <- paste(save_folder,"freq_LOW.linear.eps",sep="/")
+        ggsave( plot_file, q, width = 6, height = 4 ) 
+        print( paste("Plot saved in ",plot_file) )
+        
     },
              warning = function(w){
                  handle_warning(w,"plot_class_distinguished_frequency_plots()")},
@@ -601,12 +884,15 @@ get_class_spread_over_qd_category <- function(){
     
 }
 
-
-plot_quantile_time_evolution <- function(outgoing_windows_ff)
+build_quantile_time_evolution <- function()
 {
     tryCatch({
+        print("Loading outgoing_windows_ff")
+        ffload(file=window_savefile, overwrite=TRUE)
+        # Now, the variable outgoing_windows_ff is available
+        
         ## Extract time window
-        step = 5 #(minutes)
+        step = 2 #(minutes)
         left_date <- "2007-06-20 23:21:09"
         right_date <- "2007-06-21 23:32:32"
         
@@ -651,9 +937,6 @@ plot_quantile_time_evolution <- function(outgoing_windows_ff)
                 quantiles <- rbind( quantiles, new_quantiles)
             }
             
-            print("Now quantiles is")
-            print(quantiles)
-            
             
             left_edge <- left_edge+step*60
             iteration <- iteration+1
@@ -664,15 +947,30 @@ plot_quantile_time_evolution <- function(outgoing_windows_ff)
         }
         quantiles_df <- data.frame(quantiles)
         quantiles_df <- na.omit(quantiles_df)
+        write.table(quantiles_df, file=quantile_evolution_savefile)
+        print(paste("quantile evolution saved in ",quantile_evolution_savefile) )
+    },
+             warning = function(w){handle_warning(w, "build_quantile_time_evolution(..)")},
+             error = function(e){handle_error(e, "build_quantile_time_evolution(..)")}
+    )
+}
+
+plot_quantile_time_evolution <- function()
+{
+    tryCatch({
+        plot_file <- paste(save_folder,"quantile_evolution.eps",sep="/")
         
+        quantiles_df<-read.table(quantile_evolution_savefile)
         #Inspired by: http://stackoverflow.com/a/4877936/2110769
         quantiles_df <- melt( quantiles_df, id="left_edge", variable_name = 'quantiles')
-        ggplot(quantiles_df, aes(left_edge,value)) + geom_line(aes(colour = quantiles))
-        
+        q <- ggplot(quantiles_df, aes(left_edge,value)) +geom_line(aes(colour = quantiles) )+
+            ylab("aggregated queueing delay (ms)") + xlab("time")
+        ggsave( plot_file, q, width = 10, height = 5 ) 
+        print(paste("plot saved in ",plot_file) )
     },
-             warning = function(w){handle_warning(w, "get_proto_influence(..)")},
-             error = function(e){handle_error(e, "get_proto_influence(..)")}
-    )   
+             warning = function(w){handle_warning(w, "plot_quantile_time_evolution(..)")},
+             error = function(e){handle_error(e, "plot_quantile_time_evolution(..)")}
+    )
     
 }
 
@@ -792,11 +1090,7 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
             extracted1 <- as.data.frame(
                 extract_time_window( dataframe1, left_edge, step ) )
             extracted2 <- as.data.frame(
-                extract_time_window( dataframe1, left_edge, step ) )
-            
-            colnames(extracted2) <- c("edge", "ipaddr", "influencing_port",
-                                      "influencing_protocol", "influencing_windowed_qd",
-                                      "influencing_class")
+                extract_time_window( dataframe2, left_edge, step ) )
             
             print( "Number of windows extracted" )
             print(length(extracted1[,1]))
@@ -813,19 +1107,31 @@ merge_large_dataframes <- function(dataframe1, dataframe2)
                 print(extracted_not_valid)
                 stop("there are 0 edges in extracted1. It is not allowed")
             }
-           
+            
             extracted_not_valid <- subset( extracted2, edge==0  )
             if( !is.null( extracted_not_valid ) & 
                     dim(extracted_not_valid)[1] !=0 ){
-                print("extracted2 has 0-edge windowed_qd")
-                print(extracted_not_valid)
+                print("extracted2 has 0-edge windowed_qd. It is")
+                print(head(extracted_not_valid) )
+                
+                print("extracted1 is")
+                extracted_not_valid <- subset( extracted1, edge==0  )
+                print(head(extracted_not_valid) )
+                
+                print("colnames for extracted1 and extracted2 are")
+                colnames(extracted1)
+                colnames(extracted2)
+                
                 stop("there are 0 edges in extracted2. It is not allowed")
             }
+            
+            print( "SEVERE DEBUG 1 PASSED" )
             ####### SEVERE DEBUG: end
             
+            print("Prima di merge")
             merged_not_ff <- merge(x=extracted1, y=extracted2, all.x=FALSE, all.y=FALSE,
                                    by.x=c('edge', 'ipaddr'), by.y=c('edge', 'ipaddr') )
-            
+            print("Dopo merge")
             ####### SEVERE DEBUG: begin
             merged_not_ff_not_valid <- subset( merged_not_ff, edge==0  )
             if( !is.null( merged_not_ff_not_valid ) & 
@@ -919,20 +1225,20 @@ build_merged <- function()
         print("outgoing_windows_ff is")
         print(outgoing_windows_ff)
         
-        idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) )
-        outgoing_windows_ff_clean <- outgoing_windows_ff[idx, ]
+        # ANNULLATA: idx <- ffwhich(outgoing_windows_ff, !is.na(windowed_qd) )
+        # ANNULLATA: outgoing_windows_ff_clean <- outgoing_windows_ff[idx, ]
         
         # I want to associate every windowed_qd to all the protocols that have coexisted 
         # with it. In order to do that, I do an exact copy of outgoing_windows_ff and
         # merge the to copy (as an SQL join)
-        outgoing_windows_ff_1 <- ffdf(edge = outgoing_windows_ff_clean$edge, 
-                                      ipaddr = outgoing_windows_ff_clean$ipaddr,
-                                      influencing_port = outgoing_windows_ff_clean$port,
-                                      influencing_proto = outgoing_windows_ff_clean$proto,
-                                      influencing_class = outgoing_windows_ff_clean$class)
+        outgoing_windows_ff_1 <- ffdf(edge = outgoing_windows_ff$edge, 
+                                      ipaddr = outgoing_windows_ff$ipaddr,
+                                      influencing_port = outgoing_windows_ff$port,
+                                      influencing_proto = outgoing_windows_ff$proto,
+                                      influencing_class = outgoing_windows_ff$class)
         
-        print("Merging outgoing_windows_ff_clean with itself ...")
-        merged <- merge_large_dataframes(outgoing_windows_ff_clean, outgoing_windows_ff_1)
+        print("Merging outgoing_windows_ff with itself ...")
+        merged <- merge_large_dataframes(outgoing_windows_ff, outgoing_windows_ff_1)
         print("Merge complete")
     },
              warning = function(w){handle_warning(w, "build_merged(..)")},
@@ -1283,7 +1589,8 @@ build_influence_point_df_useless <- function()
 }
 
 tryCatch({
-    get_proto_influence()
+    print( paste("log file in ", r_logfile) )
+    build_merged()
 },
          warning = function(w){handle_warning(w, ",main execution")},
          error = function(e){handle_error(e, ",main execution")}

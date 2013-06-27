@@ -738,10 +738,10 @@ typedef u_long hash;
 
 typedef struct
 {
-  ipaddr a_address;
-  ipaddr b_address;
-  portnum a_port;
-  portnum b_port;
+  ipaddr a_address; //<aa>ip address of the client</aa>
+  ipaddr b_address; //<aa>ip address of the server</aa>
+  portnum a_port;   //<aa>port of the client</aa>
+  portnum b_port;   //<aa>port of the server</aa>
   hash hash;
 }
 tcp_pair_addrblock;

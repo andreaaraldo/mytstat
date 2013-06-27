@@ -8,10 +8,10 @@
 # CONFIG_TO_TEST; This file must be in the same format of tstat/Makefile.conf.
 
 
-if [ $# -ne 5 ]
+if [ $# -ne 4 ]
 then
 	echo -ne "usage
-	tstat_machine_gun <traces_folder> <left_edge> <right_edge> <output_folder> <Makefile.conf>\n
+	$0 <traces_folder> <left_edge> <right_edge> <Makefile.conf>\n
 	all traces starting from the <left_edge>-th to the <right_edge>-th will be processed with 
 	tstat configured as defined in <Makefile.conf>
 	"
@@ -21,8 +21,9 @@ fi
 FOLDER=$1 #the traces are located here
 LEFT=$2
 RIGHT=$3
-TSTAT_OUTPUT_FOLDER=$4
-CONFIG_TO_TEST=$5
+CONFIG_TO_TEST=$4
+TSTAT_OUTPUT_FOLDER_BASE=~/output_of_config_tester
+NETWORK_DESCRIPTOR_FILE=~/fastweb2/net_file.FW_UMBERTO
 
 
 TRACE_FORMAT=gz
@@ -32,22 +33,25 @@ TSTAT_PATH=~/tstat
 MAKEFILE_CONF_STANDARD_PATH=$TSTAT_PATH/tstat/Makefile.conf
 CONFIG_NAME=`basename $CONFIG_TO_TEST`
 RESULT_FILE=$RESULT_FOLDER/$CONFIG_NAME.results.txt
+TSTAT_OUTPUT_FOLDER=$TSTAT_OUTPUT_FOLDER_BASE/$CONFIG_NAME
 
 #set the tstat configuration
 echo "Setting configuration $CONFIG_NAME"
-cp $CONFIG_TO_TEST $MAKEFILE_CONF_STANDARD_PATH
+cp -f $CONFIG_TO_TEST $MAKEFILE_CONF_STANDARD_PATH
 cd $TSTAT_PATH
 make distclean; sh autogen.sh; ./configure; make -j
 cd -
 
 rm -r $TSTAT_OUTPUT_FOLDER/*
+mkdir --parents $TSTAT_OUTPUT_FOLDER
 rm $RESULT_FILE
 
 
 echo "tstat machine gun running"
 echo "folder: $FOLDER"
 echo "left: $LEFT"
-echo "results in $RESULT_FILE"
+echo "performance results in $RESULT_FILE"
+echo "tstat output in $TSTAT_OUTPUT_FOLDER"
 
 
 TIMEFORMAT='%3R'
@@ -68,7 +72,7 @@ for f in `ls $FOLDER/*.$TRACE_FORMAT`; do
 			#the trick to print the time output is inspired by:
 			#http://hustoknow.blogspot.fr/2011/08/how-to-redirect-bash-time-outputs.html
 
-			(time tstat -s $TSTAT_OUTPUT_FOLDER/$tracename $f > null 2>&1) 2>> $TEMP_FILE
+			(time tstat -N $NETWORK_DESCRIPTOR_FILE -s $TSTAT_OUTPUT_FOLDER/$tracename $f > null 2>&1) 2>> $TEMP_FILE
 			
 			#Compute the space required in the disk
 			echo -ne `du --bytes --total $TSTAT_OUTPUT_FOLDER/$tracename | cut -f1 | tail -n1` >> $TEMP_FILE
