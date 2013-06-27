@@ -19,7 +19,7 @@ echo "set multiplot layout 3,1;" >> $PING_SCRIPT
 
 echo "unset xtics;" >> $PING_SCRIPT
 
-echo "plot '< cat $RESULT_FOLDER/Makefile.conf.1.results.txt' u 4:(\$3/1000000) with points axes x1y1 title 'config 1', '< cat $RESULT_FOLDER/Makefile.conf.2.results.txt' u 4:(\$3/1000000) with points axes x1y1 title 'config 2', '< cat $RESULT_FOLDER/Makefile.conf.3.results.txt' u 4:(\$3/1000000) with points axes x1y1 title 'config 3', '< cat $RESULT_FOLDER/Makefile.conf.4.results.txt' u 4:(\$3/1000000) with points axes x1y1 title 'config 4'" >> $PING_SCRIPT
+echo "plot '< cat $RESULT_FOLDER/Makefile.conf.1.results.txt' u 4:(\$3/1000000) with points axes x1y1 title 'config 1', '< cat $RESULT_FOLDER/Makefile.conf.2.results.txt' u 4:(\$3/1000000) with points axes x1y1 title 'config 2' >> $PING_SCRIPT
 
 
 echo "set xrange [GPVAL_X_MIN:GPVAL_X_MAX];" >> $PING_SCRIPT

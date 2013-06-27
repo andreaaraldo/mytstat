@@ -723,8 +723,8 @@ void print_last_window_general(enum analysis_type an_type,
        	           HostName (addr_pair->b_address),	//4.ip_addr_2
        	           ServiceName (addr_pair->b_port));	//5.port_2
 	wfprintf (fp_qd, "%d %d",
-       	           internal_src,			//6.ip_addr_2
-       	           internal_dst);			//7.port_2
+       	           internal_src,			//6.internal_src
+       	           internal_dst);			//7.internal_dst
 
 }
 
@@ -799,7 +799,7 @@ void print_last_window_directional(enum analysis_type an_type,
 	
 	#endif //of SEVERE_DEBUG
 
-	wfprintf(fp_logc, " %s",type);			//8-19:<con_type>:<p2p_type>
+	wfprintf(fp_logc, " %s",type);			//8-21:<con_type>:<p2p_type>
 	// See struct.h for the meaning of con_type
 
 	if (qd_window == BUFFEBLOAT_NOSAMPLES)
@@ -870,7 +870,7 @@ void print_last_window_directional(enum analysis_type an_type,
 	);
 	
 	wfprintf(fp_logc, DELAY_T_FORMAT_SPECIFIER,
-		bufferbloat_stat->delay_base		//21-33 (milliseconds)
+		bufferbloat_stat->delay_base		//20-33 (milliseconds)
 	);
 }
 
