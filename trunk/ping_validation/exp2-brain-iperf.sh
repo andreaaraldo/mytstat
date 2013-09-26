@@ -11,8 +11,7 @@ DESKTOP_IP=`sudo ssh -n -f root@netbook ping -c 1 desktop | head -n 1 | cut -d"(
 
 # netem bottleneck param
 UPLINK_CAPACITY=1000 #link capacity to emulate (in kbit)
-LOSS_PROBABILITY=0 #(percentage)
-DATARATE=7000  #we want that the netbook sends data packet in the sniffed flow
+LOSS_PROBABILITY=0 #(percentage)DATARATE=7000  #we want that the netbook sends data packet in the sniffed flow
 		# according to this (in kbit)
 
 echo ""
@@ -24,23 +23,25 @@ sleep 2
 
 echo ""
 echo ""
-echo "####### Synchronizing the 2 clocks"
-ntpdate ntp.ubuntu.com
-ssh root@netbook 'ntpdate ntp.ubuntu.com'
+echo "####### Synchronizing the 2 clocks: not needed anymore"
+#ntpdate ntp.ubuntu.com
+#ssh root@netbook 'ntpdate ntp.ubuntu.com'
 
 echo ""
 echo ""
 echo "####### Setting the bottlenecks"
-ethtool -s eth0 autoneg off
-ethtool -s eth0 speed 10 duplex full
+
+# Bottlenecks on desktop (via ethtool and netem)
+#ethtool -s eth0 autoneg off
+#ethtool -s eth0 speed 10 duplex full
 NETEM_COMMAND="$DESKTOP_TSTAT_FOLDER/ping_validation/network_emulation.sh $UPLINK_CAPACITY $LOSS_PROBABILITY fifo eth0 $NETBOOK_IP"
 echo $NETEM_COMMAND
-$NETEM_COMMAND
+#$NETEM_COMMAND
 
-#I want to limit the data rate of the sniffed flow
+# Bottleneck on netbook: I want to limit the data rate of the sniffed flow
 NETEM_COMMAND_NETBOOK_SIDE="$NETBOOK_TSTAT_FOLDER/ping_validation/network_emulation.sh $DATARATE $LOSS_PROBABILITY fifo eth0 $DESKTOP_IP"
 echo "on netbook: "$NETEM_COMMAND_NETBOOK_SIDE
-ssh -n -f root@netbook $NETEM_COMMAND_NETBOOK_SIDE
+#ssh -n -f root@netbook $NETEM_COMMAND_NETBOOK_SIDE
 
 
 
@@ -64,7 +65,7 @@ echo ""
 echo ""
 echo "####### Injecting cross traffic"
 #50 100 500 1000 5000 10000 50000 
-for bandwidth in 1 2 3 4 5;
+for bandwidth in 1 2;
 do 
 	echo "iperf -t 5 --udp -c netbook --port $CROSS_TRAFFIC_PORT"
 	iperf -t 15 -c netbook --port $CROSS_TRAFFIC_PORT;
