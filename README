@@ -1,7 +1,9 @@
 General Information
 ===================
+This is version 1.0 of bufferbloat_dissector. It is a patched version of Tstat 2.3 .
 
-This is version 2.3 of Tstat.
+Tstat information
+===================
 
 Tstat is a a passive sniffer able to provide several insight on 
 the traffic patterns at both the the network and transport levels. 
