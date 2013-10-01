@@ -67,7 +67,7 @@ echo "Starting gnuplot scripting"
 
 echo "set title 'queueing delay cdf';" > $GNUPLOT_SCRIPT
 echo "set logscale x;" >> $GNUPLOT_SCRIPT
-echo "set xrange [1:1200];" >> $GNUPLOT_SCRIPT
+echo "set xrange [10:1200];" >> $GNUPLOT_SCRIPT
 echo "set yrange [0:1];" >> $GNUPLOT_SCRIPT
 echo "set xlabel 'queueing delay (ms)';" >> $GNUPLOT_SCRIPT
 echo "set ylabel 'cdf';" >> $GNUPLOT_SCRIPT
