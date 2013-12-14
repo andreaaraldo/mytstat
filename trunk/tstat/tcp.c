@@ -497,12 +497,14 @@ FindTTP (struct ip *pip, struct tcphdr *ptcp, int *pdir)
       if (SameConn (&tp_in, &ptph->addr_pair, &dir))
 	{
 	  /* OK, this looks good, suck it into memory */
+//<aa> I disabled the following lines because they set variables that are
+// never used
+/*
 	  tcp_pair *ptp = ptph->ptp;
-	  tcb *thisdir;
 	  tcb *otherdir;
 
 
-	  /* figure out which direction this packet is going */
+	  figure out which direction this packet is going
 	  if (dir == C2S)
 	    {
 	      thisdir = &ptp->c2s;
@@ -513,6 +515,8 @@ FindTTP (struct ip *pip, struct tcphdr *ptcp, int *pdir)
 	      thisdir = &ptp->s2c;
 	      otherdir = &ptp->c2s;
 	    }
+*/
+
 
 	  /* move to head of access list (unless already there) */
 	  if (ptph != *pptph_head)
@@ -1338,6 +1342,12 @@ tcp_flow_stat (struct ip * pip, struct tcphdr * ptcp, void *plast, int *dir)
       ack_type = ack_in (otherdir, th_ack, tcp_data_length);
 
       #ifdef BUFFERBLOAT_ANALYSIS
+      
+      #ifdef LOG_ALL_CHANCES
+      print_ack_type( 	(const tcp_pair_addrblock*) &(thisdir->ptp->addr_pair), 
+      					(const int) *dir, ack_type );
+      #endif // of LOG_ALL_CHANCES
+      
       char type[16];
       sprintf(type,"%u:%u", (thisdir->ptp)->con_type, (thisdir->ptp)->p2p_type);
       utp_stat* thisdir_bufferbloat_stat = &(thisdir->bufferbloat_stat_ack_triggered);

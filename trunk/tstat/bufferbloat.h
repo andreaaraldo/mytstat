@@ -26,7 +26,7 @@ enum bufferbloat_analysis_trigger
  * - dir: can be C2S or S2C
  * - last_gross_delay (milliseconds) (it will be printed on the logfile in milliseconds)
  */
- #ifdef SAMPLES_BY_SAMPLES_LOG
+#ifdef SAMPLE_BY_SAMPLE_LOG
 #ifdef FORCE_CALL_INLINING
 extern inline
 #endif
@@ -39,7 +39,20 @@ void print_queueing_dly_sample(enum analysis_type an_type,
 	__attribute__((always_inline))
 #endif
 ;
-#endif
+#endif // of SAMPLE_BY_SAMPLE_LOG
+
+
+/**
+ * Valid only if analysis type is TCP
+ * - addr_pair: it can be also an udp_pair_addrblock* casted to tcp_pair_addrblock* .
+ * - estimated_qd (milliseconds) (it will be printed on the logfile in milliseconds)
+ * - dir: can be C2S or S2C
+ * - ack_type	
+ */
+#ifdef LOG_ALL_CHANCES
+void print_ack_type(const tcp_pair_addrblock* addr_pair, const int dir, enum t_ack ack_type);
+#endif // of LOG_ALL_CHANCES
+
 
 /**
  * Estimates queueing delay, updates the data structure needed to calculate the queueing delay
