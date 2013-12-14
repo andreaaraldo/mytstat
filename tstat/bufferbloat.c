@@ -11,6 +11,14 @@ static unsigned long long latest_window_edge[2][3]; //first index is in {TCP,LED
 					 //for ledbat, alway set second index = DONT_CARE
 #endif
 
+#ifdef SAMPLE_BY_SAMPLE_LOG
+extern FILE* fp_tcp_qd_sample_acktrig_logc;
+extern FILE* fp_ledbat_qd_sample_logc;
+#endif //of SAMPLE_BY_SAMPLE
+
+#ifdef LOG_ALL_CHANCES
+extern FILE* fp_tcp_ack_types_logc;
+#endif // of LOG_ALL_CHANCES
 
 extern FILE *fp_tcp_windowed_qd_acktrig_logc, *fp_tcp_windowed_qd_datatrig_logc,
 	*fp_ledbat_windowed_qd_logc;
@@ -207,100 +215,6 @@ void update_gross_delay_related_stuff(delay_t gross_delay,utp_stat* bufferbloat_
 } // end of update_gross_delay_related_stuff(...)
 //</aa>
 
-#ifdef SAMPLES_BY_SAMPLES_LOG
-#ifdef FORCE_CALL_INLINING
-extern inline
-#endif
-void print_queueing_dly_sample(enum analysis_type an_type,  
-	enum bufferbloat_analysis_trigger trig,
-	const tcp_pair_addrblock* addr_pair, 	int dir,
-	utp_stat* bufferbloat_stat_p, int utp_conn_id,delay_t estimated_qd, 
-	const char* type, u_int32_t pkt_size, delay_t last_grossdelay)
-{
-	#ifdef SEVERE_DEBUG
-	if(an_type != LEDBAT && an_type != TCP){
-		printf("ERROR in print_queueing_dly_sample, line %d\n",__LINE__); 
-		exit(414);
-	}
-
-	if(an_type==TCP && trig!=ACK_TRIG 
-		#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
-		&& trig!=DATA_TRIG
-		#endif
-	){
-		printf("ERROR in print_queueing_dly_sample, line %d: trig vs ledbat\n",
-			__LINE__); 
-		exit(414);
-	}
-
-	if(an_type == LEDBAT && trig != DONT_CARE_TRIG){
-		printf("ERROR in print_queueing_dly_sample, line %d: trig vs ledbat\n",
-			__LINE__); 
-		exit(414);
-	}
-	#endif
-
-	FILE* fp_qd=NULL;
-	switch (an_type){
-		case TCP:	if(trig == ACK_TRIG)
-						fp_qd = fp_tcp_qd_sample_acktrig_logc;
-					#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
-					else 
-						fp_qd = fp_tcp_qd_sample_datatrig_logc ;
-					#endif
-					break;
-
-		default:	fp_qd = fp_ledbat_qd_sample_logc; 
-				break;
-	}
-
-	#ifdef SEVERE_DEBUG
-	if (dir!=S2C && dir!=C2S) {
-		printf("ERROR: dir (%d) not valid\n",dir); exit(7777);
-	}
-
-	if(last_grossdelay < estimated_qd){
-		printf("line %d:ERROR in  print_queueing_dly_sample\n",__LINE__);exit(3356);
-	}
-	#endif
-
-	wfprintf(fp_qd,"%u ",
-		(unsigned) current_time.tv_sec				//1. seconds
-	);	
-
-	wfprintf (fp_qd, "%s %s ",
-      	           HostName (addr_pair->a_address),	//2.ip_addr_1
-       	           ServiceName (addr_pair->a_port));	//3.port_1
-  	wfprintf (fp_qd, "%s %s ",
-       	           HostName (addr_pair->b_address),	//4.ip_addr_2
-       	           ServiceName (addr_pair->b_port));	//5.port_2
-
-
-	wfprintf (fp_qd, "%d ", dir); 			//6.dir
-	
-	switch(an_type){
-		case (LEDBAT):	wfprintf (fp_qd, "%d ", utp_conn_id); 
-							//7.conn_id
-				break; 
-
-		case (TCP):	wfprintf (fp_qd, "- "); break;
-		default:	fprintf(stderr, "ERROR: analysis type not valid\n"); 
-				exit(54321);
-	}
-
-	wfprintf (fp_qd, "%u %u ",
-		bufferbloat_stat_p->delay_base,		//8.delay_base (milliseconds)
-		estimated_qd				//9.estimated_qd (milliseconds)
-	);
-
-	wfprintf (fp_qd, "- "); 			//10.flowtype
-	wfprintf (fp_qd, "%u", pkt_size); 		//11.pkt_size
-	wfprintf (fp_qd, DELAY_T_FORMAT_SPECIFIER, last_grossdelay);	//12.last_grossdelay(milliseconds)
-	wfprintf (fp_qd, " %s\n", type);	 		//13.<con_type>:<p2p_type>
-	fflush(fp_qd);
-}
-#endif //of SAMPLES_BY_SAMPLES_LOG
-
 const float EWMA_ALPHA = 0.5;
 
 delay_t bufferbloat_analysis(enum analysis_type an_type,
@@ -406,8 +320,8 @@ delay_t bufferbloat_analysis(enum analysis_type an_type,
 
 	//milliseconds
 	delay_t estimated_qd = get_queueing_delay((const utp_stat*)bufferbloat_stat ); 
-
-	#ifdef SAMPLES_BY_SAMPLES_LOG
+//	printf ("\n\n\nline %d\n\n\n",__LINE__); exit(222);
+	#ifdef SAMPLE_BY_SAMPLE_LOG
 	print_queueing_dly_sample(an_type, trig, addr_pair,
 		dir, bufferbloat_stat, 0, estimated_qd, type, pkt_size, 
 		last_grossdelay);
@@ -924,6 +838,132 @@ void print_void_window(enum analysis_type an_type,
 	
 }
 #endif
+
+
+#ifdef SAMPLE_BY_SAMPLE_LOG
+#ifdef FORCE_CALL_INLINING
+extern inline
+#endif
+void print_queueing_dly_sample(enum analysis_type an_type,  
+	enum bufferbloat_analysis_trigger trig,
+	const tcp_pair_addrblock* addr_pair, 	int dir,
+	utp_stat* bufferbloat_stat_p, int utp_conn_id,delay_t estimated_qd, 
+	const char* type, u_int32_t pkt_size, delay_t last_grossdelay)
+{
+	#ifdef SEVERE_DEBUG
+	if(an_type != LEDBAT && an_type != TCP){
+		printf("ERROR in print_queueing_dly_sample, line %d\n",__LINE__); 
+		exit(414);
+	}
+
+	if(an_type==TCP && trig!=ACK_TRIG 
+		#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+		&& trig!=DATA_TRIG
+		#endif
+	){
+		printf("ERROR in print_queueing_dly_sample, line %d: trig vs ledbat\n",
+			__LINE__); 
+		exit(414);
+	}
+
+	if(an_type == LEDBAT && trig != DONT_CARE_TRIG){
+		printf("ERROR in print_queueing_dly_sample, line %d: trig vs ledbat\n",
+			__LINE__); 
+		exit(414);
+	}
+	#endif
+
+	FILE* fp_qd=NULL;
+	switch (an_type){
+		case TCP:	if(trig == ACK_TRIG)
+						fp_qd = fp_tcp_qd_sample_acktrig_logc;
+					#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+					else 
+						fp_qd = fp_tcp_qd_sample_datatrig_logc ;
+					#endif
+					break;
+
+		default:	fp_qd = fp_ledbat_qd_sample_logc; 
+				break;
+	}
+
+	#ifdef SEVERE_DEBUG
+	if (dir!=S2C && dir!=C2S) {
+		printf("ERROR: dir (%d) not valid\n",dir); exit(7777);
+	}
+
+	if(last_grossdelay < estimated_qd){
+		printf("line %d:ERROR in  print_queueing_dly_sample\n",__LINE__);exit(3356);
+	}
+	#endif
+
+	wfprintf(fp_qd,"%u ",
+		(unsigned) current_time.tv_sec				//1. seconds
+	);	
+
+	wfprintf (fp_qd, "%s %s ",
+      	           HostName (addr_pair->a_address),	//2.ip_addr_1
+       	           ServiceName (addr_pair->a_port));	//3.port_1
+  	wfprintf (fp_qd, "%s %s ",
+       	           HostName (addr_pair->b_address),	//4.ip_addr_2
+       	           ServiceName (addr_pair->b_port));	//5.port_2
+
+
+	wfprintf (fp_qd, "%d ", dir); 			//6.dir
+	
+	switch(an_type){
+		case (LEDBAT):	wfprintf (fp_qd, "%d ", utp_conn_id); 
+							//7.conn_id
+				break; 
+
+		case (TCP):	wfprintf (fp_qd, "- "); break;
+		default:	fprintf(stderr, "ERROR: analysis type not valid\n"); 
+				exit(54321);
+	}
+
+	wfprintf (fp_qd, "%u %u ",
+		bufferbloat_stat_p->delay_base,		//8.delay_base (milliseconds)
+		estimated_qd				//9.estimated_qd (milliseconds)
+	);
+
+	wfprintf (fp_qd, "- "); 			//10.flowtype
+	wfprintf (fp_qd, "%u", pkt_size); 		//11.pkt_size
+	wfprintf (fp_qd, DELAY_T_FORMAT_SPECIFIER, last_grossdelay);	//12.last_grossdelay(milliseconds)
+	wfprintf (fp_qd, " %s\n", type);	 		//13.<con_type>:<p2p_type>
+	fflush(fp_qd);
+}
+#endif //of SAMPLE_BY_SAMPLE_LOG
+
+
+#ifdef LOG_ALL_CHANCES
+void print_ack_type(const tcp_pair_addrblock* addr_pair, const int dir, enum t_ack ack_type)
+{
+	#ifdef SEVERE_DEBUG
+	if (dir!=S2C && dir!=C2S) {
+		printf("ERROR: dir (%d) not valid\n",dir); exit(7777);
+	}
+	#endif
+
+	FILE* fp_qd=fp_tcp_ack_types_logc;
+
+	wfprintf(fp_qd,"%u ",
+		(unsigned) current_time.tv_sec				//1. seconds
+	);	
+
+	wfprintf (fp_qd, "%s %s ",
+      	           HostName (addr_pair->a_address),	//2.ip_addr_1
+       	           ServiceName (addr_pair->a_port));	//3.port_1
+  	wfprintf (fp_qd, "%s %s ",
+       	           HostName (addr_pair->b_address),	//4.ip_addr_2
+       	           ServiceName (addr_pair->b_port));	//5.port_2
+
+
+	wfprintf (fp_qd, "%d ", dir); 			//6.dir
+	wfprintf (fp_qd, "%d\n", ack_type);		//7.ack_type
+	fflush(fp_qd);
+}
+#endif //of LOG_ALL_CHANCES
+
 
 #ifdef FORCE_CALL_INLINING
 extern inline

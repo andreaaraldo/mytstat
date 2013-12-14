@@ -280,22 +280,26 @@ FILE *fp_skype_logc = NULL;
 FILE *fp_udp_logc = NULL;
 
 
-
 //<aa>
 #ifdef BUFFERBLOAT_ANALYSIS
-	#ifdef SAMPLES_BY_SAMPLES_LOG
-	FILE *fp_ledbat_qd_sample_logc= NULL;
-	FILE *fp_tcp_qd_sample_acktrig_logc= NULL;
-	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
-	FILE *fp_tcp_qd_sample_datatrig_logc= NULL;
-	#endif
-	#endif //of SAMPLES_BY_SAMPLES_LOG
-
 	FILE *fp_ledbat_windowed_qd_logc = NULL;
 	FILE *fp_tcp_windowed_qd_acktrig_logc = NULL;
 	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 	FILE *fp_tcp_windowed_qd_datatrig_logc = NULL;
 	#endif
+
+	#ifdef SAMPLE_BY_SAMPLE_LOG
+	FILE *fp_ledbat_qd_sample_logc= NULL;
+	FILE *fp_tcp_qd_sample_acktrig_logc= NULL;
+	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
+	FILE *fp_tcp_qd_sample_datatrig_logc= NULL;
+	#endif
+	#endif //of SAMPLE_BY_SAMPLE_LOG
+	
+	#ifdef LOG_ALL_CHANCES
+	FILE *fp_tcp_ack_types_logc= NULL;
+	#endif // of LOG_ALL_CHANCES
+	
 #endif //of BUFFERBLOAT_ANALYSIS
 #ifdef SEVERE_DEBUG
 	unsigned int ack_type_counter[T_ACK_NUMBER+1];
@@ -921,13 +925,13 @@ create_new_outfiles (char *filename)
 
 
 #ifdef BUFFERBLOAT_ANALYSIS
-	 #ifdef SAMPLES_BY_SAMPLES_LOG
+	 #ifdef SAMPLE_BY_SAMPLE_LOG
          reopen_logfile(&fp_ledbat_qd_sample_logc,basename,"log_ledbat_qd_sample");
          reopen_logfile(&fp_tcp_qd_sample_acktrig_logc,basename,"log_tcp_qd_sample_acktrig");
          #ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
          reopen_logfile(&fp_tcp_qd_sample_datatrig_logc,basename,"log_tcp_qd_sample_datatrig");
          #endif
-         #endif //of SAMPLES_BY_SAMPLES_LOG
+	 #endif //of SAMPLE_BY_SAMPLE_LOG
          
          reopen_logfile(&fp_ledbat_windowed_qd_logc,basename,"log_ledbat_windowed_qd");
          reopen_logfile(&fp_tcp_windowed_qd_acktrig_logc,basename,"log_tcp_windowed_qd_acktrig");
@@ -935,6 +939,9 @@ create_new_outfiles (char *filename)
          reopen_logfile(&fp_tcp_windowed_qd_datatrig_logc,basename,"log_tcp_windowed_qd_datatrig");
          #endif
 
+         #ifdef LOG_ALL_CHANCES
+         reopen_logfile(&fp_tcp_ack_types_logc,basename,"log_tcp_ack_types");
+         #endif // of LOG_ALL_CHANCES
 #endif //of BUFFERBLOAT_ANALYSIS
 //</aa>
       
@@ -1003,7 +1010,7 @@ void close_all_logfiles()
       if (fp_ledbat_windowed_qd_logc != NULL) 
 	{ gzclose(fp_ledbat_windowed_qd_logc); fp_ledbat_windowed_qd_logc=NULL; }
 
-	#ifdef SAMPLES_BY_SAMPLES_LOG
+	#ifdef SAMPLE_BY_SAMPLE_LOG
       if (fp_ledbat_qd_sample_logc != NULL) 
 	{ gzclose(fp_ledbat_qd_sample_logc); fp_ledbat_qd_sample_logc=NULL; }
 	#endif
@@ -1011,19 +1018,25 @@ void close_all_logfiles()
       if (fp_tcp_windowed_qd_acktrig_logc != NULL) 
 	{ gzclose(fp_tcp_windowed_qd_acktrig_logc); fp_tcp_windowed_qd_acktrig_logc=NULL; }
 	
-	#ifdef SAMPLES_BY_SAMPLES_LOG
+	#ifdef SAMPLE_BY_SAMPLE_LOG
       if (fp_tcp_qd_sample_acktrig_logc != NULL) 
 	{ gzclose(fp_tcp_qd_sample_acktrig_logc); fp_tcp_qd_sample_acktrig_logc=NULL; }
 	#endif
+	
+	#ifdef LOG_ALL_CHANCES
+      if (fp_tcp_ack_types_logc != NULL) 
+	{ gzclose(fp_tcp_ack_types_logc); fp_tcp_ack_types_logc=NULL; }
+	#endif
+
 	
 	#ifdef DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
       if (fp_tcp_windowed_qd_datatrig_logc != NULL) 
 	{ gzclose(fp_tcp_windowed_qd_datatrig_logc); fp_tcp_windowed_qd_datatrig_logc=NULL; }
 	
-	#ifdef SAMPLES_BY_SAMPLES_LOG
+	#ifdef SAMPLE_BY_SAMPLE_LOG
       if (fp_tcp_qd_sample_datatrig_logc != NULL) 
 	{ gzclose(fp_tcp_qd_sample_datatrig_logc); fp_tcp_qd_sample_datatrig_logc=NULL; }
-	#endif //of SAMPLES_BY_SAMPLES_LOG
+	#endif //of SAMPLE_BY_SAMPLE_LOG
 	#endif //of DATA_TRIGGERED_BUFFERBLOAT_ANALYSIS
 #endif //of BUFFERBLOAT_ANALYSIS
 
