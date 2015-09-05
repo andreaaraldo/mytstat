@@ -1,0 +1,16 @@
+*.o
+*.old
+*~
+out/*
+Makefile
+autom4te.cache/
+config.h
+config.log
+config.status
+config/
+configure
+libtool
+libtstat-demo/.deps/
+libtstat/.deps/
+tstat/.deps/
+tstat/tstat
